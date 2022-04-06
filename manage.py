@@ -2,11 +2,17 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
+from decouple import config
 
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'citbank.settings')
+    # print(config('.env', ''), config('name', 'hhh') == 'hhh', f"--{os.getenv('env', 'dev')}--")
+    if config('.env', '') == 'prod' or os.getenv('env', 'dev') == 'prod':
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'citbank.settings.prod')
+    else:
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'citbank.settings.dev')
+
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
