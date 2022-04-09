@@ -29,10 +29,5 @@ class LoginView(APIView):
 
         return Response({})
 
-from .serializers import *
-class ViewUser(rest_framework.generics.ListAPIView):
-    permission_classes = []
-    serializer_class = CustomerSerializer
-    queryset = Customer.objects.all()
 
 
