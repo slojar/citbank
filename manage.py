@@ -4,11 +4,14 @@ import os
 import sys
 from decouple import config
 
+f = open('.env', 'a+')
+f.close()
+
 
 def main():
     """Run administrative tasks."""
-    # print(config('.env', ''), config('name', 'hhh') == 'hhh', f"--{os.getenv('env', 'dev')}--")
-    if config('.env', '') == 'prod' or os.getenv('env', 'dev') == 'prod':
+
+    if config('env', '') == 'prod' or os.getenv('env', 'dev') == 'prod':
         os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'citbank.settings.prod')
     else:
         os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'citbank.settings.dev')

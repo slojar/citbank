@@ -1,12 +1,16 @@
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls import static
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # Simple JWT
-    path('access/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('refresh/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('verify/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    path('account/', include("account.urls")),
+
 ]
+
+# urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+
