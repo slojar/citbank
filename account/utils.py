@@ -97,7 +97,7 @@ def create_new_customer(data, account_no):
 
     # Create customer account
     for account in accounts:
-        customer_acct, _ = CustomerAccount.objects.get_or_create(customer=customer, account_no=account['AccountNumber'])
+        customer_acct, _ = CustomerAccount.objects.get_or_create(customer=customer, account_no=account['NUBAN'])
         customer_acct.account_type = account['AccountType']
         customer_acct.save()
 

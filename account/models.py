@@ -25,7 +25,7 @@ class Customer(models.Model):
 
 class CustomerAccount(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    account_no = models.CharField(max_length=20)
+    account_no = models.CharField(max_length=10, null=True, blank=True)
     account_type = models.CharField(max_length=200, blank=True, null=True)
     card_no = models.CharField(max_length=200, blank=True, null=True)
     active = models.BooleanField(default=True)
