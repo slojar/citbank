@@ -12,7 +12,7 @@ class CustomerSerializer(serializers.ModelSerializer):
     accounts = serializers.SerializerMethodField()
 
     def get_accounts(self, obj):
-        return CustomerSerializer(CustomerAccount.objects.filter(customer=obj), many=True).data
+        return CustomerAccountSerializer(CustomerAccount.objects.filter(customer=obj), many=True).data
 
     class Meta:
         model = Customer

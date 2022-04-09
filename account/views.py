@@ -1,3 +1,4 @@
+import rest_framework.generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -27,5 +28,11 @@ class LoginView(APIView):
     def post(self, request):
 
         return Response({})
+
+from .serializers import *
+class ViewUser(rest_framework.generics.ListAPIView):
+    permission_classes = []
+    serializer_class = CustomerSerializer
+    queryset = Customer.objects.all()
 
 

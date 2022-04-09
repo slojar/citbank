@@ -6,10 +6,10 @@ from django.contrib.auth.models import User
 
 class Customer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    customerID = models.CharField(max_length=200, default=str(uuid.uuid4()))
+    customerID = models.CharField(max_length=200, null=True, blank=True)
     other_name = models.CharField(max_length=100, blank=True, null=True)
     gender = models.CharField(max_length=20, blank=True, null=True)
-    dob = models.DateTimeField(null=True, blank=True)
+    dob = models.CharField(max_length=50, null=True, blank=True)
     phone_number = models.CharField(max_length=15)
     bvn = models.CharField(max_length=200)
     nin = models.CharField(max_length=200, blank=True, null=True)
@@ -25,7 +25,7 @@ class Customer(models.Model):
 
 class CustomerAccount(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    account_no = models.CharField(max_length=10)
+    account_no = models.CharField(max_length=20)
     account_type = models.CharField(max_length=200, blank=True, null=True)
     card_no = models.CharField(max_length=200, blank=True, null=True)
     active = models.BooleanField(default=True)
