@@ -22,7 +22,6 @@ def get_account_by_account_no(account_no):
     payload['accountNumber'] = account_no
 
     response = requests.request('GET', url=url, params=payload)
-
     log_request(url, payload, response.json())
     return response
 

@@ -2,11 +2,20 @@ import base64
 import uuid
 from cryptography.fernet import Fernet
 from django.conf import settings
+
+from django.contrib.auth import login, authenticate
+
 from django.contrib.auth.hashers import make_password
+
 from django.contrib.auth.models import User
 
 from bankone.api import get_account_by_account_no, send_sms
 from .models import Customer, CustomerAccount, CustomerOTP
+
+from bankone.api import get_account_by_account_no
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+from cryptography.fernet import Fernet
+
 
 
 def generate_new_otp(phone_number):
@@ -26,6 +35,7 @@ def send_otp_message(phone_number, content, account_no):
     detail = 'OTP successfully sent'
 
     return True, detail
+
 
 
 def encrypt_text(text: str):
@@ -76,6 +86,7 @@ def create_new_customer(data, account_no):
         response = get_account_by_account_no(account_no)
         if response.status_code != 200:
             for response in response.json():
+                # print("from for loop: ", response, f"response.json: ", response.json())
                 detail = response['error-Message']
                 return success, detail
 
@@ -108,6 +119,7 @@ def create_new_customer(data, account_no):
     user = User.objects.create(email=email, password=make_password(password), last_name=last_name,
                                first_name=first_name, username=email)
 
+
     customer, created = Customer.objects.get_or_create(user=user)
     customer.customerID = customer_id
     customer.dob = customer_data['CustomerDetails']['DateOfBirth']
@@ -128,5 +140,27 @@ def create_new_customer(data, account_no):
     return True, detail
 
 
+def authenticate_user(request) -> (str, bool):
+    try:
+        username, password, details, success = request.data.get('username'), request.data.get('password'), '', False
 
+        if not (username and password):
+            details, success = "Username and Password are required for login", success
+            return details, success
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+
+        if request.user.is_authenticated:
+            details, success = "You are Logged In", True
+            return details, success
+
+        details, success = "Details Does not match any Users", success
+        return details, success
+
+    except (Exception, ) as err:
+        details, success = str(err), False
+        return details, success
 
