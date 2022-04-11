@@ -1,10 +1,31 @@
 import base64
-from django.conf import settings
-from django.contrib.auth.models import User
-from .models import Customer, CustomerAccount, CustomerOTP
-from bankone.api import get_account_by_account_no
-
+import uuid
 from cryptography.fernet import Fernet
+from django.conf import settings
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth.models import User
+
+from bankone.api import get_account_by_account_no, send_sms
+from .models import Customer, CustomerAccount, CustomerOTP
+
+
+def generate_new_otp(phone_number):
+    otp = str(uuid.uuid4().int)[:6]
+    otp_obj, _ = CustomerOTP.objects.get_or_create(phone_number=phone_number)
+    otp_obj.otp = otp
+    otp_obj.save()
+    return otp
+
+
+def send_otp_message(phone_number, content, account_no):
+    success = False
+    response = send_sms(account_no, content, receiver=phone_number)
+    if response['Status'] is False:
+        detail = 'OTP not sent, please try again later'
+        return success, detail
+    detail = 'OTP successfully sent'
+
+    return True, detail
 
 
 def encrypt_text(text: str):
@@ -28,9 +49,10 @@ def create_new_customer(data, account_no):
     transaction_pin_confirm = data.get('transaction_pin_confirm')
     password = data.get('password')
     password_confirm = data.get('password_confirm')
+    token = data.get('otp')
 
-    if not transaction_pin or not password or not transaction_pin_confirm or not password_confirm:
-        detail = 'Transaction PIN and Password are required'
+    if not transaction_pin or not password or not transaction_pin_confirm or not password_confirm or not token:
+        detail = 'Transaction PIN, OTP, and Password are required'
         return success, detail
 
     if len(transaction_pin) != 4:
@@ -83,7 +105,8 @@ def create_new_customer(data, account_no):
         detail = 'Account is already registered, please proceed to login with your credentials'
         return success, detail
 
-    user = User.objects.create(email=email, password=password, last_name=last_name, first_name=first_name, username=email)
+    user = User.objects.create(email=email, password=make_password(password), last_name=last_name,
+                               first_name=first_name, username=email)
 
     customer, created = Customer.objects.get_or_create(user=user)
     customer.customerID = customer_id

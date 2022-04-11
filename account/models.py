@@ -35,12 +35,12 @@ class CustomerAccount(models.Model):
 
 
 class CustomerOTP(models.Model):
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    phone_number = models.CharField(max_length=24, blank=True, null=True)
     otp = models.CharField(max_length=6, blank=True, null=True)
     updated_on = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.customer.user} - {self.otp}"
+        return f"{self.phone_number} - {self.otp}"
 
 
 

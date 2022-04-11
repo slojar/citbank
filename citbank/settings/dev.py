@@ -44,6 +44,9 @@ BANK_ONE_AUTH_TOKEN = "405a3250-6758-4f16-a1a2-021029ed8bfb"
 BANK_ONE_VERSION = "2"
 BANK_ONE_BASE_URL = "https://staging.mybankone.com/BankOneWebAPI/api"
 
+# CIT
+CIT_INSTITUTION_CODE = "100321"
+
 # Activate Django-Heroku.
 django_heroku.settings(locals())
 
