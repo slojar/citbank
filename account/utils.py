@@ -1,21 +1,16 @@
 import base64
 import uuid
-from cryptography.fernet import Fernet
+
 from django.conf import settings
-
 from django.contrib.auth import login, authenticate
-
 from django.contrib.auth.hashers import make_password
-
 from django.contrib.auth.models import User
 
-from bankone.api import get_account_by_account_no, send_sms
 from .models import Customer, CustomerAccount, CustomerOTP
 
-from bankone.api import get_account_by_account_no
-from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
-from cryptography.fernet import Fernet
+from bankone.api import get_account_by_account_no, send_sms
 
+from cryptography.fernet import Fernet
 
 
 def generate_new_otp(phone_number):
@@ -35,7 +30,6 @@ def send_otp_message(phone_number, content, account_no):
     detail = 'OTP successfully sent'
 
     return True, detail
-
 
 
 def encrypt_text(text: str):
@@ -69,6 +63,10 @@ def create_new_customer(data, account_no):
         detail = 'Transactional PIN can only be 4 digit'
         return success, detail
 
+    if len(password) != 8:
+        detail = 'Password can only be 8 characters'
+        return success, detail
+
     if transaction_pin != transaction_pin_confirm:
         detail = 'Transaction PIN mismatch'
         return success, detail
@@ -96,6 +94,11 @@ def create_new_customer(data, account_no):
         bvn = customer_data['CustomerDetails']['BVN']
         email = customer_data['CustomerDetails']['Email']
         names = str(customer_data['CustomerDetails']['Name']).split(',')
+        phone_number = customer_data['CustomerDetails']['PhoneNumber']
+
+        if token != CustomerOTP.objects.get(phone_number=phone_number).otp:
+            detail = 'OTP is not valid'
+            return success, detail
 
         last_name, first_name = '', ''
 
@@ -119,12 +122,11 @@ def create_new_customer(data, account_no):
     user = User.objects.create(email=email, password=make_password(password), last_name=last_name,
                                first_name=first_name, username=email)
 
-
     customer, created = Customer.objects.get_or_create(user=user)
     customer.customerID = customer_id
     customer.dob = customer_data['CustomerDetails']['DateOfBirth']
     customer.gender = customer_data['CustomerDetails']['Gender']
-    customer.phone_number = customer_data['CustomerDetails']['PhoneNumber']
+    customer.phone_number = phone_number
     customer.bvn = encrypted_bvn
     customer.transaction_pin = encrypted_trans_pin
     customer.active = True
@@ -145,10 +147,11 @@ def authenticate_user(request) -> (str, bool):
         username, password, details, success = request.data.get('username'), request.data.get('password'), '', False
 
         if not (username and password):
-            details, success = "Username and Password are required for login", success
+            details, success = "Username and Password are required", success
             return details, success
 
         user = authenticate(request, username=username, password=password)
+        print(user)
 
         if user is not None:
             login(request, user)
@@ -159,7 +162,6 @@ def authenticate_user(request) -> (str, bool):
 
         details, success = "Details Does not match any Users", success
         return details, success
-
     except (Exception, ) as err:
         details, success = str(err), False
         return details, success

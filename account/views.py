@@ -5,12 +5,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+
+from .serializers import CustomerSerializer
 from .utils import create_new_customer, authenticate_user
 
 from bankone.api import get_account_by_account_no
-from .models import CustomerAccount
+from .models import CustomerAccount, Customer
 from .utils import create_new_customer, generate_new_otp, send_otp_message
-
 
 
 class SignupView(APIView):
@@ -35,13 +36,12 @@ class LoginView(APIView):
 
     def post(self, request):
         details, success = authenticate_user(request)
+        data = CustomerSerializer(Customer.objects.get(user=request.user)).data
         if success:
             return Response({
-                "detail": details, "success": success, "access_token": str(AccessToken.for_user(request.user)),
-                "refresh_token": str(RefreshToken.for_user(request.user)), "status": status.HTTP_200_OK})
-
-        return Response({
-            "detail": details, "success": success, "status": status.HTTP_400_BAD_REQUEST})
+                "detail": details, "access_token": str(AccessToken.for_user(request.user)),
+                "refresh_token": str(RefreshToken.for_user(request.user)), 'data': data})
+        return Response({"detail": details}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # class LogoutView(APIView):
