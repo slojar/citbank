@@ -51,7 +51,7 @@ class LoginView(APIView):
 #         logout(request)
 #         return Response({"detail": "Log Out Successfully", "authenticated": False, "status": status.HTTP_403_FORBIDDEN})
 
-        # return Response({})
+# return Response({})
 
 
 class SignupOtpView(APIView):
@@ -76,10 +76,8 @@ class SignupOtpView(APIView):
         otp = generate_new_otp(phone_number)
         content = f"Dear {name} \nKindly use this OTP: {otp} to complete " \
                   f"your registration on CIT Mobile App."
-        success, detail = send_otp_message(phone_number, content, account_no)
-        if success is False:
-            return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({'detail': detail})
-
-
-
+        # success, detail = send_otp_message(phone_number, content, account_no)
+        # if success is False:
+        #     return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+        # return Response({'detail': detail})
+        return Response({'detail': "OTP successfully sent", "otp": otp})  # To be removed when message API start working
