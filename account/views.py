@@ -17,7 +17,7 @@ from .utils import create_new_customer, generate_new_otp, send_otp_message
 
 
 def home(request):
-    return HttpResponse("<h1>CIT Bank</h1>")
+    return HttpResponse("<h1>CIT Bank (Development)</h1>")
 
 
 class SignupView(APIView):
