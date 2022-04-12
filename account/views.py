@@ -1,5 +1,7 @@
 import rest_framework.generics
 from django.contrib.auth import login, authenticate, logout
+from django.http import HttpResponse
+
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -12,6 +14,10 @@ from .utils import create_new_customer, authenticate_user
 from bankone.api import get_account_by_account_no
 from .models import CustomerAccount, Customer
 from .utils import create_new_customer, generate_new_otp, send_otp_message
+
+
+def home(request):
+    return HttpResponse("<h1>CIT Bank</h1>")
 
 
 class SignupView(APIView):

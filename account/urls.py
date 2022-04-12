@@ -5,10 +5,11 @@ from . import views
 
 
 urlpatterns = [
-    path('signup/', views.SignupView.as_view(), name='sign-up'),
-    path('login/', views.LoginView.as_view(), name='login'),
-    path('refresh-token/', TokenRefreshView.as_view(), name='refresh-token'),
-    path('signup-otp/', views.SignupOtpView.as_view(), name='sign-up-otp'),
+    path('', views.home, name="home"),
+    path('account/signup/', views.SignupView.as_view(), name='sign-up'),
+    path('account/login/', views.LoginView.as_view(), name='login'),
+    path('account/refresh-token/', TokenRefreshView.as_view(), name='refresh-token'),
+    path('account/signup-otp/', views.SignupOtpView.as_view(), name='sign-up-otp'),
 
 ]
 
