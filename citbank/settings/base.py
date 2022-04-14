@@ -115,8 +115,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 STATIC_URL = 'static/'
 
 
-
-
 # Simple JWT
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=30),

@@ -47,16 +47,6 @@ class LoginView(APIView):
         return Response({"detail": details}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# class LogoutView(APIView):
-#     permission_classes = [IsAuthenticated]
-#
-#     def post(self, request):
-#         logout(request)
-#         return Response({"detail": "Log Out Successfully", "authenticated": False, "status": status.HTTP_403_FORBIDDEN})
-
-        # return Response({})
-
-
 class SignupOtpView(APIView):
     permission_classes = []
 

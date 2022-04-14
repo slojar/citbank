@@ -22,9 +22,6 @@ class Customer(models.Model):
     def __str__(self):
         return f"{self.user.first_name}-{self.user.last_name}"
 
-    # def image_url(self):
-    #     return str(self.image.url)
-
 
 class CustomerAccount(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)

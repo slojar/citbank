@@ -49,81 +49,25 @@
         <!-- ============================================================== -->
         <!-- Topbar header - style you can find in pages.scss -->
         <!-- ============================================================== -->
-        <header class="topbar" data-navbarbg="skin5">
-            <nav class="navbar top-navbar navbar-expand-md navbar-dark">
-                <div class="navbar-header" data-logobg="skin5">
-                    <!-- ============================================================== -->
-                    <!-- Logo -->
-                    <!-- ============================================================== -->
-                    <a class="navbar-brand" href="index.html">
-                        <!-- Logo icon -->
-                        <b class="logo-icon">
-                            <!--You can put here icon as well // <i class="wi wi-sunset"></i> //-->
-                            <!-- Dark Logo icon -->
-                            <img src="{% static 'superadmin/assets/images/logo-icon.png' %}" alt="homepage" class="dark-logo" />
-                            <!-- Light Logo icon -->
-                            <img src="{% static 'superadmin/assets/images/logo-light-icon.png' %}" alt="homepage" class="light-logo" />
-                        </b>
-                        <!--End Logo icon -->
-                        <!-- Logo text -->
-                        <span class="logo-text">
-                            <!-- dark Logo text -->
-                            <img src="{% static 'superadmin/assets/images/logo-text.png' %}" alt="homepage" class="dark-logo" />
-                            <!-- Light Logo text -->
-                            <img src="{% static 'superadmin/assets/images/logo-light-text.png' %}" class="light-logo" alt="homepage" />
-                        </span>
-                    </a>
-                    <!-- ============================================================== -->
-                    <!-- End Logo -->
-                    <!-- ============================================================== -->
-                    <!-- This is for the sidebar toggle which is visible on mobile only -->
-                    <a class="nav-toggler waves-effect waves-light d-block d-md-none" href="javascript:void(0)"><i
-                            class="ti-menu ti-close"></i></a>
+        <header class="topbar" data-navbarbg="skin9">
+            <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+              <div class="container-fluid">
+                <a class="navbar-brand" href="#">Navbar</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                  <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                  <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                      <a class="nav-link active" aria-current="page" href="">Dashboard</a>
+                    </li>
+                  </ul>
+                  <form method="GET" action="{% url 'superadmin:index' %}" class="d-flex">
+                    <input class="form-control me-4" type="search" placeholder="Search" aria-label="Search" name="query">
+                      <input type="submit" class="btn btn-outline-success" name="Submit" value="search"/>
+                  </form>
                 </div>
-                <!-- ============================================================== -->
-                <!-- End Logo -->
-                <!-- ============================================================== -->
-                <div class="navbar-collapse collapse" id="navbarSupportedContent" data-navbarbg="skin5">
-                    <!-- ============================================================== -->
-                    <!-- toggle and nav items -->
-                    <!-- ============================================================== -->
-                    <ul class="navbar-nav float-start me-auto">
-                        <!-- ============================================================== -->
-                        <!-- Search -->
-                        <!-- ============================================================== -->
-                        <li class="nav-item search-box"> <a class="nav-link waves-effect waves-dark"
-                                href="javascript:void(0)"><i class="ti-search"></i></a>
-                            <form class="app-search position-absolute">
-                                <input type="text" class="form-control" placeholder="Search &amp; enter"> <a
-                                    class="srh-btn"><i class="ti-close"></i></a>
-                            </form>
-                        </li>
-                    </ul>
-                    <!-- ============================================================== -->
-                    <!-- Right side toggle and nav items -->
-                    <!-- ============================================================== -->
-                    <ul class="navbar-nav float-end">
-                        <!-- ============================================================== -->
-                        <!-- User profile and search -->
-                        <!-- ============================================================== -->
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle text-muted waves-effect waves-dark pro-pic" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <img src="{% static 'superadmin/assets/images/users/1.jpg' %}" alt="user" class="rounded-circle" width="31">
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end user-dd animated" aria-labelledby="navbarDropdown">
-                                <a class="dropdown-item" href="javascript:void(0)"><i class="ti-user m-r-5 m-l-5"></i>
-                                    My Profile</a>
-                                <a class="dropdown-item" href="javascript:void(0)"><i class="ti-wallet m-r-5 m-l-5"></i>
-                                    My Balance</a>
-                                <a class="dropdown-item" href="javascript:void(0)"><i class="ti-email m-r-5 m-l-5"></i>
-                                    Inbox</a>
-                            </ul>
-                        </li>
-                        <!-- ============================================================== -->
-                        <!-- User profile and search -->
-                        <!-- ============================================================== -->
-                    </ul>
-                </div>
+              </div>
             </nav>
         </header>
         <!-- ============================================================== -->
@@ -138,15 +82,11 @@
                 <!-- Sidebar navigation-->
                 <nav class="sidebar-nav">
                     <ul id="sidebarnav">
-
-<!--                        <li class="p-15 m-t-10"><a href="javascript:void(0)"-->
-<!--                                class="btn d-block w-100 create-btn text-white no-block d-flex align-items-center"><i-->
-<!--                                    class="fa fa-plus-square"></i> <span class="hide-menu m-l-5">Create New</span> </a>-->
-<!--                        </li>-->
                         <!-- User Profile-->
                         <li class="sidebar-item"> <a class="sidebar-link waves-effect waves-dark sidebar-link"
-                                href="index.html" aria-expanded="false"><i class="mdi mdi-view-dashboard"></i><span
-                                    class="hide-menu">Dashboard</span></a></li>
+                                href="" aria-expanded="false"><i class="mdi mdi-view-dashboard"></i><span
+                                    class="hide-menu">Dashboard</span></a>
+                        </li>
                     </ul>
 
                 </nav>
@@ -167,12 +107,10 @@
             <div class="page-breadcrumb">
                 <div class="row align-items-center">
                     <div class="col-5">
-                        <h4 class="page-title">Dashboard</h4>
                         <div class="d-flex align-items-center">
                             <nav aria-label="breadcrumb">
                                 <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="#">Home</a></li>
-                                    <li class="breadcrumb-item active" aria-current="page">Library</li>
+                                    <h4 class="page-title">Dashboard</h4>
                                 </ol>
                             </nav>
                         </div>
@@ -180,7 +118,7 @@
                     <div class="col-7">
                         <div class="text-end upgrade-btn">
                             <a href="https://www.wrappixel.com/templates/xtremeadmin/" class="btn btn-danger text-white"
-                                target="_blank">Free Space to Add Anything</a>
+                                target="_blank">{% now 'DATE_FORMAT' %}</a>
                         </div>
                     </div>
                 </div>
@@ -203,18 +141,17 @@
                                 <!-- title -->
                                 <div class="d-md-flex">
                                     <div>
-                                        <h4 class="card-title">Top Selling Products</h4>
-                                        <h5 class="card-subtitle">Overview of Top Selling Items</h5>
+                                        <h4 class="card-title">Customer List</h4>
                                     </div>
                                     <div class="ms-auto">
-                                        <div class="dl">
-                                            <select class="form-select shadow-none">
-                                                <option value="0" selected>Monthly</option>
-                                                <option value="1">Daily</option>
-                                                <option value="2">Weekly</option>
-                                                <option value="3">Yearly</option>
-                                            </select>
-                                        </div>
+<!--                                        <div class="dl">-->
+<!--                                            <select class="form-select shadow-none">-->
+<!--                                                <option value="0" selected>Monthly</option>-->
+<!--                                                <option value="1">Daily</option>-->
+<!--                                                <option value="2">Weekly</option>-->
+<!--                                                <option value="3">Yearly</option>-->
+<!--                                            </select>-->
+<!--                                        </div>-->
                                     </div>
                                 </div>
                                 <!-- title -->
@@ -235,52 +172,53 @@
                                         </tr>
                                     </thead>
                                     <tbody>
+                        {% if customers != None %}
+                                {% for customer in customers %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <a class="nav-link dropdown-toggle text-muted waves-effect waves-dark pro-pic" href="{{ customer.image.url }}" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <img src="{{ customer.image.url }}" alt="user" class="rounded-circle" width="31">
+                                                </a>
+                                            </div>
+                                        </td>
+                                        <td>{{ customer }}</td>
+                                        <td>{{ customer.customerID }}</td>
+                                        <td>
+                                            {% if customer.other_name == None %}
+                                                <center>-</center>
+                                            {% else %}
+                                                {{ customer.other_name }}
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% for i in customer.customeraccount_set.all %}
+                                                <p>
+                                                    {% if i.account_no != "" %}
+                                                        {{ i.account_no }}
+                                                    {% endif %}
+                                                </p>
+                                            {% endfor %}
+                                        </td>
+                                        <td>
+                                            {% for i in customer.customeraccount_set.all %}
+                                                <p>
+                                                    {% if i.account_no != "" %}
+                                                        {{ i.account_type }}
+                                                    {% endif %}
 
-                                    {% for customer in customers %}
-                                        <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    <a class="nav-link dropdown-toggle text-muted waves-effect waves-dark pro-pic" href="{{ customer.image.url }}" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                                            <img src="{{ customer.image.url }}" alt="user" class="rounded-circle" width="31">
-                                                    </a>
-                                                </div>
-                                            </td>
-                                            <td>{{ customer }}</td>
-                                            <td>{{ customer.customerID }}</td>
-                                            <td>
-                                                <label class="label label-danger">{{ customer.other_name }}</label>
-                                            </td>
-                                            <td>
-                                                {% for i in customer.customeraccount_set.all %}
-                                                    <p>
-                                                        {% if i.account_no == "" %}
-                                                            No Account
-                                                        {% else %}
-                                                            {{ i.account_no }}
-                                                        {% endif %}
-                                                    </p>
-                                                {% endfor %}
-                                            </td>
-                                            <td>
-                                                {% for i in customer.customeraccount_set.all %}
-                                                    <p>
-                                                        {% if i.account_type == None %}
-                                                            No Type
-                                                        {% else %}
-                                                            {{ i.account_type }}
-                                                        {% endif %}
-                                                    </p>
-                                                {% endfor %}
-                                            </td>
-                                            <td>{{ customer.phone_number }}</td>
-                                            <td>
-                                                <h5 class="m-b-0">{{ customer.gender }}</h5>
-                                            </td>
-                                            <td>{{ customer.dob }}</td>
-                                        </tr>
-                                        <hr>
-
-                                    {% endfor %}
+                                                </p>
+                                            {% endfor %}
+                                        </td>
+                                        <td>{{ customer.phone_number }}</td>
+                                        <td>
+                                            <h5 class="m-b-0">{{ customer.gender }}</h5>
+                                        </td>
+                                        <td>{{ customer.dob|truncatewords:1 }}</td>
+                                    </tr>
+                                    <hr>
+                                {% endfor %}
+                        {% endif %}
                                     </tbody>
                                 </table>
                             </div>
