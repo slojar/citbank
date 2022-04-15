@@ -16,3 +16,4 @@ log.log
 *.DS_Store
 
 # Project image and file folders
+profile_picture/
