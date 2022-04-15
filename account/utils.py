@@ -192,5 +192,4 @@ def validate_password(new_password):
         else:
             check, detail = True, "Password has been changed successfully"
             break
-    print(detail)
     return check, detail
