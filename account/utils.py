@@ -166,3 +166,32 @@ def authenticate_user(request) -> (str, bool):
         details, success = str(err), False
         return details, success
 
+import re
+
+
+def validate_password(new_password):
+    check, detail = False, ""
+    while True:
+        if len(new_password) < 8:
+            detail = "Password Length must be 8 or above"
+            break
+        elif not (re.search("[a-z]", new_password)):
+            detail = "Password must consist of Lower case"
+            break
+        elif not (re.search("[A-Z]", new_password)):
+            detail = "Password must consist of Upper case"
+            break
+        elif not (re.search("[0-9]", new_password)):
+            detail = "Password must consist of Digits"
+            break
+        elif not (re.search("[!@#$%_+=?]", new_password)):
+            detail = "Password must consist of Special Characters '!@#$%^&*()_+={}/<.>?'"
+            break
+        elif re.search("\s", new_password):
+            detail = "Password should not contain white space"
+            break
+        else:
+            check, detail = True, "Password has been changed successfully"
+            break
+    print(detail)
+    return check, detail
