@@ -147,20 +147,19 @@ def authenticate_user(request) -> (str, bool):
         username, password, details, success = request.data.get('username'), request.data.get('password'), '', False
 
         if not (username and password):
-            details, success = "Username and Password are required", success
+            details, success = "username and password are required", success
             return details, success
 
         user = authenticate(request, username=username, password=password)
-        print(user)
 
         if user is not None:
             login(request, user)
 
         if request.user.is_authenticated:
-            details, success = "You are Logged In", True
+            details, success = "Login successful", True
             return details, success
 
-        details, success = "Details Does not match any Users", success
+        details, success = "username or password is incorrect", success
         return details, success
     except (Exception, ) as err:
         details, success = str(err), False

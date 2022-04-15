@@ -1,5 +1,3 @@
-import rest_framework.generics
-from django.contrib.auth import login, authenticate, logout
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -36,22 +34,12 @@ class LoginView(APIView):
 
     def post(self, request):
         details, success = authenticate_user(request)
-        data = CustomerSerializer(Customer.objects.get(user=request.user)).data
-        if success:
+        if success is True:
+            data = CustomerSerializer(Customer.objects.get(user=request.user)).data
             return Response({
                 "detail": details, "access_token": str(AccessToken.for_user(request.user)),
                 "refresh_token": str(RefreshToken.for_user(request.user)), 'data': data})
         return Response({"detail": details}, status=status.HTTP_400_BAD_REQUEST)
-
-
-# class LogoutView(APIView):
-#     permission_classes = [IsAuthenticated]
-#
-#     def post(self, request):
-#         logout(request)
-#         return Response({"detail": "Log Out Successfully", "authenticated": False, "status": status.HTTP_403_FORBIDDEN})
-
-# return Response({})
 
 
 class SignupOtpView(APIView):
@@ -81,3 +69,27 @@ class SignupOtpView(APIView):
         #     return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
         # return Response({'detail': detail})
         return Response({'detail': "OTP successfully sent", "otp": otp})  # To be removed when message API start working
+
+
+class CustomerProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        query = CustomerSerializer(Customer.objects.get(user=request.user), context={'request': request}).data
+        return Response(query)
+
+    def put(self, request):
+        profile_picture = request.data.get('profile_picture')
+
+        if not profile_picture:
+            return Response({'detail': 'No picture not selected'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            customer = Customer.objects.get(user=request.user)
+            customer.image = profile_picture
+            customer.save()
+            return Response({'detail': 'Profile updated'})
+        except Exception as err:
+            return Response({'detail': 'An error has occurred', 'error': str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
