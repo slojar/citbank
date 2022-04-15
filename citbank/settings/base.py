@@ -1,4 +1,5 @@
 import logging
+import os.path
 from pathlib import Path
 from datetime import timedelta
 
@@ -29,7 +30,8 @@ INSTALLED_APPS = [
     'storages',
 
     # modules
-    'account.apps.AccountConfig'
+    'account.apps.AccountConfig',
+    'superadmin.apps.SuperadminConfig'
 ]
 
 MIDDLEWARE = [
@@ -53,14 +55,12 @@ REST_FRAMEWORK = {
     ],
 }
 
-
 ROOT_URLCONF = 'citbank.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates']
-        ,
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -114,8 +114,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 STATIC_URL = 'static/'
 
-# Simple JWT
 
+# Simple JWT
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=60),

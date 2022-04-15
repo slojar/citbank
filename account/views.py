@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from .serializers import CustomerSerializer
-from .utils import create_new_customer, authenticate_user
+from .utils import create_new_customer, authenticate_user, validate_password
 
 from bankone.api import get_account_by_account_no
 from .models import CustomerAccount, Customer
@@ -92,4 +92,41 @@ class CustomerProfileView(APIView):
             return Response({'detail': 'An error has occurred', 'error': str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ChangePasswordView(APIView):
+
+    def post(self, request):
+        try:
+            data = request.data
+            old_password = data.get('old_password', '')
+            new_password = data.get('new_password', '')
+            confirm_password = data.get('confirm_password', '')
+            # print(data, old_password, new_password)
+
+            # Check if old password matches the present password
+            old_user_password = request.user.check_password(old_password)
+
+            if not old_user_password:
+                return Response({"detail": "password is wrong"})
+
+            # Check if old and new password are the same.
+            if old_password == new_password:
+                return Response({"detail": "previously used passwords are not allowed"})
+
+            # Check if new and confirm password are not the same
+            if new_password != confirm_password:
+                return Response({"detail": "Passwords, does not match"})
+
+            # Check if password has atleast (more than 8 chars, 1 special char, 1 digit, 1 lower case, 1 Upper case)
+            check, detail = validate_password(new_password)
+
+            if not check:
+                raise Exception(detail)
+
+            user = request.user
+            user.set_password(new_password)
+            user.save()
+
+            return Response({"detail": detail})
+        except (Exception, ) as err:
+            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 

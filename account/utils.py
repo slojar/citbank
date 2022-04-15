@@ -1,5 +1,6 @@
 import base64
 import uuid
+import re
 
 from django.conf import settings
 from django.contrib.auth import login, authenticate
@@ -63,10 +64,6 @@ def create_new_customer(data, account_no):
         detail = 'Transactional PIN can only be 4 digit'
         return success, detail
 
-    if len(password) != 8:
-        detail = 'Password can only be 8 characters'
-        return success, detail
-
     if transaction_pin != transaction_pin_confirm:
         detail = 'Transaction PIN mismatch'
         return success, detail
@@ -74,6 +71,11 @@ def create_new_customer(data, account_no):
     if password != password_confirm:
         detail = 'Password mismatch'
         return success, detail
+
+    check, detail = validate_password(password)
+
+    if check is False:
+        return check, detail
 
     if CustomerAccount.objects.filter(account_no=account_no).exists():
         detail = 'A profile associated with this account number already exist, please proceed to login or contact admin'
@@ -161,7 +163,34 @@ def authenticate_user(request) -> (str, bool):
 
         details, success = "username or password is incorrect", success
         return details, success
-    except (Exception, ) as err:
+    except (Exception,) as err:
         details, success = str(err), False
         return details, success
 
+
+def validate_password(new_password):
+    check, detail = False, ""
+    while True:
+        if len(new_password) < 8:
+            detail = "Password Length must be 8 or above"
+            break
+        elif not (re.search("[a-z]", new_password)):
+            detail = "Password must consist of Lower case"
+            break
+        elif not (re.search("[A-Z]", new_password)):
+            detail = "Password must consist of Upper case"
+            break
+        elif not (re.search("[0-9]", new_password)):
+            detail = "Password must consist of Digits"
+            break
+        elif not (re.search("[!@#$%_+=?]", new_password)):
+            detail = "Password must consist of Special Characters '!@#$%^&*()_+={}/<.>?'"
+            break
+        elif re.search("\s", new_password):
+            detail = "Password should not contain white space"
+            break
+        else:
+            check, detail = True, "Password has been changed successfully"
+            break
+    print(detail)
+    return check, detail
