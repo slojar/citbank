@@ -184,7 +184,7 @@ def validate_password(new_password):
             detail = "Password must consist of Digits"
             break
         elif not (re.search("[!@#$%_+=?]", new_password)):
-            detail = "Password must consist of Special Characters '!@#$%^&*()_+={}/<.>?'"
+            detail = "Password must consist of Special Characters '!@#$%_+=?'"
             break
         elif re.search("\s", new_password):
             detail = "Password should not contain white space"

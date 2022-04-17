@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -5,11 +6,10 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from .serializers import CustomerSerializer
-from .utils import create_new_customer, authenticate_user, validate_password
+from .utils import create_new_customer, authenticate_user, validate_password, generate_new_otp, send_otp_message
 
 from bankone.api import get_account_by_account_no
-from .models import CustomerAccount, Customer
-from .utils import create_new_customer, generate_new_otp, send_otp_message
+from .models import CustomerAccount, Customer, CustomerOTP
 
 
 class SignupView(APIView):
@@ -106,7 +106,7 @@ class ChangePasswordView(APIView):
             old_user_password = request.user.check_password(old_password)
 
             if not old_user_password:
-                return Response({"detail": "password is wrong"})
+                return Response({"detail": "Old password is wrong"})
 
             # Check if old and new password are the same.
             if old_password == new_password:
@@ -127,6 +127,61 @@ class ChangePasswordView(APIView):
             user.save()
 
             return Response({"detail": detail})
-        except (Exception, ) as err:
+        except (Exception,) as err:
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
+
+class ForgotPasswordOTPView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({"detail": "Email is required"})
+
+        try:
+            user = User.objects.get(email=email)
+            user_phone_number = Customer.objects.get(user=user).phone_number
+            if user_phone_number is not None:
+                otp = generate_new_otp(user_phone_number)
+
+                # send otp via mail and sms
+
+                return Response({"detail": "OTP successfully sent"}, status.HTTP_201_CREATED)
+        except (Exception,) as err:
+            return Response({"detail": "Error", "data": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ForgotPassword(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        otp = request.data.get('otp', '')
+        new_password = request.data.get('new_password', '')
+        confirm_password = request.data.get('confirm_password', '')
+        email = request.data.get('email', '')
+        fields = [otp, new_password, confirm_password, email]
+
+        # Check if all fields are empty
+        if not all(fields):
+            return Response({"detail": "Requires OTP, New Password, Confirm Password and Email Fields"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        try:
+            otp = CustomerOTP.objects.get(otp=otp)
+            user = User.objects.get(email=email)
+
+            if new_password != confirm_password:
+                return Response({"detail": "Passwords does not match"}, status=status.HTTP_400_BAD_REQUEST)
+
+            check, detail = validate_password(new_password)
+
+            if not check:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+
+            if user is not None:
+                user.set_password(new_password)
+                user.save()
+            return Response({"detail": "Successfully changed Password , Login with your new password."})
+
+        except (Exception, ) as err:
+            return Response({"detail": "An Error Occured", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
