@@ -5,6 +5,8 @@ from datetime import timedelta
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+import django.middleware.security
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -33,7 +35,7 @@ INSTALLED_APPS = [
     'account.apps.AccountConfig',
     'superadmin.apps.SuperadminConfig'
 ]
-
+django.middleware.security.SecurityMiddleware
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',

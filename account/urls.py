@@ -13,6 +13,7 @@ urlpatterns = [
     path('change-password/', views.ChangePasswordView.as_view(), name="change-password"),
     path('forgot-password-otp/', views.ForgotPasswordOTPView.as_view(), name="forgot-password-otp"),
     path('forgot-password/', views.ForgotPassword.as_view(), name="forgot-password"),
+    path('change-pin/', views.ChangeTransactionPin.as_view(), name="change-pin"),
 ]
 
 
