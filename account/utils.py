@@ -71,7 +71,7 @@ def create_new_customer(data, account_no):
         detail = 'Transaction PIN, OTP, and Password are required'
         return success, detail
 
-    if len(transaction_pin) != 4:
+    if not (transaction_pin.isnumeric() and len(transaction_pin) == 4):
         detail = 'Transactional PIN can only be 4 digit'
         return success, detail
 

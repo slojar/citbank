@@ -136,11 +136,12 @@ class ChangePasswordView(APIView):
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ForgotPasswordOTPView(APIView):
+class ResetOTPView(APIView):
     permission_classes = []
 
     def post(self, request):
         email = request.data.get('email')
+        reset_type = request.data.get('reset_type', 'password') # password or transaction pin
         if not email:
             return Response({"detail": "Email is required"})
 
@@ -153,11 +154,11 @@ class ForgotPasswordOTPView(APIView):
                 otp = generate_new_otp(user_phone_number)
                 first_name = user.first_name
                 account_no = customer_acct.account_no
-                content = f"Dear {first_name}, \nKindly use this OTP: {otp} to reset your password on CIT Mobile App."
-                subject = "Reset Password on CIT Mobile"
+                content = f"Dear {first_name},\nKindly use this OTP: {otp} to reset your {reset_type} on CIT Mobile App."
+                subject = f"Reset {reset_type} on CIT Mobile"
                 success, detail = send_otp_message(user_phone_number, content, subject, account_no)
                 if success is False:
-                    return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'detail': detail, "otp": otp}, status=status.HTTP_400_BAD_REQUEST)
                 # return Response({'detail': detail})
                 return Response(
                     {'detail': "OTP successfully sent", "otp": otp})  # To be removed when message API start working
@@ -213,28 +214,68 @@ class ChangeTransactionPinView(APIView):
             fields = [old_pin, new_pin, confirm_pin]
 
             if not all(fields):
-                return Response({"detail": "Requires Old, New and Confirm Transaction Pins"},
+                return Response({"detail": "Requires Old, New and Confirm Transaction PIN"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
             customer = Customer.objects.get(user=request.user)
             pin = decrypt_text(customer.transaction_pin)
 
             if old_pin != pin:
-                return Response({"detail": "Old pin does not match current pin"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"detail": "Old PIN is not correct"}, status=status.HTTP_400_BAD_REQUEST)
 
-            if not new_pin.isnumeric() or len(new_pin) != 4:
-                return Response({"detail": "Pin must be 4 digits"}, status=status.HTTP_400_BAD_REQUEST)
+            if not (new_pin.isnumeric() and len(new_pin) == 4):
+                return Response({"detail": "PIN must be 4 digits"}, status=status.HTTP_400_BAD_REQUEST)
 
             if new_pin != confirm_pin:
-                return Response({"detail": "Pin does not match"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"detail": "PIN does not match"}, status=status.HTTP_400_BAD_REQUEST)
 
             if new_pin == old_pin:
-                return Response({"detail": "New Pin can't be the same as the Old Pin"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"detail": "New Pin can't be the same as the Old Pin"},
+                                status=status.HTTP_400_BAD_REQUEST)
 
             encrypt_new_pin = encrypt_text(new_pin)
             customer.transaction_pin = encrypt_new_pin
             customer.save()
 
-            return Response({"detail": "Successfully Changed your Transaction Pin"})
+            return Response({"detail": "Transaction PIN changed successfully"})
         except (Exception, ) as err:
             return Response({"detail": "An error occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ResetTransactionPinView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = request.data.get('otp')
+        new_pin = request.data.get('new_pin')
+        confirm_new_pin = request.data.get('confirm_new_pin')
+
+        if not (token and new_pin and confirm_new_pin):
+            return Response({'detail': 'You may have missed the PIN or OTP input, please check'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        customer = Customer.objects.get(user=request.user)
+        otp = CustomerOTP.objects.get(phone_number=customer.phone_number).otp
+
+        if token != otp:
+            return Response({"detail": "OTP is not valid"}, status=status.HTTP_400_BAD_REQUEST)
+
+        old_tran_pin = decrypt_text(customer.transaction_pin)
+
+        if old_tran_pin == new_pin:
+            return Response({"detail": "PIN not allowed"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not (new_pin.isnumeric() and len(new_pin) == 4):
+            return Response({"detail": "PIN must be 4 digits"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if new_pin != confirm_new_pin:
+            return Response({"detail": "PIN mismatch"}, status=status.HTTP_400_BAD_REQUEST)
+
+        encrypt_new_pin = encrypt_text(new_pin)
+        customer.transaction_pin = encrypt_new_pin
+        customer.save()
+
+        return Response({"detail": "You have successfully reset your transaction PIN"})
+
+
+
