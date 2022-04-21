@@ -2,13 +2,14 @@
 *.env
 *.db.sqlite3
 *.db.sqlite
+db.sqlite3
 jaizussd/db.sqlite3
 __pycache__/
 *.pyc
 .idea
 *.idea
 .idea/*
-log.log
+citbank.log
 *.log
 *.sqlite
 *.sqlite3

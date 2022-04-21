@@ -6,7 +6,8 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from .serializers import CustomerSerializer
-from .utils import create_new_customer, authenticate_user, validate_password, generate_new_otp, send_otp_message
+from .utils import create_new_customer, authenticate_user, validate_password, generate_new_otp, send_otp_message, \
+    format_phone_number
 
 from bankone.api import get_account_by_account_no
 from .models import CustomerAccount, Customer, CustomerOTP
@@ -49,7 +50,10 @@ class SignupOtpView(APIView):
         account_no = request.data.get('account_no')
 
         if not account_no:
-            return Response({'detail': 'Account number is required'})
+            return Response({'detail': 'Account number is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if CustomerAccount.objects.filter(account_no=account_no).exists():
+            return Response({'detail': 'Account already registered'}, status=status.HTTP_400_BAD_REQUEST)
 
         response = get_account_by_account_no(account_no)
         if response.status_code != 200:
@@ -62,11 +66,12 @@ class SignupOtpView(APIView):
         name = str(customer_data['CustomerDetails']['Name']).split()[0]
 
         otp = generate_new_otp(phone_number)
-        content = f"Dear {name} \nKindly use this OTP: {otp} to complete " \
+        content = f"Dear {name}, \nKindly use this OTP: {otp} to complete " \
                   f"your registration on CIT Mobile App."
-        # success, detail = send_otp_message(phone_number, content, account_no)
-        # if success is False:
-        #     return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+        subject = "CIT Mobile Registration"
+        success, detail = send_otp_message(phone_number, content, subject, account_no)
+        if success is False:
+            return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
         # return Response({'detail': detail})
         return Response({'detail': "OTP successfully sent", "otp": otp})  # To be removed when message API start working
 
@@ -141,18 +146,26 @@ class ForgotPasswordOTPView(APIView):
 
         try:
             user = User.objects.get(email=email)
-            user_phone_number = Customer.objects.get(user=user).phone_number
+            customer = Customer.objects.get(user=user)
+            customer_acct = CustomerAccount.objects.filter(customer=customer).first()
+            user_phone_number = customer.phone_number
             if user_phone_number is not None:
                 otp = generate_new_otp(user_phone_number)
-
-                # send otp via mail and sms
-
-                return Response({"detail": "OTP successfully sent"}, status.HTTP_201_CREATED)
+                first_name = user.first_name
+                account_no = customer_acct.account_no
+                content = f"Dear {first_name}, \nKindly use this OTP: {otp} to reset your password on CIT Mobile App."
+                subject = "Reset Password on CIT Mobile"
+                success, detail = send_otp_message(user_phone_number, content, subject, account_no)
+                if success is False:
+                    return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+                # return Response({'detail': detail})
+                return Response(
+                    {'detail': "OTP successfully sent", "otp": otp})  # To be removed when message API start working
         except (Exception,) as err:
             return Response({"detail": "Error", "data": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ForgotPassword(APIView):
+class ForgotPasswordView(APIView):
     permission_classes = []
 
     def post(self, request):
@@ -167,8 +180,11 @@ class ForgotPassword(APIView):
             return Response({"detail": "Requires OTP, New Password, Confirm Password and Email Fields"},
                             status=status.HTTP_400_BAD_REQUEST)
         try:
-            otp = CustomerOTP.objects.get(otp=otp)
             user = User.objects.get(email=email)
+            phone_number = Customer.objects.get(user=user).phone_number
+
+            if otp != CustomerOTP.objects.get(phone_number=phone_number).otp:
+                return Response({"detail": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
             if new_password != confirm_password:
                 return Response({"detail": "Passwords does not match"}, status=status.HTTP_400_BAD_REQUEST)
@@ -181,7 +197,10 @@ class ForgotPassword(APIView):
             if user is not None:
                 user.set_password(new_password)
                 user.save()
-            return Response({"detail": "Successfully changed Password , Login with your new password."})
+            return Response({"detail": "Successfully changed Password, Login with your new password."})
 
         except (Exception, ) as err:
-            return Response({"detail": "An Error Occured", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "An Error Occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+

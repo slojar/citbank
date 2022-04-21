@@ -50,6 +50,8 @@ BANK_ONE_BASE_URL = "https://staging.mybankone.com/BankOneWebAPI/api"
 
 # CIT
 CIT_INSTITUTION_CODE = "100321"
+CIT_MFB_CODE = "100125"
+CIT_EMAIL_FROM = "support@citmfb.com"
 
 # Activate Django-Heroku.
 django_heroku.settings(locals())
