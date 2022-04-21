@@ -2,6 +2,7 @@ import base64
 import uuid
 import re
 
+from threading import Thread
 from django.conf import settings
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.hashers import make_password
@@ -9,24 +10,34 @@ from django.contrib.auth.models import User
 
 from .models import Customer, CustomerAccount, CustomerOTP
 
-from bankone.api import get_account_by_account_no, send_sms
+from bankone.api import get_account_by_account_no, send_sms, send_email
 
 from cryptography.fernet import Fernet
 
 
+def format_phone_number(phone_number):
+    phone_number = f"0{phone_number[-10:]}"
+    return phone_number
+
+
 def generate_new_otp(phone_number):
     otp = str(uuid.uuid4().int)[:6]
+    phone_number = format_phone_number(phone_number)
     otp_obj, _ = CustomerOTP.objects.get_or_create(phone_number=phone_number)
     otp_obj.otp = otp
     otp_obj.save()
     return otp
 
 
-def send_otp_message(phone_number, content, account_no):
+def send_otp_message(phone_number, content, subject, account_no):
+    phone_number = format_phone_number(phone_number)
     success = False
+    user = Customer.objects.get(phone_number=phone_number).user
+    email = user.email
+    Thread(target=send_email, args=[email, subject, content]).start()
     response = send_sms(account_no, content, receiver=phone_number)
     if response['Status'] is False:
-        detail = 'OTP not sent, please try again later'
+        detail = 'OTP not sent via sms, please check your email'
         return success, detail
     detail = 'OTP successfully sent'
 
@@ -60,7 +71,7 @@ def create_new_customer(data, account_no):
         detail = 'Transaction PIN, OTP, and Password are required'
         return success, detail
 
-    if len(transaction_pin) != 4:
+    if not (transaction_pin.isnumeric() and len(transaction_pin) == 4):
         detail = 'Transactional PIN can only be 4 digit'
         return success, detail
 
@@ -97,6 +108,8 @@ def create_new_customer(data, account_no):
         email = customer_data['CustomerDetails']['Email']
         names = str(customer_data['CustomerDetails']['Name']).split(',')
         phone_number = customer_data['CustomerDetails']['PhoneNumber']
+
+        phone_number = format_phone_number(phone_number)
 
         if token != CustomerOTP.objects.get(phone_number=phone_number).otp:
             detail = 'OTP is not valid'
