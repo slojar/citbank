@@ -6,8 +6,8 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from .serializers import CustomerSerializer
-from .utils import create_new_customer, authenticate_user, validate_password, generate_new_otp, send_otp_message, \
-    format_phone_number
+from .utils import create_new_customer, authenticate_user, validate_password, generate_new_otp,\
+    send_otp_message, decrypt_text, encrypt_text
 
 from bankone.api import get_account_by_account_no
 from .models import CustomerAccount, Customer, CustomerOTP
@@ -203,4 +203,38 @@ class ForgotPasswordView(APIView):
             return Response({"detail": "An Error Occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ChangeTransactionPinView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def post(self, request):
+        try:
+            data = request.data
+            old_pin, new_pin, confirm_pin = data.get('old_pin', ''), data.get('new_pin', ''), data.get('confirm_pin', '')
+            fields = [old_pin, new_pin, confirm_pin]
+
+            if not all(fields):
+                return Response({"detail": "Requires Old, New and Confirm Transaction Pins"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            customer = Customer.objects.get(user=request.user)
+            pin = decrypt_text(customer.transaction_pin)
+
+            if old_pin != pin:
+                return Response({"detail": "Old pin does not match current pin"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if not new_pin.isnumeric() or len(new_pin) != 4:
+                return Response({"detail": "Pin must be 4 digits"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if new_pin != confirm_pin:
+                return Response({"detail": "Pin does not match"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if new_pin == old_pin:
+                return Response({"detail": "New Pin can't be the same as the Old Pin"}, status=status.HTTP_400_BAD_REQUEST)
+
+            encrypt_new_pin = encrypt_text(new_pin)
+            customer.transaction_pin = encrypt_new_pin
+            customer.save()
+
+            return Response({"detail": "Successfully Changed your Transaction Pin"})
+        except (Exception, ) as err:
+            return Response({"detail": "An error occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
