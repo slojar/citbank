@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -198,6 +200,7 @@ class ForgotPasswordView(APIView):
             if user is not None:
                 user.set_password(new_password)
                 user.save()
+                CustomerOTP.objects.get(phone_number=phone_number).update(otp=str(uuid.uuid4().int)[:6])
             return Response({"detail": "Successfully changed Password, Login with your new password."})
 
         except (Exception, ) as err:
@@ -274,6 +277,8 @@ class ResetTransactionPinView(APIView):
         encrypt_new_pin = encrypt_text(new_pin)
         customer.transaction_pin = encrypt_new_pin
         customer.save()
+
+        CustomerOTP.objects.get(phone_number=customer.phone_number).update(otp=str(uuid.uuid4().int)[:6])
 
         return Response({"detail": "You have successfully reset your transaction PIN"})
 
