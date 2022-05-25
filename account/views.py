@@ -65,13 +65,14 @@ class SignupOtpView(APIView):
 
         customer_data = response.json()
         phone_number = customer_data['CustomerDetails']['PhoneNumber']
+        email = customer_data['CustomerDetails']['Email']
         name = str(customer_data['CustomerDetails']['Name']).split()[0]
 
         otp = generate_new_otp(phone_number)
         content = f"Dear {name}, \nKindly use this OTP: {otp} to complete " \
                   f"your registration on CIT Mobile App."
         subject = "CIT Mobile Registration"
-        success, detail = send_otp_message(phone_number, content, subject, account_no)
+        success, detail = send_otp_message(phone_number, content, subject, account_no, email)
         if success is False:
             return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
         # return Response({'detail': detail})
@@ -143,7 +144,7 @@ class ResetOTPView(APIView):
 
     def post(self, request):
         email = request.data.get('email')
-        reset_type = request.data.get('reset_type', 'password') # password or transaction pin
+        reset_type = request.data.get('reset_type', 'password')# password or transaction pin
         if not email:
             return Response({"detail": "Email is required"})
 
@@ -158,7 +159,7 @@ class ResetOTPView(APIView):
                 account_no = customer_acct.account_no
                 content = f"Dear {first_name},\nKindly use this OTP: {otp} to reset your {reset_type} on CIT Mobile App."
                 subject = f"Reset {reset_type} on CIT Mobile"
-                success, detail = send_otp_message(user_phone_number, content, subject, account_no)
+                success, detail = send_otp_message(user_phone_number, content, subject, account_no, email)
                 if success is False:
                     return Response({'detail': detail, "otp": otp}, status=status.HTTP_400_BAD_REQUEST)
                 # return Response({'detail': detail})

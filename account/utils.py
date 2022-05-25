@@ -29,11 +29,9 @@ def generate_new_otp(phone_number):
     return otp
 
 
-def send_otp_message(phone_number, content, subject, account_no):
+def send_otp_message(phone_number, content, subject, account_no, email):
     phone_number = format_phone_number(phone_number)
     success = False
-    user = Customer.objects.get(phone_number=phone_number).user
-    email = user.email
     Thread(target=send_email, args=[email, subject, content]).start()
     response = send_sms(account_no, content, receiver=phone_number)
     if response['Status'] is False:
@@ -134,8 +132,12 @@ def create_new_customer(data, account_no):
         detail = 'Account is already registered, please proceed to login with your credentials'
         return success, detail
 
-    user = User.objects.create(email=email, password=make_password(password), last_name=last_name,
-                               first_name=first_name, username=email)
+    user, _ = User.objects.get_or_create(email=email)
+    user.password=make_password(password)
+    user.last_name=last_name
+    user.first_name=first_name
+    user.username=email
+    user.save()
 
     customer, created = Customer.objects.get_or_create(user=user)
     customer.customerID = customer_id
