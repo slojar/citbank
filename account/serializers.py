@@ -1,4 +1,4 @@
-from .models import Customer, CustomerAccount
+from .models import Customer, CustomerAccount, Transaction
 from rest_framework import serializers
 from .utils import decrypt_text
 
@@ -34,5 +34,16 @@ class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
         exclude = ['transaction_pin', 'nin', 'bvn']
+
+
+class TransactionSerializer(serializers.ModelSerializer):
+    customer = serializers.SerializerMethodField()
+
+    def get_customer(self, obj):
+        return obj.customer.get_customer_detail()
+
+    class Meta:
+        model = Transaction
+        exclude = []
 
 

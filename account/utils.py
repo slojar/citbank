@@ -1,4 +1,5 @@
 import base64
+import datetime
 import uuid
 import re
 
@@ -8,7 +9,7 @@ from django.contrib.auth import login, authenticate
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 
-from .models import Customer, CustomerAccount, CustomerOTP
+from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
 from bankone.api import get_account_by_account_no, send_sms, send_email
 
@@ -133,10 +134,10 @@ def create_new_customer(data, account_no):
         return success, detail
 
     user, _ = User.objects.get_or_create(email=email)
-    user.password=make_password(password)
-    user.last_name=last_name
-    user.first_name=first_name
-    user.username=email
+    user.password = make_password(password)
+    user.last_name = last_name
+    user.first_name = first_name
+    user.username = email
     user.save()
 
     customer, created = Customer.objects.get_or_create(user=user)
@@ -208,3 +209,71 @@ def validate_password(new_password):
             check, detail = True, "Password has been changed successfully"
             break
     return check, detail
+
+
+def generate_transaction_ref_code(code):
+    if len(code) == 1:
+        code = f"0000{code}"
+    elif len(code) == 2:
+        code = f"000{code}"
+    elif len(code) == 3:
+        code = f"00{code}"
+    else:
+        code = f"0{code}"
+
+    now = datetime.date.today()
+    day = str(now.day)
+    if len(day) < 2:
+        month = f"0{day}"
+    month = str(now.month)
+    if len(month) < 2:
+        month = f"0{month}"
+    year = str(now.year)[2:]
+
+    ref_code = f"C{year}{month}{day}{code}"
+
+    return ref_code
+
+
+def create_transaction(request):
+    data = request.data
+
+    account_number = data.get('account_number')
+    trans_type = data.get('transaction_type')
+    trans_option = data.get('transaction_option')
+    amount = data.get('amount')
+    narration = data.get('narration')
+
+    # ensure all input are received
+    if not (account_number and trans_type and trans_option and account_number and amount and narration):
+        return False, "required fields are account_number, transaction_type, transaction_option, amount and narration"
+
+    # check if account_number is valid
+    if not CustomerAccount.objects.filter(account_no=account_number).exists():
+        return False, "account number is not valid"
+
+    # get the customer the account_number belongs to
+    customer = CustomerAccount.objects.filter(account_no=account_number).first().customer
+
+    # generate transaction reference using the format CYYMMDDCODES
+    now = datetime.datetime.now()
+    start_date = now.date()
+    end_date = datetime.date(now.year, 1 if now.month == 12 else now.month + 1, 1) - datetime.timedelta(days=1)
+    month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date)).count()
+    code = str(month_transaction + 1)
+    ref_code = generate_transaction_ref_code(code)
+
+    transaction = Transaction.objects.create(customer=customer, transaction_type=trans_type,
+                                             transaction_option=trans_option, amount=amount, narration=narration,
+                                             reference=ref_code)
+    return True, transaction.reference
+
+
+
+
+
+
+
+
+
+

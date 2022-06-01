@@ -7,12 +7,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
-from .serializers import CustomerSerializer
-from .utils import create_new_customer, authenticate_user, validate_password, generate_new_otp,\
-    send_otp_message, decrypt_text, encrypt_text
+from .paginations import CustomPagination
+from .serializers import CustomerSerializer, TransactionSerializer
+from .utils import create_new_customer, authenticate_user, validate_password, generate_new_otp, \
+    send_otp_message, decrypt_text, encrypt_text, create_transaction
 
 from bankone.api import get_account_by_account_no
-from .models import CustomerAccount, Customer, CustomerOTP
+from .models import CustomerAccount, Customer, CustomerOTP, Transaction
 
 
 class SignupView(APIView):
@@ -282,6 +283,52 @@ class ResetTransactionPinView(APIView):
         CustomerOTP.objects.get(phone_number=customer.phone_number).update(otp=str(uuid.uuid4().int)[:6])
 
         return Response({"detail": "You have successfully reset your transaction PIN"})
+
+
+class TransactionView(APIView, CustomPagination):
+
+    def get(self, request, ref=None):
+        if ref:
+            try:
+                data = TransactionSerializer(Transaction.objects.get(reference=ref)).data
+            except Exception as err:
+                return Response({"detail": str(err)})
+        transaction = self.paginate_queryset(Transaction.objects.filter(customer__user=request.user), request)
+        data = self.get_paginated_response(TransactionSerializer(transaction, many=True).data).data
+        return Response(data)
+
+    def post(self, request):
+        trans_pin = request.data.get('transaction_pin')
+
+        if not trans_pin:
+            return Response({"detail": "Please enter your Transaction PIN"}, status=status.HTTP_400_BAD_REQUEST)
+
+        customer_pin = Customer.objects.get(user=request.user).transaction_pin
+        decrypted_pin = decrypt_text(customer_pin)
+
+        if trans_pin != decrypted_pin:
+            return Response({"detail": "Invalid Transaction PIN"}, status=status.HTTP_400_BAD_REQUEST)
+
+        success, response = create_transaction(request)
+        if success is False:
+            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"detail": "Successfully created a transaction", "reference_code": str(response)})
+
+    def put(self, request, ref):
+        trans_status = request.data.get('status')
+        if not trans_status:
+            return Response({"detail": "status is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            transaction = Transaction.objects.get(reference=ref)
+            transaction.status = trans_status
+            transaction.save()
+            return Response({"detail": "Successfully updated transaction"})
+        except Exception as err:
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 
