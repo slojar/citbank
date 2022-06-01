@@ -15,6 +15,7 @@ citbank.log
 *.sqlite3
 .DS_Store
 *.DS_Store
+.push.py
 
 # Project image and file folders
 profile_picture/
