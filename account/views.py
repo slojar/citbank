@@ -291,6 +291,7 @@ class TransactionView(APIView, CustomPagination):
         if ref:
             try:
                 data = TransactionSerializer(Transaction.objects.get(reference=ref)).data
+                return Response(data)
             except Exception as err:
                 return Response({"detail": str(err)})
         transaction = self.paginate_queryset(Transaction.objects.filter(customer__user=request.user), request)

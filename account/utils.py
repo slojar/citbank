@@ -224,7 +224,7 @@ def generate_transaction_ref_code(code):
     now = datetime.date.today()
     day = str(now.day)
     if len(day) < 2:
-        month = f"0{day}"
+        day = f"0{day}"
     month = str(now.month)
     if len(month) < 2:
         month = f"0{month}"

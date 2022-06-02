@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Customer, CustomerAccount, CustomerOTP
+from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
 
 class CustomerAccountTabularAdmin(admin.TabularInline):
@@ -15,5 +15,6 @@ class CustomerAdmin(admin.ModelAdmin):
 admin.site.register(Customer, CustomerAdmin)
 
 admin.site.register(CustomerOTP)
+admin.site.register(Transaction)
 
 
