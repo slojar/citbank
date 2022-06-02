@@ -331,7 +331,7 @@ class TransactionView(APIView, CustomPagination):
 
 
 class SaveBeneficiaryView(APIView):
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         data = request.data
