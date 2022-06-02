@@ -17,7 +17,7 @@ urlpatterns = [
     path('reset-pin/', views.ResetTransactionPinView.as_view(), name='reset-transaction-pin'),
     path('transaction/', views.TransactionView.as_view(), name='user-transaction'),
     path('transaction/<str:ref>/', views.TransactionView.as_view(), name='user-transaction'),
-    path('save-beneficiary/', views.SaveBeneficiaryView.as_view(), name='save-beneficiary'),
+    path('save-beneficiary/', views.BeneficiaryView.as_view(), name='save-beneficiary'),
 ]
 
 

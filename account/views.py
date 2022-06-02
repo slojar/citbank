@@ -1,5 +1,5 @@
 import uuid
-
+from django.db.models import Q
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from .paginations import CustomPagination
-from .serializers import CustomerSerializer, TransactionSerializer
+from .serializers import CustomerSerializer, TransactionSerializer, BeneficiarySerializer
 from .utils import create_new_customer, authenticate_user, validate_password, generate_new_otp, \
     send_otp_message, decrypt_text, encrypt_text, create_transaction
 
@@ -330,8 +330,50 @@ class TransactionView(APIView, CustomPagination):
             return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class SaveBeneficiaryView(APIView):
-    permission_classes = [IsAuthenticated]
+class BeneficiaryView(APIView, CustomPagination):
+    permission_classes = []
+
+    def get(self, request):
+        try:
+            beneficiary_type = request.GET.get("beneficiary_type")
+            search = request.GET.get("search")
+
+            if "search" in request.GET and "beneficiary_type" not in request.GET:
+                return Response({"error": "Beneficiary type is a required"})
+
+            customer = Customer.objects.get(id=11)
+
+            if beneficiary_type and search:
+                query = Q(beneficiary_name__icontains=search)
+                query |= Q(beneficiary_bank__icontains=search)
+                query |= Q(beneficiary_acct_no__icontains=search)
+                query |= Q(beneficiary_number__icontains=search)
+                query |= Q(biller_name__icontains=search)
+
+                beneficiaries = Beneficiary.objects.filter(query, customer=customer, beneficiary_type=beneficiary_type)
+                paginate = self.paginate_queryset(beneficiaries, request)
+                paginated_query = self.get_paginated_response(BeneficiarySerializer(paginate, many=True).data).data
+
+                return Response({"data": paginated_query})
+
+            if beneficiary_type:
+                beneficiaries = Beneficiary.objects.filter(customer=customer, beneficiary_type=beneficiary_type)
+                paginate = self.paginate_queryset(beneficiaries, request)
+                paginated_query = self.get_paginated_response(BeneficiarySerializer(paginate, many=True).data).data
+                return Response({"data": paginated_query})
+
+            if "search" not in request.GET and "beneficiary_type" not in request.GET:
+                beneficiaries = Beneficiary.objects.filter(customer=customer)
+                paginate = self.paginate_queryset(beneficiaries, request)
+                paginated_query = self.get_paginated_response(BeneficiarySerializer(paginate, many=True).data).data
+                return Response({"data": paginated_query})
+
+        except KeyError as err:
+            return Response({"error": str(err)})
+
+        except Exception as err:
+            return Response({"error": str(err)})
+
 
     def post(self, request):
         data = request.data

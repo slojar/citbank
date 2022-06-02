@@ -1,4 +1,4 @@
-from .models import Customer, CustomerAccount, Transaction
+from .models import Customer, CustomerAccount, Transaction, Beneficiary
 from rest_framework import serializers
 from .utils import decrypt_text
 
@@ -47,3 +47,7 @@ class TransactionSerializer(serializers.ModelSerializer):
         exclude = []
 
 
+class BeneficiarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Beneficiary
+        exclude = ()

@@ -92,6 +92,10 @@ class Beneficiary(models.Model):
     biller_name = models.CharField(max_length=200, blank=True, null=True)
     created_on = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        verbose_name = 'Beneficiary'
+        verbose_name_plural = 'Beneficiaries'
+
     def __str__(self):
         return f"{self.customer}: {self.created_on}"
 
