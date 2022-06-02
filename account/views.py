@@ -331,7 +331,7 @@ class TransactionView(APIView, CustomPagination):
 
 
 class BeneficiaryView(APIView, CustomPagination):
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
@@ -341,7 +341,7 @@ class BeneficiaryView(APIView, CustomPagination):
             if "search" in request.GET and "beneficiary_type" not in request.GET:
                 return Response({"error": "Beneficiary type is a required"})
 
-            customer = Customer.objects.get(id=11)
+            customer = Customer.objects.get(id=request.user.id)
 
             if beneficiary_type and search:
                 query = Q(beneficiary_name__icontains=search)
