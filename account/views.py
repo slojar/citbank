@@ -374,7 +374,6 @@ class BeneficiaryView(APIView, CustomPagination):
         except Exception as err:
             return Response({"error": str(err)})
 
-
     def post(self, request):
         data = request.data
         try:
