@@ -339,9 +339,11 @@ class BeneficiaryView(APIView, CustomPagination):
             search = request.GET.get("search")
 
             if "search" in request.GET and "beneficiary_type" not in request.GET:
-                return Response({"error": "Beneficiary type is a required"})
+                return Response({"error": "Beneficiary type is a required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            customer = Customer.objects.get(id=request.user.id)
+            customer = Customer.objects.get(user=request.user)
+
+            beneficiaries = Beneficiary.objects.filter(customer=customer)
 
             if beneficiary_type and search:
                 query = Q(beneficiary_name__icontains=search)
@@ -349,30 +351,20 @@ class BeneficiaryView(APIView, CustomPagination):
                 query |= Q(beneficiary_acct_no__icontains=search)
                 query |= Q(beneficiary_number__icontains=search)
                 query |= Q(biller_name__icontains=search)
-
                 beneficiaries = Beneficiary.objects.filter(query, customer=customer, beneficiary_type=beneficiary_type)
-                paginate = self.paginate_queryset(beneficiaries, request)
-                paginated_query = self.get_paginated_response(BeneficiarySerializer(paginate, many=True).data).data
 
-                return Response({"data": paginated_query})
-
-            if beneficiary_type:
+            if beneficiary_type and not search:
                 beneficiaries = Beneficiary.objects.filter(customer=customer, beneficiary_type=beneficiary_type)
-                paginate = self.paginate_queryset(beneficiaries, request)
-                paginated_query = self.get_paginated_response(BeneficiarySerializer(paginate, many=True).data).data
-                return Response({"data": paginated_query})
 
-            if "search" not in request.GET and "beneficiary_type" not in request.GET:
-                beneficiaries = Beneficiary.objects.filter(customer=customer)
-                paginate = self.paginate_queryset(beneficiaries, request)
-                paginated_query = self.get_paginated_response(BeneficiarySerializer(paginate, many=True).data).data
-                return Response({"data": paginated_query})
+            paginate = self.paginate_queryset(beneficiaries, request)
+            paginated_query = self.get_paginated_response(BeneficiarySerializer(paginate, many=True).data).data
+            return Response({"data": paginated_query})
 
         except KeyError as err:
-            return Response({"error": str(err)})
+            return Response({"error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as err:
-            return Response({"error": str(err)})
+            return Response({"error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request):
         data = request.data
@@ -394,13 +386,13 @@ class BeneficiaryView(APIView, CustomPagination):
             if beneficiary_type == "other_bank_transfer":
                 if not all([beneficiary_name, beneficiary_bank, beneficiary_acct_no]):
                     raise KeyError("Beneficiary Name, Bank and Account Number are required for Type "
-                                   "CIT BANK TRANSFER")
+                                   "OTHER BANK TRANSFER")
 
             if beneficiary_type in ('airtime', 'data', 'utility'):
                 if not all([beneficiary_number, biller_name]):
                     raise KeyError("Beneficiary Number and Biller's Name are required")
 
-            customer = Customer.objects.get(id=11)
+            customer = Customer.objects.get(user=request.user)
             beneficiary_instance, success = Beneficiary.objects.get_or_create(
                 customer=customer,
                 beneficiary_type=beneficiary_type,
@@ -414,13 +406,13 @@ class BeneficiaryView(APIView, CustomPagination):
                 return Response({"error": "Already a beneficiary"}, status=status.HTTP_302_FOUND)
 
         except KeyError as err:
-            return Response({"error": str(err)})
+            return Response({"error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         except Customer.DoesNotExist as err:
-            return Response({"error": str(err)})
+            return Response({"error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         except (Exception, ) as err:
-            return Response({"error": str(err)})
+            return Response({"error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({"Detail": "Successfully created beneficiary"}, status=status.HTTP_201_CREATED)
+        return Response({"Detail": "Successfully created beneficiary"})
 
