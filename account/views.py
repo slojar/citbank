@@ -1,5 +1,5 @@
 import uuid
-
+from django.db.models import Q
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -8,12 +8,12 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from .paginations import CustomPagination
-from .serializers import CustomerSerializer, TransactionSerializer
+from .serializers import CustomerSerializer, TransactionSerializer, BeneficiarySerializer
 from .utils import create_new_customer, authenticate_user, validate_password, generate_new_otp, \
     send_otp_message, decrypt_text, encrypt_text, create_transaction
 
 from bankone.api import get_account_by_account_no
-from .models import CustomerAccount, Customer, CustomerOTP, Transaction
+from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary
 
 
 class SignupView(APIView):
@@ -330,6 +330,97 @@ class TransactionView(APIView, CustomPagination):
             return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class BeneficiaryView(APIView, CustomPagination):
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        try:
+            beneficiary_type = request.GET.get("beneficiary_type")
+            search = request.GET.get("search")
 
+            if "search" in request.GET and "beneficiary_type" not in request.GET:
+                return Response({"error": "Beneficiary type is a required"})
+
+            customer = Customer.objects.get(id=request.user.id)
+
+            if beneficiary_type and search:
+                query = Q(beneficiary_name__icontains=search)
+                query |= Q(beneficiary_bank__icontains=search)
+                query |= Q(beneficiary_acct_no__icontains=search)
+                query |= Q(beneficiary_number__icontains=search)
+                query |= Q(biller_name__icontains=search)
+
+                beneficiaries = Beneficiary.objects.filter(query, customer=customer, beneficiary_type=beneficiary_type)
+                paginate = self.paginate_queryset(beneficiaries, request)
+                paginated_query = self.get_paginated_response(BeneficiarySerializer(paginate, many=True).data).data
+
+                return Response({"data": paginated_query})
+
+            if beneficiary_type:
+                beneficiaries = Beneficiary.objects.filter(customer=customer, beneficiary_type=beneficiary_type)
+                paginate = self.paginate_queryset(beneficiaries, request)
+                paginated_query = self.get_paginated_response(BeneficiarySerializer(paginate, many=True).data).data
+                return Response({"data": paginated_query})
+
+            if "search" not in request.GET and "beneficiary_type" not in request.GET:
+                beneficiaries = Beneficiary.objects.filter(customer=customer)
+                paginate = self.paginate_queryset(beneficiaries, request)
+                paginated_query = self.get_paginated_response(BeneficiarySerializer(paginate, many=True).data).data
+                return Response({"data": paginated_query})
+
+        except KeyError as err:
+            return Response({"error": str(err)})
+
+        except Exception as err:
+            return Response({"error": str(err)})
+
+    def post(self, request):
+        data = request.data
+        try:
+            beneficiary_name: str = data.get('beneficiary_name')
+            beneficiary_bank: str = data.get('beneficiary_bank')
+            beneficiary_type: str = data.get('beneficiary_type')
+            beneficiary_acct_no: str = data.get('beneficiary_acct_no')
+            beneficiary_number: str = data.get('beneficiary_number')
+            biller_name: str = data.get('biller_name')
+
+            if not beneficiary_type or beneficiary_type is None:
+                raise KeyError("Beneficiary Key is required")
+
+            if beneficiary_type == "cit_bank_transfer":
+                if not all([beneficiary_name, beneficiary_acct_no]):
+                    raise KeyError("Beneficiary Name and Account Number are required fields for Type CIT BANK TRANSFER")
+
+            if beneficiary_type == "other_bank_transfer":
+                if not all([beneficiary_name, beneficiary_bank, beneficiary_acct_no]):
+                    raise KeyError("Beneficiary Name, Bank and Account Number are required for Type "
+                                   "CIT BANK TRANSFER")
+
+            if beneficiary_type in ('airtime', 'data', 'utility'):
+                if not all([beneficiary_number, biller_name]):
+                    raise KeyError("Beneficiary Number and Biller's Name are required")
+
+            customer = Customer.objects.get(id=11)
+            beneficiary_instance, success = Beneficiary.objects.get_or_create(
+                customer=customer,
+                beneficiary_type=beneficiary_type,
+                beneficiary_name=beneficiary_name,
+                beneficiary_bank=beneficiary_bank,
+                beneficiary_acct_no=beneficiary_acct_no,
+                beneficiary_number=beneficiary_number,
+                biller_name=biller_name
+            )
+            if not success:
+                return Response({"error": "Already a beneficiary"}, status=status.HTTP_302_FOUND)
+
+        except KeyError as err:
+            return Response({"error": str(err)})
+
+        except Customer.DoesNotExist as err:
+            return Response({"error": str(err)})
+
+        except (Exception, ) as err:
+            return Response({"error": str(err)})
+
+        return Response({"Detail": "Successfully created beneficiary"}, status=status.HTTP_201_CREATED)
 

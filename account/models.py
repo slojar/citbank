@@ -14,7 +14,7 @@ TRANSACTION_TYPE_CHOICES = (
 
 BENEFICIARY_TYPE_CHOICES = (
     ('cit_bank_transfer', 'CIT Bank Transfer'), ('other_bank_transfer', 'Other Bank Transfer'), ('airtime', 'Airtime'),
-    ('data', 'Data')
+    ('data', 'Data'), ('utility', 'Utility')
 )
 
 
@@ -70,7 +70,10 @@ class CustomerOTP(models.Model):
 class Transaction(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, blank=True, null=True)
     transaction_type = models.CharField(max_length=100, choices=TRANSACTION_TYPE_CHOICES, default='transfer')
-    transaction_option = models.CharField(max_length=100, blank=True, null=True)
+    transaction_option = models.CharField(max_length=100, blank=True, null=True, choices=BENEFICIARY_TYPE_CHOICES)
+    beneficiary_name = models.CharField(max_length=100, blank=True, null=True)
+    biller_name = models.CharField(max_length=200, blank=True, null=True)
+    beneficiary_number = models.CharField(max_length=200, blank=True, null=True)
     status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='pending')
     amount = models.FloatField()
     narration = models.TextField(blank=True, null=True)
@@ -89,11 +92,12 @@ class Beneficiary(models.Model):
     beneficiary_bank = models.CharField(max_length=200, blank=True, null=True)
     beneficiary_acct_no = models.CharField(max_length=200, blank=True, null=True)
     beneficiary_number = models.CharField(max_length=200, blank=True, null=True)
+    biller_name = models.CharField(max_length=200, blank=True, null=True)
     created_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Beneficiary'
+        verbose_name_plural = 'Beneficiaries'
 
     def __str__(self):
         return f"{self.customer}: {self.created_on}"
-
-
-
-

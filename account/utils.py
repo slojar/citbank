@@ -243,6 +243,9 @@ def create_transaction(request):
     trans_option = data.get('transaction_option')
     amount = data.get('amount')
     narration = data.get('narration')
+    beneficiary_name = data.get('beneficiary_name', '')
+    biller_name = data.get('biller_name', '')
+    beneficiary_number = data.get('beneficiary_number', '')
 
     # ensure all input are received
     if not (account_number and trans_type and trans_option and account_number and amount and narration):
@@ -263,9 +266,10 @@ def create_transaction(request):
     code = str(month_transaction + 1)
     ref_code = generate_transaction_ref_code(code)
 
-    transaction = Transaction.objects.create(customer=customer, transaction_type=trans_type,
-                                             transaction_option=trans_option, amount=amount, narration=narration,
-                                             reference=ref_code)
+    transaction = Transaction.objects.create(customer=customer, transaction_type=trans_type, narration=narration,
+                                             transaction_option=trans_option, amount=amount, reference=ref_code,
+                                             beneficiary_name=beneficiary_name, biller_name=biller_name,
+                                             beneficiary_number=beneficiary_number)
     return True, transaction.reference
 
 
