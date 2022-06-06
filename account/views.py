@@ -358,7 +358,7 @@ class BeneficiaryView(APIView, CustomPagination):
 
             paginate = self.paginate_queryset(beneficiaries, request)
             paginated_query = self.get_paginated_response(BeneficiarySerializer(paginate, many=True).data).data
-            return Response({"data": paginated_query})
+            return Response({"detail": paginated_query})
 
         except KeyError as err:
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
