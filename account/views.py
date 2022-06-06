@@ -331,7 +331,7 @@ class TransactionView(APIView, CustomPagination):
 
 
 class BeneficiaryView(APIView, CustomPagination):
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
