@@ -331,7 +331,7 @@ class TransactionView(APIView, CustomPagination):
 
 
 class BeneficiaryView(APIView, CustomPagination):
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
 
     def get(self, request):
         try:
@@ -339,7 +339,7 @@ class BeneficiaryView(APIView, CustomPagination):
             search = request.GET.get("search")
 
             if "search" in request.GET and "beneficiary_type" not in request.GET:
-                return Response({"error": "Beneficiary type is a required"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"detail": "beneficiary type is required"}, status=status.HTTP_400_BAD_REQUEST)
 
             customer = Customer.objects.get(user=request.user)
 
@@ -361,10 +361,10 @@ class BeneficiaryView(APIView, CustomPagination):
             return Response({"data": paginated_query})
 
         except KeyError as err:
-            return Response({"error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as err:
-            return Response({"error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request):
         data = request.data
@@ -377,7 +377,7 @@ class BeneficiaryView(APIView, CustomPagination):
             biller_name: str = data.get('biller_name')
 
             if not beneficiary_type or beneficiary_type is None:
-                raise KeyError("Beneficiary Key is required")
+                raise KeyError("Beneficiary type is required")
 
             if beneficiary_type == "cit_bank_transfer":
                 if not all([beneficiary_name, beneficiary_acct_no]):
@@ -403,16 +403,16 @@ class BeneficiaryView(APIView, CustomPagination):
                 biller_name=biller_name
             )
             if not success:
-                return Response({"error": "Already a beneficiary"}, status=status.HTTP_302_FOUND)
+                return Response({"detail": "Already a beneficiary"}, status=status.HTTP_302_FOUND)
 
         except KeyError as err:
-            return Response({"error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         except Customer.DoesNotExist as err:
-            return Response({"error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         except (Exception, ) as err:
-            return Response({"error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({"Detail": "Successfully created beneficiary"})
+        return Response({"detail": "Successfully created beneficiary"})
 
