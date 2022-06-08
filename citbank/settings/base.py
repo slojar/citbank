@@ -1,5 +1,6 @@
 import logging
 import os.path
+import graypy
 from pathlib import Path
 from datetime import timedelta
 
@@ -155,24 +156,31 @@ LOGGING = {
             'filename': 'citbank.log',
             'formatter': 'verbose',
         },
+        'grapy_log': {
+            'level': 'WARNING',
+            'class': 'graypy.GELFUDPHandler',
+            'host': '93.115.20.32',
+            'port': 9000,
+        },
+
     },
     'root': {
-        'handlers': ['file'],
+        'handlers': ['file', 'grapy_log'],
         'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['file'],
+            'handlers': ['file', 'grapy_log'],
             'level': 'INFO',
             'propagate': True,
         },
         'django.server': {
-            'handlers': ['file'],
+            'handlers': ['file', 'grapy_log'],
             'level': 'INFO',
             'propagate': True,
         },
         'django.request': {
-            'handlers': ['file'],
+            'handlers': ['file', 'grapy_log'],
             'level': 'INFO',
             'propagate': True,
         },
