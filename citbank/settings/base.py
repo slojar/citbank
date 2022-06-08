@@ -160,7 +160,7 @@ LOGGING = {
             'level': 'WARNING',
             'class': 'graypy.GELFUDPHandler',
             'host': '93.115.20.32',
-            'port': 9000,
+            'port': 12201,
         },
 
     },
