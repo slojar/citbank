@@ -145,7 +145,7 @@ class ResetOTPView(APIView):
 
     def post(self, request):
         email = request.data.get('email')
-        reset_type = request.data.get('reset_type', 'password')# password or transaction pin
+        reset_type = request.data.get('reset_type', 'password')  # password or transaction pin
         if not email:
             return Response({"detail": "Email is required"})
 
@@ -202,10 +202,13 @@ class ForgotPasswordView(APIView):
             if user is not None:
                 user.set_password(new_password)
                 user.save()
-                CustomerOTP.objects.get(phone_number=phone_number).update(otp=str(uuid.uuid4().int)[:6])
+                # CustomerOTP.objects.get(phone_number=phone_number).update(otp=str(uuid.uuid4().int)[:6])
+                new_otp = CustomerOTP.objects.get(phone_number=phone_number)
+                new_otp.otp = str(uuid.uuid4().int)[:6]
+                new_otp.save()
             return Response({"detail": "Successfully changed Password, Login with your new password."})
 
-        except (Exception, ) as err:
+        except (Exception,) as err:
             return Response({"detail": "An Error Occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -215,7 +218,8 @@ class ChangeTransactionPinView(APIView):
     def post(self, request):
         try:
             data = request.data
-            old_pin, new_pin, confirm_pin = data.get('old_pin', ''), data.get('new_pin', ''), data.get('confirm_pin', '')
+            old_pin, new_pin, confirm_pin = data.get('old_pin', ''), data.get('new_pin', ''), data.get('confirm_pin',
+                                                                                                       '')
             fields = [old_pin, new_pin, confirm_pin]
 
             if not all(fields):
@@ -243,7 +247,7 @@ class ChangeTransactionPinView(APIView):
             customer.save()
 
             return Response({"detail": "Transaction PIN changed successfully"})
-        except (Exception, ) as err:
+        except (Exception,) as err:
             return Response({"detail": "An error occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -411,8 +415,7 @@ class BeneficiaryView(APIView, CustomPagination):
         except Customer.DoesNotExist as err:
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
-        except (Exception, ) as err:
+        except (Exception,) as err:
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"detail": "Successfully created beneficiary"})
-

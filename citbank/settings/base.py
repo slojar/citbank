@@ -1,6 +1,5 @@
 import logging
 import os.path
-import graypy
 from pathlib import Path
 from datetime import timedelta
 
@@ -36,12 +35,13 @@ INSTALLED_APPS = [
     'account.apps.AccountConfig',
     'superadmin.apps.SuperadminConfig'
 ]
-django.middleware.security.SecurityMiddleware
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django_graylog.GraylogMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -156,31 +156,24 @@ LOGGING = {
             'filename': 'citbank.log',
             'formatter': 'verbose',
         },
-        'grapy_log': {
-            'level': 'WARNING',
-            'class': 'graypy.GELFUDPHandler',
-            'host': '93.115.20.32',
-            'port': 12201,
-        },
-
     },
     'root': {
-        'handlers': ['file', 'grapy_log'],
+        'handlers': ['file'],
         'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['file', 'grapy_log'],
+            'handlers': ['file'],
             'level': 'INFO',
             'propagate': True,
         },
         'django.server': {
-            'handlers': ['file', 'grapy_log'],
+            'handlers': ['file'],
             'level': 'INFO',
             'propagate': True,
         },
         'django.request': {
-            'handlers': ['file', 'grapy_log'],
+            'handlers': ['file'],
             'level': 'INFO',
             'propagate': True,
         },
