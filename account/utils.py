@@ -60,14 +60,19 @@ def decrypt_text(text: str):
 def create_new_customer(data, account_no):
     success = False
 
+    username = data.get('username')
     transaction_pin = data.get('transaction_pin')
     transaction_pin_confirm = data.get('transaction_pin_confirm')
     password = data.get('password')
     password_confirm = data.get('password_confirm')
     token = data.get('otp')
 
-    if not transaction_pin or not password or not transaction_pin_confirm or not password_confirm or not token:
-        detail = 'Transaction PIN, OTP, and Password are required'
+    if not all([username, transaction_pin, password, transaction_pin_confirm, password_confirm, token]):
+        detail = 'Username, Transaction PIN, OTP, and Password are required'
+        return success, detail
+
+    if len(username) < 8:
+        detail = 'Username is too short. Please input minimum of 8 characters'
         return success, detail
 
     if not (transaction_pin.isnumeric() and len(transaction_pin) == 4):
@@ -86,6 +91,10 @@ def create_new_customer(data, account_no):
 
     if check is False:
         return check, detail
+
+    if User.objects.filter(username=username).exists():
+        detail = 'username is taken, please choose another one or contact admin'
+        return success, detail
 
     if CustomerAccount.objects.filter(account_no=account_no).exists():
         detail = 'A profile associated with this account number already exist, please proceed to login or contact admin'
@@ -129,15 +138,15 @@ def create_new_customer(data, account_no):
         return success, detail
 
     # Create User and Customer
-    if User.objects.filter(email=email).exists():
-        detail = 'Account is already registered, please proceed to login with your credentials'
-        return success, detail
+    # if User.objects.filter(email=email).exists():
+    #     detail = 'Account is already registered, please proceed to login with your credentials'
+    #     return success, detail
 
-    user, _ = User.objects.get_or_create(email=email)
+    user, _ = User.objects.get_or_create(username=username)
     user.password = make_password(password)
+    user.email = email
     user.last_name = last_name
     user.first_name = first_name
-    user.username = email
     user.save()
 
     customer, created = Customer.objects.get_or_create(user=user)
