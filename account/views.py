@@ -84,8 +84,6 @@ class CustomerProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        print("AUTH", self.request.auth)
-        print("USER", self.request.user)
         query = CustomerSerializer(Customer.objects.get(user=request.user), context={'request': request}).data
         return Response(query)
 
