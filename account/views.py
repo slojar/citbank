@@ -298,7 +298,8 @@ class TransactionView(APIView, CustomPagination):
                 return Response(data)
             except Exception as err:
                 return Response({"detail": str(err)})
-        transaction = self.paginate_queryset(Transaction.objects.filter(customer__user=request.user), request)
+        queryset = Transaction.objects.filter(customer__user=request.user).order_by('-id')
+        transaction = self.paginate_queryset(queryset, request)
         data = self.get_paginated_response(TransactionSerializer(transaction, many=True).data).data
         return Response(data)
 

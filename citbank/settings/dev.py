@@ -53,6 +53,14 @@ CIT_INSTITUTION_CODE = "100321"
 CIT_MFB_CODE = "100125"
 CIT_EMAIL_FROM = "support@citmfb.com"
 
+# Temporal FIX for Email Sending
+EMAIL_FROM = 'CIT MFB <noreply@citmfb.com>'
+EMAIL_HOST = 'smtp.mailgun.org'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'postmaster@wealthexinvestment.com'
+EMAIL_HOST_PASSWORD = 'b515562100d40e8e7762b1ffce379331-adf6de59-0172ca35'
+EMAIL_USE_TLS = True
+
 # Activate Django-Heroku.
 django_heroku.settings(locals())
 

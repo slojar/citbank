@@ -11,7 +11,7 @@ from django.contrib.auth.models import User
 
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
-from bankone.api import get_account_by_account_no, send_sms, send_email
+from bankone.api import get_account_by_account_no, send_sms, send_email, send_email_temporal_fix
 
 from cryptography.fernet import Fernet
 
@@ -33,7 +33,8 @@ def generate_new_otp(phone_number):
 def send_otp_message(phone_number, content, subject, account_no, email):
     phone_number = format_phone_number(phone_number)
     success = False
-    Thread(target=send_email, args=[email, subject, content]).start()
+    # Thread(target=send_email, args=[email, subject, content]).start()
+    Thread(target=send_email_temporal_fix, args=[email, content, subject]).start()
     response = send_sms(account_no, content, receiver=phone_number)
     if response['Status'] is False:
         detail = 'OTP not sent via sms, please check your email'
