@@ -18,6 +18,7 @@ urlpatterns = [
     path('transaction/', views.TransactionView.as_view(), name='user-transaction'),
     path('transaction/<str:ref>/', views.TransactionView.as_view(), name='user-transaction'),
     path('beneficiary/', views.BeneficiaryView.as_view(), name='beneficiary'),
+    path('confirm-transaction-pin/', views.ConfirmTransactionPin.as_view(), name="confirm-transaction-pin")
 ]
 
 

@@ -436,3 +436,26 @@ class BeneficiaryView(APIView, CustomPagination):
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"detail": "Successfully created beneficiary"})
+
+
+class ConfirmTransactionPin(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        pin = request.data.get("pin", "")
+
+        if not pin:
+            return Response({"detail": "pin is a required field"})
+
+        try:
+            user = Customer.objects.get(user=request.user)
+            if user is None:
+                return Response({"detail": "This user is not Found"}, status=status.HTTP_404_NOT_FOUND)
+
+            if decrypt_text(user.transaction_pin) != pin:
+                return Response({"detail": "Transaction Pin Does Not Match"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as err:
+            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"detail": "Transaction Pin is Correct"})
