@@ -53,6 +53,9 @@ CIT_INSTITUTION_CODE = "100321"
 CIT_MFB_CODE = "100125"
 CIT_EMAIL_FROM = "support@citmfb.com"
 
+# GrayLog config
+GRAYLOG_ENDPOINT: str = "http://127.0.0.1:12202/gelf"
+
 # Activate Django-Heroku.
 django_heroku.settings(locals())
 
