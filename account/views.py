@@ -292,13 +292,29 @@ class ResetTransactionPinView(APIView):
 class TransactionView(APIView, CustomPagination):
 
     def get(self, request, ref=None):
+        date_from = request.GET.get("date_from", "")
+        date_to = request.GET.get("date_to", "")
+        search = request.GET.get("search", "")
+
         if ref:
             try:
                 data = TransactionSerializer(Transaction.objects.get(reference=ref)).data
                 return Response(data)
             except Exception as err:
                 return Response({"detail": str(err)})
-        queryset = Transaction.objects.filter(customer__user=request.user).order_by('-id')
+
+        query = Q(customer__user=request.user)
+        if date_from or date_to:
+            if not all([date_to, date_from]):
+                return Response({"detail": "date_from and date_to are required to filter"},
+                                status=status.HTTP_400_BAD_REQUEST)
+            query = query | Q(created_on__range=[date_from, date_to])
+
+        if search:
+            query = query | Q(beneficiary_name__icontains=search)
+            query = query | Q(beneficiary_number__icontains=search)
+
+        queryset = Transaction.objects.filter(query).order_by('-id').distinct()
         transaction = self.paginate_queryset(queryset, request)
         data = self.get_paginated_response(TransactionSerializer(transaction, many=True).data).data
         return Response(data)
