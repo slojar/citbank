@@ -445,7 +445,7 @@ class ConfirmTransactionPin(APIView):
         pin = request.data.get("pin", "")
 
         if not pin:
-            return Response({"detail": "pin is a required field"})
+            return Response({"detail": "pin is a required field"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = Customer.objects.get(user=request.user)
