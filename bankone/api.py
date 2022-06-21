@@ -1,6 +1,7 @@
 import uuid
 
-import requests, logging
+import requests
+import logging
 from django.conf import settings
 
 base_url = settings.BANK_ONE_BASE_URL
@@ -65,4 +66,11 @@ def send_email(to, subject, body):
 
     log_request(url, data, response)
     return response
+
+
+def send_email_temporal_fix(to, body, subject):
+    from django.core.mail import send_mail
+    email_sender = settings.EMAIL_FROM
+    send_mail(subject=subject, message=body, from_email=email_sender, recipient_list=[to])
+    print(f"Email sent to {to}")
 
