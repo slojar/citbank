@@ -61,6 +61,9 @@ EMAIL_HOST_USER = 'postmaster@wealthexinvestment.com'
 EMAIL_HOST_PASSWORD = 'b515562100d40e8e7762b1ffce379331-adf6de59-0172ca35'
 EMAIL_USE_TLS = True
 
+# GrayLog config
+# GRAYLOG_ENDPOINT: str = "http://127.0.0.1:12202/gelf"
+
 # Activate Django-Heroku.
 django_heroku.settings(locals())
 
