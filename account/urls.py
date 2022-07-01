@@ -18,7 +18,10 @@ urlpatterns = [
     path('transaction/', views.TransactionView.as_view(), name='user-transaction'),
     path('transaction/<str:ref>/', views.TransactionView.as_view(), name='user-transaction'),
     path('beneficiary/', views.BeneficiaryView.as_view(), name='beneficiary'),
-    path('confirm-transaction-pin/', views.ConfirmTransactionPin.as_view(), name="confirm-transaction-pin")
+    path('confirm-transaction-pin/', views.ConfirmTransactionPin.as_view(), name="confirm-transaction-pin"),
+
+    path('feedback/', views.FeedbackView.as_view(), name="user-feedback"),
+    path('generate-code/', views.GenerateRandomCode.as_view(), name="generate-code"),
 ]
 
 

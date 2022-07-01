@@ -52,6 +52,9 @@ BANK_ONE_BASE_URL = "https://staging.mybankone.com/BankOneWebAPI/api"
 CIT_INSTITUTION_CODE = "100321"
 CIT_MFB_CODE = "100125"
 CIT_EMAIL_FROM = "support@citmfb.com"
+CIT_ENQUIRY_EMAIL = "info@citmfb.com"
+CIT_FEEDBACK_EMAIL = "helpdesk@citmfb.com"
+CIT_ACCOUNT_OFFICE_RATING_EMAIL = "rating@citmfb.com"
 
 # Temporal FIX for Email Sending
 EMAIL_FROM = 'CIT MFB <noreply@citmfb.com>'

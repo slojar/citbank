@@ -17,6 +17,11 @@ BENEFICIARY_TYPE_CHOICES = (
     ('data', 'Data'), ('utility', 'Utility')
 )
 
+NOTIFICATION_TYPE_CHOICES = (
+    ('enquiry_email', 'Enquiry Email'), ('feedback_email', 'Feedback Email'),
+    ('account_manager_rating', 'Account Manager Rating')
+)
+
 
 class Customer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -101,3 +106,22 @@ class Beneficiary(models.Model):
 
     def __str__(self):
         return f"{self.customer}: {self.created_on}"
+
+
+# class Notification(models.Model):
+#     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+#     content = models.TextField()
+#     rating = models.IntegerField(default=0)
+#     message_type = models.CharField(max_length=200, choices=NOTIFICATION_TYPE_CHOICES, default='enquiry_email')
+#     created_on = models.DateTimeField(auto_now_add=True)
+#
+#     def __str__(self):
+#         return f"{self.customer}-{self.message_type}"
+
+
+
+
+
+
+
+

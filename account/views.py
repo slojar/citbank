@@ -1,6 +1,9 @@
 import uuid
+from threading import Thread
+
 from django.db.models import Q
 from django.contrib.auth.models import User
+from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -12,7 +15,7 @@ from .serializers import CustomerSerializer, TransactionSerializer, BeneficiaryS
 from .utils import create_new_customer, authenticate_user, validate_password, generate_new_otp, \
     send_otp_message, decrypt_text, encrypt_text, create_transaction
 
-from bankone.api import get_account_by_account_no
+from bankone.api import get_account_by_account_no, send_enquiry_email
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary
 
 
@@ -304,15 +307,16 @@ class TransactionView(APIView, CustomPagination):
                 return Response({"detail": str(err)})
 
         query = Q(customer__user=request.user)
-        if date_from or date_to:
-            if not all([date_to, date_from]):
-                return Response({"detail": "date_from and date_to are required to filter"},
-                                status=status.HTTP_400_BAD_REQUEST)
-            query = query | Q(created_on__range=[date_from, date_to])
 
         if search:
             query = query | Q(beneficiary_name__icontains=search)
             query = query | Q(beneficiary_number__icontains=search)
+
+        if date_from or date_to:
+            if not all([date_to, date_from]):
+                return Response({"detail": "date_from and date_to are required to filter"},
+                                status=status.HTTP_400_BAD_REQUEST)
+            query = query & Q(created_on__range=[date_from, date_to])
 
         queryset = Transaction.objects.filter(query).order_by('-id').distinct()
         transaction = self.paginate_queryset(queryset, request)
@@ -441,7 +445,7 @@ class BeneficiaryView(APIView, CustomPagination):
 class ConfirmTransactionPin(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def post(self, request):
         pin = request.data.get("pin", "")
 
         if not pin:
@@ -459,3 +463,46 @@ class ConfirmTransactionPin(APIView):
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"detail": "Transaction Pin is Correct"})
+
+
+class FeedbackView(APIView):
+
+    def post(self, request):
+        message = request.data.get("message")
+        message_type = request.data.get("message_type")
+
+        name = str("{} {}").format(self.request.user.first_name, self.request.user.last_name).capitalize()
+
+        if not all([message, message_type]):
+            return Response({"detail": "message and message_type are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        rating_email = settings.CIT_ACCOUNT_OFFICE_RATING_EMAIL
+        feedback_email = settings.CIT_FEEDBACK_EMAIL
+        enquiry_email = settings.CIT_ENQUIRY_EMAIL
+
+        if message_type == "account_manager_rating":
+            subject, receiver = f"ACCOUNT OFFICER RATING FROM {name}", rating_email
+        elif message_type == "feedback_email":
+            subject, receiver = f"FEEDBACK FROM {name}", feedback_email
+        else:
+            subject, receiver = f"ENQUIRY FROM {name}", enquiry_email
+
+        Thread(target=send_enquiry_email, args=[request.user.email, receiver, subject, message])
+
+        return Response({"detail": "Message sent successfully"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GenerateRandomCode(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        from .utils import generate_random_ref_code
+        code = generate_random_ref_code()
+        return Response({"detail": code})
+
+
+
+
+
+
+

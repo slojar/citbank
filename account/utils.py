@@ -283,6 +283,21 @@ def create_transaction(request):
     return True, transaction.reference
 
 
+def generate_random_ref_code():
+
+    now = datetime.date.today()
+    day = str(now.day)
+    if len(day) < 2:
+        day = f"0{day}"
+    month = str(now.month)
+    if len(month) < 2:
+        month = f"0{month}"
+    year = str(now.year)[2:]
+
+    code = str(uuid.uuid4().int)[:5]
+
+    ref_code = f"CIT-{year}{month}{day}{code}"
+    return ref_code
 
 
 

@@ -68,6 +68,23 @@ def send_email(to, subject, body):
     return response
 
 
+def send_enquiry_email(mail_from, email_to, subject, body):
+    url = f'{base_url}/Messaging/SaveEmail/{version}'
+
+    data = dict()
+
+    data['institutionCode'] = institution_code
+    data['mfbCode'] = mfb_code
+    data['emailFrom'] = email_from
+    data['emailTo'] = email_to
+    data['subject'] = subject
+    data['Message'] = body
+
+    response = requests.request('GET', url, params=data).json()
+
+    log_request(url, data, response)
+    return response
+
 def send_email_temporal_fix(to, body, subject):
     from django.core.mail import send_mail
     email_sender = settings.EMAIL_FROM
