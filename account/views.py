@@ -94,7 +94,7 @@ class CustomerProfileView(APIView):
         profile_picture = request.data.get('profile_picture')
 
         if not profile_picture:
-            return Response({'detail': 'No picture not selected'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'No picture selected'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             customer = Customer.objects.get(user=request.user)
             customer.image = profile_picture
