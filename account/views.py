@@ -287,7 +287,9 @@ class ResetTransactionPinView(APIView):
         customer.transaction_pin = encrypt_new_pin
         customer.save()
 
-        CustomerOTP.objects.get(phone_number=customer.phone_number).update(otp=str(uuid.uuid4().int)[:6])
+        customer_token = CustomerOTP.objects.get(phone_number=customer.phone_number)
+        customer_token.otp = str(uuid.uuid4().int)[:6]
+        customer_token.save()
 
         return Response({"detail": "You have successfully reset your transaction PIN"})
 
