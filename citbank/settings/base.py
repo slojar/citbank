@@ -118,14 +118,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-# Simple JWT
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=30),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=60),
-    'UPDATE_LAST_LOGIN': True,
-    'AUTH_HEADER_TYPES': ('Bearer', 'Token',),
-}
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
@@ -180,3 +172,13 @@ LOGGING = {
     },
 }
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR/'uploads/'
+
+# CIT
+CIT_INSTITUTION_CODE = "100321"
+CIT_MFB_CODE = "100125"
+CIT_EMAIL_FROM = "support@citmfb.com"
+CIT_ENQUIRY_EMAIL = "info@citmfb.com"
+CIT_FEEDBACK_EMAIL = "helpdesk@citmfb.com"
+CIT_ACCOUNT_OFFICE_RATING_EMAIL = "rating@citmfb.com"

@@ -77,10 +77,9 @@ class SignupOtpView(APIView):
                   f"your registration on CIT Mobile App."
         subject = "CIT Mobile Registration"
         success, detail = send_otp_message(phone_number, content, subject, account_no, email)
-        # if success is False:
-        #     return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
-        # return Response({'detail': detail})
-        return Response({'detail': "OTP successfully sent", "otp": otp})  # To be removed when message API start working
+        if success is False:
+            return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'detail': detail})
 
 
 class CustomerProfileView(APIView):
@@ -164,11 +163,9 @@ class ResetOTPView(APIView):
                 content = f"Dear {first_name},\nKindly use this OTP: {otp} to reset your {reset_type} on CIT Mobile App."
                 subject = f"Reset {reset_type} on CIT Mobile"
                 success, detail = send_otp_message(user_phone_number, content, subject, account_no, email)
-                # if success is False:
-                #     return Response({'detail': detail, "otp": otp}, status=status.HTTP_400_BAD_REQUEST)
-                # return Response({'detail': detail})
-                return Response(
-                    {'detail': "OTP successfully sent", "otp": otp})  # To be removed when message API start working
+                if success is False:
+                    return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'detail': detail})
         except (Exception,) as err:
             return Response({"detail": "Error", "data": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 

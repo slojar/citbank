@@ -75,7 +75,7 @@ def send_enquiry_email(mail_from, email_to, subject, body):
 
     data['institutionCode'] = institution_code
     data['mfbCode'] = mfb_code
-    data['emailFrom'] = email_from
+    data['emailFrom'] = mail_from
     data['emailTo'] = email_to
     data['subject'] = subject
     data['Message'] = body
@@ -85,9 +85,10 @@ def send_enquiry_email(mail_from, email_to, subject, body):
     log_request(url, data, response)
     return response
 
-def send_email_temporal_fix(to, body, subject):
-    from django.core.mail import send_mail
-    email_sender = settings.EMAIL_FROM
-    send_mail(subject=subject, message=body, from_email=email_sender, recipient_list=[to])
-    print(f"Email sent to {to}")
+# def send_email_temporal_fix(to, body, subject):
+#     from django.core.mail import send_mail
+#     email_sender = settings.EMAIL_FROM
+#     send_mail(subject=subject, message=body, from_email=email_sender, recipient_list=[to])
+#     print(f"Email sent to {to}")
+#
 
