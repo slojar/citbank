@@ -11,7 +11,7 @@ f.close()
 def main():
     """Run administrative tasks."""
 
-    if config('env', '') == 'prod' or os.getenv('env', 'dev') == 'prod':
+    if config('env', '') == 'prod':
         os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'citbank.settings.prod')
     else:
         os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'citbank.settings.dev')
