@@ -4,6 +4,8 @@ from threading import Thread
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.conf import settings
+from django.http import HttpResponse
+
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -17,6 +19,11 @@ from .utils import create_new_customer, authenticate_user, validate_password, ge
 
 from bankone.api import get_account_by_account_no, send_enquiry_email
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary
+
+
+class HomepageView(APIView):
+    def get(self, request):
+        return HttpResponse("<h1>Welcome to CIT MFB User Management</h1>")
 
 
 class SignupView(APIView):
