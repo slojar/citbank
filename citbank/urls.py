@@ -2,9 +2,11 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
+from account.views import HomepageView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', HomepageView.as_view()),
     path('account/', include("account.urls")),
     path('superadmin/', include('superadmin.urls'))
 ]
