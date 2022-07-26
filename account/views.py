@@ -22,6 +22,7 @@ from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Benefic
 
 
 class HomepageView(APIView):
+    permission_classes = []
     def get(self, request):
         return HttpResponse("<h1>Welcome to CIT MFB User Management</h1>")
 
