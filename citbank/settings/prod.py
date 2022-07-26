@@ -6,9 +6,9 @@ from datetime import timedelta
 SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = ['api.citmfb.com', '2.56.213.151']
+ALLOWED_HOSTS = ['api.citmfb.com']
 
 # DATABASE
 DATABASES = {
