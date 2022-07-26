@@ -1,10 +1,6 @@
 from .base import *
 from pathlib import Path
 from datetime import timedelta
-import environ
-
-env = environ.Env()
-environ.Env.read_env(os.path.join('.env'))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('SECRET_KEY')
@@ -12,7 +8,7 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['*', 'api.citmfb.com']
+ALLOWED_HOSTS = ['api.citmfb.com', '2.56.213.151']
 
 # DATABASE
 DATABASES = {

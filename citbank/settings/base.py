@@ -3,9 +3,10 @@ import os.path
 from pathlib import Path
 from datetime import timedelta
 
+import environ
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-import django.middleware.security
+env = environ.Env()
+environ.Env.read_env(os.path.join('.env'))
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
