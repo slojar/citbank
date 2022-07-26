@@ -18,7 +18,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG')
+DEBUG = True
 
 ALLOWED_HOSTS = []
 
