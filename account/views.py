@@ -1,4 +1,5 @@
 import uuid
+import requests
 from threading import Thread
 
 from django.db.models import Q
@@ -20,11 +21,38 @@ from .utils import create_new_customer, authenticate_user, validate_password, ge
 from bankone.api import get_account_by_account_no, send_enquiry_email
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary
 
+bankOneToken = settings.BANK_ONE_AUTH_TOKEN
+
 
 class HomepageView(APIView):
     permission_classes = []
     def get(self, request):
         return HttpResponse("<h1>Welcome to CIT MFB User Management</h1>")
+
+
+class RerouteView(APIView):
+
+    def post(self, request):
+        url = request.data.get("url", "")
+        verb = request.data.get("method", "GET")
+        header = request.data.get("header", {})
+        payload = request.data.get("payload", {})
+
+        new_url = ""
+        new_header = new_payload = response = {}
+
+        if str("live_token") in url:
+            new_url = str(url).replace("live_token", bankOneToken)
+        if str("live_token") in header:
+            new_header = str(header).replace("live_token", bankOneToken)
+        if str("live_token") in payload:
+            new_payload = str(payload).replace("live_token", bankOneToken)
+
+        if verb == "GET":
+            response = requests.request("GET", new_url, params=new_payload, headers=new_header).json()
+        if verb == "POST":
+            response = requests.request("POST", new_url, data=new_payload, headers=new_header).json()
+        return Response(response)
 
 
 class SignupView(APIView):
