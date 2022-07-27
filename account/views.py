@@ -31,6 +31,7 @@ class HomepageView(APIView):
 
 
 class RerouteView(APIView):
+    permission_classes = []
 
     def post(self, request):
         url = request.data.get("url", "")
