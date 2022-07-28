@@ -1,3 +1,4 @@
+import json
 import uuid
 import requests
 from threading import Thread
@@ -39,6 +40,9 @@ class RerouteView(APIView):
         header = request.data.get("header", {})
         payload = request.data.get("payload", {})
 
+        header = json.dumps(header)
+        payload = json.dumps(payload)
+
         response = {}
 
         if str("live_token") in url:
@@ -47,6 +51,9 @@ class RerouteView(APIView):
             header = str(header).replace("live_token", bankOneToken)
         if str("live_token") in payload:
             payload = str(payload).replace("live_token", bankOneToken)
+
+        header = json.loads(header)
+        payload = json.loads(payload)
 
         if verb == "GET":
             response = requests.request("GET", url, params=payload, headers=header).json()
