@@ -173,7 +173,7 @@ LOGGING = {
     },
 }
 
-MEDIA_URL = '/media/'
+MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR/'uploads/'
 
 # CIT
