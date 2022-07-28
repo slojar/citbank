@@ -39,24 +39,23 @@ class RerouteView(APIView):
         header = request.data.get("header", {})
         payload = request.data.get("payload", {})
 
-        new_url = ""
-        new_header = new_payload = response = {}
+        response = {}
 
         if str("live_token") in url:
-            new_url = str(url).replace("live_token", bankOneToken)
+            url = str(url).replace("live_token", bankOneToken)
         if str("live_token") in header:
-            new_header = str(header).replace("live_token", bankOneToken)
+            header = str(header).replace("live_token", bankOneToken)
         if str("live_token") in payload:
-            new_payload = str(payload).replace("live_token", bankOneToken)
+            payload = str(payload).replace("live_token", bankOneToken)
 
         if verb == "GET":
-            response = requests.request("GET", new_url, params=new_payload, headers=new_header).json()
+            response = requests.request("GET", url, params=payload, headers=header).json()
         if verb == "POST":
-            response = requests.request("POST", new_url, data=new_payload, headers=new_header).json()
+            response = requests.request("POST", url, data=payload, headers=header).json()
 
         log_request(
-            "CALLING BANKONE_API FROM MOBILE ||", f"URL: {new_url}", f"headers: {new_header}",
-            f"payload: {new_payload}", f"response: {response}"
+            "CALLING BANKONE_API FROM MOBILE ||", f"URL: {url}", f"headers: {header}",
+            f"payload: {payload}", f"response: {response}"
         )
         return Response(response)
 
