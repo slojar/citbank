@@ -18,7 +18,7 @@ from .serializers import CustomerSerializer, TransactionSerializer, BeneficiaryS
 from .utils import create_new_customer, authenticate_user, validate_password, generate_new_otp, \
     send_otp_message, decrypt_text, encrypt_text, create_transaction
 
-from bankone.api import get_account_by_account_no, send_enquiry_email
+from bankone.api import get_account_by_account_no, send_enquiry_email, log_request
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary
 
 bankOneToken = settings.BANK_ONE_AUTH_TOKEN
@@ -53,6 +53,11 @@ class RerouteView(APIView):
             response = requests.request("GET", new_url, params=new_payload, headers=new_header).json()
         if verb == "POST":
             response = requests.request("POST", new_url, data=new_payload, headers=new_header).json()
+
+        log_request(
+            "CALLING BANKONE_API FROM MOBILE ||", f"URL: {new_url}", f"headers: {new_header}",
+            f"payload: {new_payload}", f"response: {response}"
+        )
         return Response(response)
 
 

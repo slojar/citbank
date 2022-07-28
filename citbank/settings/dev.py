@@ -28,24 +28,13 @@ ALLOWED_HOSTS = []
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': env('DATABASE_NAME'),
-        'USER': env('DATABASE_USER'),
-        'PASSWORD': env('DATABASE_PASSWORD'),
-        'HOST': env('DATABASE_HOST'),
-        'PORT': env('DATABASE_PORT'),
+        'NAME': "citbank_db",
+        'USER': "citbank",
+        'PASSWORD': "citbank",
+        'HOST': "localhost",
+        'PORT': "5432",
     }
 }
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-#         'NAME': 'd55phb5upnglrj',
-#         'USER': 'ohntkkbtfijerx',
-#         'PASSWORD': 'f94baa23af8f4f729cc917143b42e1307cb590c8b694945b8760c2ad3d601806',
-#         'HOST': 'ec2-34-207-12-160.compute-1.amazonaws.com',
-#         'PORT': '5432',
-#     }
-# }
 
 # BANK ONE API CREDENTIALS
 BANK_ONE_AUTH_TOKEN = env('BANK_ONE_AUTH_TOKEN')
