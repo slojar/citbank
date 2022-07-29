@@ -36,9 +36,9 @@ def send_otp_message(phone_number, content, subject, account_no, email):
     Thread(target=send_email, args=[email, subject, content]).start()
     # Thread(target=send_email_temporal_fix, args=[email, content, subject]).start()
     response = send_sms(account_no, content, receiver=phone_number)
-    if response['Status'] is False:
-        detail = 'OTP not sent via sms, please check your email'
-        return True, detail
+    # if response['Status'] is False:
+    #     detail = 'OTP not sent via sms, please check your email'
+    #     return True, detail
     detail = 'OTP successfully sent'
 
     return True, detail
