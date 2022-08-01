@@ -177,7 +177,8 @@ MEDIA_URL = 'media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # CIT
-CIT_INSTITUTION_CODE = "100321"
+# CIT_INSTITUTION_CODE = "100321"
+CIT_INSTITUTION_CODE = "100125"
 CIT_MFB_CODE = "100125"
 CIT_EMAIL_FROM = "support@citmfb.com"
 CIT_ENQUIRY_EMAIL = "info@citmfb.com"
