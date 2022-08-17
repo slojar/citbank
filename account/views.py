@@ -536,7 +536,7 @@ class FeedbackView(APIView):
 
         Thread(target=send_enquiry_email, args=[request.user.email, receiver, subject, message])
 
-        return Response({"detail": "Message sent successfully"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "Message sent successfully"})
 
 
 class GenerateRandomCode(APIView):
