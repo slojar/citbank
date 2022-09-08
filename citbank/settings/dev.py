@@ -51,8 +51,8 @@ SIMPLE_JWT = {
 }
 
 # TM SAAS
-TM_CLIENT_ID = 'local_d2dddefdafe389d27f64'
-TM_BASE_URL = 'http://89.38.135.41:9006/v1'
+TM_CLIENT_ID = env('TM_CLIENT_ID')
+TM_BASE_URL = env('TM_BASE_URL')
 
 # Activate Django-Heroku.
 django_heroku.settings(locals())
