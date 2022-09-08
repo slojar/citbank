@@ -9,7 +9,8 @@ urlpatterns = [
     path('', HomepageView.as_view()),
     path('bankone/', RerouteView.as_view()),
     path('account/', include("account.urls")),
-    path('superadmin/', include('superadmin.urls'))
+    path('superadmin/', include('superadmin.urls')),
+    path('bills/', include('billpayment.urls')),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
