@@ -64,7 +64,6 @@ class AirtimeDataPurchaseAPIView(APIView):
             return Response({"detail": "Account not found"}, status=status.HTTP_400_BAD_REQUEST)
 
         # CHECK ACCOUNT BALANCE
-        account_no = 1300224922
         response = get_account_info(account_no).json()
         balance = response["AvailableBalance"]
 
