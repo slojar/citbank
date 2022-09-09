@@ -40,6 +40,7 @@ DATABASES = {
 BANK_ONE_AUTH_TOKEN = env('BANK_ONE_AUTH_TOKEN')
 BANK_ONE_VERSION = env('BANK_ONE_VERSION')
 BANK_ONE_BASE_URL = env('BANK_ONE_BASE_URL')
+BANK_ONE_3PS_URL = env('BANK_ONE_3PS_URL')
 
 # Simple JWT
 SIMPLE_JWT = {
@@ -49,6 +50,9 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer', 'Token',),
 }
 
+# TM SAAS
+TM_CLIENT_ID = env('TM_CLIENT_ID')
+TM_BASE_URL = env('TM_BASE_URL')
 
 # Activate Django-Heroku.
 django_heroku.settings(locals())

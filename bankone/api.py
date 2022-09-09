@@ -5,6 +5,7 @@ import logging
 from django.conf import settings
 
 base_url = settings.BANK_ONE_BASE_URL
+base_url_3ps = settings.BANK_ONE_3PS_URL
 version = settings.BANK_ONE_VERSION
 auth_token = settings.BANK_ONE_AUTH_TOKEN
 institution_code = settings.CIT_INSTITUTION_CODE
@@ -25,6 +26,48 @@ def get_account_by_account_no(account_no):
     payload['accountNumber'] = account_no
 
     response = requests.request('GET', url=url, params=payload)
+    log_request(url, payload, response.json())
+    return response
+
+
+def get_account_info(account_no):
+    url = f'{base_url_3ps}/Account/AccountEnquiry'
+
+    payload = dict()
+    payload['AuthenticationCode'] = auth_token
+    payload['AccountNo'] = account_no
+
+    response = requests.request('POST', url=url, data=payload)
+    log_request(url, payload, response.json())
+    return response
+
+
+def charge_customer(**kwargs):
+    url = f"{base_url_3ps}/CoreTransactions/LocalFundsTransfer"
+
+    payload = dict()
+    payload['AuthenticationKey'] = auth_token
+    payload['Amount'] = kwargs.get("amount")
+    payload['FromAccountNumber'] = kwargs.get("account_no")
+    payload['ToAccountNumber'] = 1100303086
+    payload['RetrievalReference'] = kwargs.get("trans_ref")
+    payload['Narration'] = kwargs.get("description")
+
+    response = requests.request('POST', url=url, data=payload)
+    log_request(url, payload, response.json())
+    return response
+
+
+def log_reversal(tran_date, trans_ref):
+    url = f"{base_url_3ps}/CoreTransactions/Reversal"
+
+    payload = dict()
+    payload['Token'] = auth_token
+    payload['TransactionType'] = "LOCALFUNDTRANSFER"
+    payload['TransactionDate'] = str(tran_date)
+    payload['RetrievalReference'] = trans_ref
+
+    response = requests.request('POST', url=url, data=payload)
     log_request(url, payload, response.json())
     return response
 

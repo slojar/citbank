@@ -34,7 +34,8 @@ INSTALLED_APPS = [
 
     # modules
     'account.apps.AccountConfig',
-    'superadmin.apps.SuperadminConfig'
+    'superadmin.apps.SuperadminConfig',
+    'billpayment.apps.BillpaymentConfig',
 ]
 
 MIDDLEWARE = [
