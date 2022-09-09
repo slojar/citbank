@@ -53,3 +53,58 @@ def purchase_data(**kwargs):
     return response
 
 
+def get_services(service_type):
+    url = f"{baseUrl}/serviceBiller/{service_type}"
+
+    response = requests.request("GET", url=url, headers=header).json()
+    log_request("GET", f"url: {url}", f"header: {header}", f"response: {response}")
+    return response
+
+
+def get_service_products(service_name, product_code=None):
+    url = f"{baseUrl}/{service_name}/products?provider=cdl"
+    if product_code:
+        url = f"{baseUrl}/{service_name}/addons?provider=cdl&productCode={product_code}"
+
+    response = requests.request("GET", url=url, headers=header).json()
+    log_request("GET", f"url: {url}", f"header: {header}", f"response: {response}")
+    return response
+
+
+def validate_scn(service_name, scn):
+    url = f"{baseUrl}/{service_name}/validate"
+
+    d_header = {
+        "client-id": settings.TM_CLIENT_ID,
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    payload = f"provider=cdl&smartCardNumber={scn}"
+
+    response = requests.request("POST", url=url, headers=d_header, data=payload).json()
+    log_request("POST", f"url: {url}", f"header: {d_header}", f"payload: {payload}", f"response: {response}")
+    return response
+
+
+def cable_tv_sub(**kwargs):
+    url = f"{baseUrl}/{kwargs.get('service_name')}/validate"
+
+    payload = {
+                "provider": "cdl",
+                "monthsPaidFor": kwargs.get("duration"),
+                "customerNumber": kwargs.get("customer_number"),
+                "amount": kwargs.get("amount"),
+                "customerName": kwargs.get("customer_name"),
+                "productCodes": [kwargs.get("product_codes")],
+                "invoicePeriod": kwargs.get("duration"),
+                "smartcardNumber": kwargs.get("smart_card_no")
+            }
+
+    response = requests.request("POST", url=url, headers=header, data=payload).json()
+    log_request("POST", f"url: {url}", f"header: {header}", f"payload: {payload}", f"response: {response}")
+    return response
+
+
+
+
+
+

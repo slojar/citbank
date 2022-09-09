@@ -9,7 +9,9 @@ from rest_framework.views import APIView
 from account.models import Customer, CustomerAccount
 from bankone.api import get_account_by_account_no, get_account_info, charge_customer, log_reversal
 from billpayment.models import Airtime, Data
-from tm_saas.api import get_networks, get_data_plan, purchase_airtime, purchase_data
+from billpayment.utils import check_balance_and_charge
+from tm_saas.api import get_networks, get_data_plan, purchase_airtime, purchase_data, get_services, \
+    get_service_products, validate_scn, cable_tv_sub
 
 
 class GetNetworksAPIView(APIView):
@@ -59,29 +61,15 @@ class AirtimeDataPurchaseAPIView(APIView):
 
         phone_number = f"234{phone_number[-10:]}"
 
-        # CONFIRM CUSTOMER OWNS THE ACCOUNT
-        if not CustomerAccount.objects.filter(customer__user=request.user, active=True, account_no=account_no).exists():
-            return Response({"detail": "Account not found"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # CHECK ACCOUNT BALANCE
-        response = get_account_info(account_no).json()
-        balance = response["AvailableBalance"]
-
-        if balance == 0:
-            return Response({"detail": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if float(amount) > balance:
-            return Response(
-                {"detail": "Amount cannot be greater than current balance"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # CHARGE CUSTOMER ACCOUNT
+        narration = f"{purchase_type} purchase for {phone_number}"
         code = str(uuid.uuid4().int)[:5]
         ref_code = f"CIT-{code}"
+        user = request.user
 
-        narration = f"{purchase_type} purchase for {phone_number}"
-        response = charge_customer(account_no=account_no, amount=amount, trans_ref=ref_code, description=narration)
-        response = response.json()
+        success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
+
+        if success is False:
+            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
             if purchase_type == "airtime":
@@ -136,3 +124,113 @@ class AirtimeDataPurchaseAPIView(APIView):
             )
 
         return Response({"detail": f"{purchase_type} purchase for {phone_number} was successful"})
+
+
+class CableTVAPIView(APIView):
+    permission_classes = []
+
+    def get(self, request, service_name=None):
+
+        service_type = request.GET.get("service_type")
+        product_code = request.GET.get("product_code")
+
+        if service_name:
+            response = get_service_products(service_name, product_code)
+            if "error" in response:
+                detail = response["error"]
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+
+            data = response["data"]
+
+        else:
+            if not service_type:
+                return Response({"detail": "service_type is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+            response = get_services(service_type)
+            if "error" in response:
+                detail = response["error"]["message"]
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+
+            data = response["data"]["billers"]
+        return Response({"detail": data})
+
+    def post(self, request):
+
+        account_no = request.data.get("account_no")
+        service_name = request.data.get("service_name")
+        duration = request.data.get("duration")
+        customer_number = request.data.get("customer_number")
+        amount = request.data.get("amount")
+        customer_name = request.data.get("customer_name")
+        product_codes = request.data.get("product_codes")
+        smart_card_no = request.data.get("smart_card_no")
+
+        if not all([account_no, service_name, smart_card_no, customer_number, amount, product_codes, duration]):
+            return Response(
+                {
+                    "detail": "account_no, service_name, smart_card_no, customer_number, amount, product_codes, "
+                              "and duration are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        code = str(uuid.uuid4().int)[:5]
+        narration = f"{service_name} subscription for {smart_card_no}"
+        ref_code = f"CIT-{code}"
+        user = request.user
+
+        success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
+
+        if success is False:
+            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+
+        if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+
+            response = cable_tv_sub(
+                service_name=service_name, duration=duration, customer_number=customer_number,
+                customer_name=customer_name, amount=amount, product_codes=product_codes, smart_card_no=smart_card_no
+            )
+
+            if "error" in response:
+                # LOG REVERSAL
+                date_today = datetime.datetime.now().date()
+                Thread(target=log_reversal, args=[date_today, ref_code]).start()
+
+                Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # data = response["data"]
+            #
+            # response_status = data["status"]
+            # trans_id = data["transactionId"]
+            # bill_id = data["billId"]
+
+            # CREATE CABLE TV INSTANCE
+            # airtime = Airtime.objects.create(
+            #     account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
+            #     status=response_status, transaction_id=trans_id, bill_id=bill_id
+            # )
+
+            pass
+
+        return Response({})
+
+
+class ValidateSCNAPIView(APIView):
+
+    def post(self, request):
+        smart_card_no = request.data.get("smart_card_no")
+        service_name = request.data.get("service_name")
+
+        if not all([smart_card_no, service_name]):
+            return Response({"detail": "smart_card_no and service_name are required"})
+
+        # VALIDATE SMART CARD NUMBER
+        response = validate_scn(service_name, smart_card_no)
+        if "error" in response:
+            return Response({"detail": "Error validating smart card number"}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = response["data"]
+        return Response({"detail": data})
+
+
+
+
