@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from account.models import Customer, CustomerAccount
-from bankone.api import get_account_by_account_no, get_account_info, charge_customer, log_reversal
+from bankone.api import get_account_by_account_no, get_account_balance, charge_customer, log_reversal
 from billpayment.models import Airtime, Data
 from billpayment.utils import check_balance_and_charge
 from tm_saas.api import get_networks, get_data_plan, purchase_airtime, purchase_data, get_services, \
