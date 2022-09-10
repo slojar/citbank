@@ -1,5 +1,5 @@
 from account.models import CustomerAccount
-from bankone.api import get_account_info, charge_customer
+from bankone.api import get_account_balance, charge_customer
 
 
 def check_balance_and_charge(user, account_no, amount, ref_code, narration):
@@ -8,13 +8,16 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
         return False, "Account not found"
 
     # CHECK ACCOUNT BALANCE
-    response = get_account_info(account_no).json()
-    balance = response["AvailableBalance"]
+    response = get_account_balance(account_no).json()
 
-    if balance == 0:
+    balance = 0
+    if response["AvailableBalance"]:
+        balance = response["AvailableBalance"]
+
+    if float(balance) <= 0:
         return False, "Insufficient balance"
 
-    if float(amount) > balance:
+    if float(amount) > float(balance):
         return False, "Amount cannot be greater than current balance"
 
     # CHARGE CUSTOMER ACCOUNT

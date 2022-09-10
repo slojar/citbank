@@ -30,15 +30,11 @@ def get_account_by_account_no(account_no):
     return response
 
 
-def get_account_info(account_no):
-    url = f'{base_url_3ps}/Account/AccountEnquiry'
+def get_account_balance(account_no):
+    url = f'{base_url}/Account/GetAccountByAccountNumber/2?accountNumber={account_no}&authtoken={auth_token}'
 
-    payload = dict()
-    payload['AuthenticationCode'] = auth_token
-    payload['AccountNo'] = account_no
-
-    response = requests.request('POST', url=url, data=payload)
-    log_request(url, payload, response.json())
+    response = requests.request('GET', url=url)
+    log_request(url, response.json())
     return response
 
 
