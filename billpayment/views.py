@@ -118,6 +118,10 @@ class AirtimeDataPurchaseAPIView(APIView):
                     account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
                     status=response_status, transaction_id=trans_id, bill_id=bill_id, plan_id=plan_id
                 )
+
+        elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
+            return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
+
         else:
             return Response(
                 {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST

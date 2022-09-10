@@ -14,7 +14,7 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
     if response["AvailableBalance"]:
         balance = response["AvailableBalance"]
 
-    if float(balance) <= 0:
+    if float(balance) <= 500:
         return False, "Insufficient balance"
 
     if float(amount) > float(balance):
