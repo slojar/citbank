@@ -17,7 +17,7 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from .paginations import CustomPagination
 from .serializers import CustomerSerializer, TransactionSerializer, BeneficiarySerializer
 from .utils import create_new_customer, authenticate_user, validate_password, generate_new_otp, \
-    send_otp_message, decrypt_text, encrypt_text, create_transaction
+    send_otp_message, decrypt_text, encrypt_text, create_transaction, confirm_trans_pin
 
 from bankone.api import get_account_by_account_no, send_enquiry_email, log_request
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary
@@ -371,16 +371,11 @@ class TransactionView(APIView, CustomPagination):
         return Response(data)
 
     def post(self, request):
-        trans_pin = request.data.get('transaction_pin')
 
-        if not trans_pin:
-            return Response({"detail": "Please enter your Transaction PIN"}, status=status.HTTP_400_BAD_REQUEST)
+        success, response = confirm_trans_pin(request)
 
-        customer_pin = Customer.objects.get(user=request.user).transaction_pin
-        decrypted_pin = decrypt_text(customer_pin)
-
-        if trans_pin != decrypted_pin:
-            return Response({"detail": "Invalid Transaction PIN"}, status=status.HTTP_400_BAD_REQUEST)
+        if success is False:
+            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         success, response = create_transaction(request)
         if success is False:
