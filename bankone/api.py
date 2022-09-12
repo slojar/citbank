@@ -41,9 +41,11 @@ def get_account_balance(account_no):
 def charge_customer(**kwargs):
     url = f"{base_url_3ps}/CoreTransactions/LocalFundsTransfer"
 
+    amount = kwargs.get("amount") * 100
+
     payload = dict()
     payload['AuthenticationKey'] = auth_token
-    payload['Amount'] = kwargs.get("amount")
+    payload['Amount'] = amount
     payload['FromAccountNumber'] = kwargs.get("account_no")
     payload['ToAccountNumber'] = 1100303086
     payload['RetrievalReference'] = kwargs.get("trans_ref")

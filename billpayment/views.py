@@ -7,8 +7,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from account.models import Customer, CustomerAccount
+from account.utils import confirm_trans_pin
 from bankone.api import get_account_by_account_no, get_account_balance, charge_customer, log_reversal
-from billpayment.models import Airtime, Data
+from billpayment.models import Airtime, Data, CableTV
 from billpayment.utils import check_balance_and_charge
 from tm_saas.api import get_networks, get_data_plan, purchase_airtime, purchase_data, get_services, \
     get_service_products, validate_scn, cable_tv_sub
@@ -58,6 +59,10 @@ class AirtimeDataPurchaseAPIView(APIView):
                 {"detail": "phone_number, network, amount, and purchase_type are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        success, response = confirm_trans_pin(request)
+        if success is False:
+            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         phone_number = f"234{phone_number[-10:]}"
 
@@ -163,19 +168,23 @@ class CableTVAPIView(APIView):
         account_no = request.data.get("account_no")
         service_name = request.data.get("service_name")
         duration = request.data.get("duration")
-        customer_number = request.data.get("customer_number")
+        phone_number = request.data.get("phone_number")
         amount = request.data.get("amount")
         customer_name = request.data.get("customer_name")
         product_codes = request.data.get("product_codes")
         smart_card_no = request.data.get("smart_card_no")
 
-        if not all([account_no, service_name, smart_card_no, customer_number, amount, product_codes, duration]):
+        if not all([account_no, service_name, smart_card_no, phone_number, amount, product_codes, duration]):
             return Response(
                 {
                     "detail": "account_no, service_name, smart_card_no, customer_number, amount, product_codes, "
                               "and duration are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        success, response = confirm_trans_pin(request)
+        if success is False:
+            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         code = str(uuid.uuid4().int)[:5]
         narration = f"{service_name} subscription for {smart_card_no}"
@@ -190,7 +199,7 @@ class CableTVAPIView(APIView):
         if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
 
             response = cable_tv_sub(
-                service_name=service_name, duration=duration, customer_number=customer_number,
+                service_name=service_name, duration=duration, customer_number=phone_number,
                 customer_name=customer_name, amount=amount, product_codes=product_codes, smart_card_no=smart_card_no
             )
 
@@ -201,21 +210,27 @@ class CableTVAPIView(APIView):
 
                 Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # data = response["data"]
-            #
-            # response_status = data["status"]
-            # trans_id = data["transactionId"]
-            # bill_id = data["billId"]
+            data = response["data"]
+
+            response_status = data["status"]
+            trans_id = data["transactionId"]
 
             # CREATE CABLE TV INSTANCE
-            # airtime = Airtime.objects.create(
-            #     account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
-            #     status=response_status, transaction_id=trans_id, bill_id=bill_id
-            # )
+            subscription = CableTV.objects.create(
+                service_name=service_name, account_no=account_no, smart_card_no=smart_card_no,
+                customer_name=customer_name, phone_number=phone_number, product=str(product_codes), months=duration,
+                amount=amount, status=response_status, transaction_id=trans_id
+            )
 
-            pass
+        elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
+            return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({})
+        else:
+            return Response(
+                {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response({"detail": f"{service_name} subscription for {smart_card_no} was successful"})
 
 
 class ValidateSCNAPIView(APIView):

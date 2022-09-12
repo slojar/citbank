@@ -300,6 +300,19 @@ def generate_random_ref_code():
     return ref_code
 
 
+def confirm_trans_pin(request):
+    trans_pin = request.data.get('transaction_pin')
+
+    if not trans_pin:
+        return False, "Please enter your Transaction PIN"
+
+    customer_pin = Customer.objects.get(user=request.user).transaction_pin
+    decrypted_pin = decrypt_text(customer_pin)
+
+    if trans_pin != decrypted_pin:
+        return False, "Invalid Transaction PIN"
+
+    return True, "PIN Correct"
 
 
 
