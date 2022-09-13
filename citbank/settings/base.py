@@ -34,6 +34,7 @@ INSTALLED_APPS = [
 
     # modules
     'account.apps.AccountConfig',
+    'api.apps.ApiConfig',
     'superadmin.apps.SuperadminConfig',
     'billpayment.apps.BillpaymentConfig',
 ]

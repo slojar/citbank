@@ -10,9 +10,13 @@ class CustomerAccountSerializer(serializers.ModelSerializer):
 
 
 class CustomerSerializer(serializers.ModelSerializer):
+    customer_detail = serializers.SerializerMethodField()
     accounts = serializers.SerializerMethodField()
     bvn_number = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
+
+    def get_customer_detail(self, obj):
+        return obj.get_customer_detail()
 
     def get_image(self, obj):
         if obj.image:
