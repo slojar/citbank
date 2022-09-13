@@ -35,7 +35,7 @@ class Customer(models.Model):
     transaction_pin = models.CharField(max_length=200, blank=True, null=True)
     image = models.ImageField(upload_to='profile_picture', blank=True, null=True)
     active = models.BooleanField(default=False)
-    # admin = models.BooleanField(default=False)
+    admin = models.BooleanField(default=False)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
@@ -45,6 +45,7 @@ class Customer(models.Model):
         data["last_name"] = self.user.last_name
         data["other_name"] = self.other_name
         data["email"] = self.user.email
+        data["username"] = self.user.username
         data["gender"] = self.gender
         data["customer_id"] = self.customerID
         return data
