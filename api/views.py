@@ -7,7 +7,7 @@ from account.serializers import CustomerSerializer
 from account.paginations import CustomPagination
 
 
-class AdminCustomerAPIView(views.APIView, CustomPagination):
+class AdminCustomerAPIView(views.APIView):
     permission_classes = []
 
     def get(self, request, pk=None):
@@ -30,11 +30,14 @@ class AdminCustomerAPIView(views.APIView, CustomPagination):
             else:
                 customers = Customer.objects.all().order_by('-created_on')
 
-            queryset = self.paginate_queryset(customers, request)
-            serializer = CustomerSerializer(queryset, many=True, context={'request': request}).data
-            data = self.get_paginated_response(serializer).data
+            data = CustomerSerializer(customers, many=True, context={'request': request}).data
 
-        return Response(data)
+        recent_customers = Customer.objects.all().order_by("-created_on")[:10]
+        total = Customer.objects.all().count()
+        recent = list()
+        for customer in recent_customers:
+            recent.append(customer.get_customer_detail())
+        return Response({"detail": data, "recent": recent, "count": total})
 
     def put(self, request, pk):
 
