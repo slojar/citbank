@@ -89,8 +89,15 @@ class LoginView(APIView):
 
     def post(self, request):
         details, success = authenticate_user(request)
+        try:
+            customer = Customer.objects.get(user=request.user)
+            if customer.active is False:
+                details = "Your account is locked, please contact the bank to unlock"
+                success = False
+        except Exception as ex:
+            return Response({"detail": "An error occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
         if success is True:
-            data = CustomerSerializer(Customer.objects.get(user=request.user)).data
+            data = CustomerSerializer(customer).data
             return Response({
                 "detail": details, "access_token": str(AccessToken.for_user(request.user)),
                 "refresh_token": str(RefreshToken.for_user(request.user)), 'data': data})

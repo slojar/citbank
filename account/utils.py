@@ -161,7 +161,6 @@ def create_new_customer(data, account_no):
     customer.phone_number = phone_number
     customer.bvn = encrypted_bvn
     customer.transaction_pin = encrypted_trans_pin
-    customer.active = True
     customer.save()
 
     # Create customer account
