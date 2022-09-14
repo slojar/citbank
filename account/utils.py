@@ -84,14 +84,18 @@ def create_new_customer(data, account_no):
         detail = 'Transaction PIN mismatch'
         return success, detail
 
+    if not (password.isnumeric() and len(password) == 6):
+        detail = 'Password can only be 6 digit'
+        return success, detail
+
     if password != password_confirm:
         detail = 'Password mismatch'
         return success, detail
 
-    check, detail = validate_password(password)
+    # check, detail = validate_password(password)
 
-    if check is False:
-        return check, detail
+    # if check is False:
+    #     return check, detail
 
     if User.objects.filter(username=username).exists():
         detail = 'username is taken, please choose another one or contact admin'

@@ -12,8 +12,7 @@ class AdminCustomerAPIView(views.APIView):
 
     def get(self, request, pk=None):
         if pk:
-            customer_id = request.GET.get("customer_id")
-            data = CustomerSerializer(Customer.objects.get(id=customer_id), context={'request': request}).data
+            data = CustomerSerializer(Customer.objects.get(id=pk), context={'request': request}).data
         else:
             search = request.GET.get("search")
             account_status = request.GET.get("account_status")
