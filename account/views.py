@@ -16,7 +16,7 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from .paginations import CustomPagination
 from .serializers import CustomerSerializer, TransactionSerializer, BeneficiarySerializer
-from .utils import create_new_customer, authenticate_user, validate_password, generate_new_otp, \
+from .utils import create_new_customer, authenticate_user, generate_new_otp, \
     send_otp_message, decrypt_text, encrypt_text, create_transaction, confirm_trans_pin
 
 from bankone.api import get_account_by_account_no, send_enquiry_email, log_request
@@ -155,37 +155,32 @@ class ChangePasswordView(APIView):
 
     def post(self, request):
         try:
-            data = request.data
-            old_password = data.get('old_password', '')
-            new_password = data.get('new_password', '')
-            confirm_password = data.get('confirm_password', '')
-            # print(data, old_password, new_password)
+            old_password = request.data.get('old_password', '')
+            new_password = request.data.get('new_password', '')
+            confirm_password = request.data.get('confirm_password', '')
 
             # Check if old password matches the present password
             old_user_password = request.user.check_password(old_password)
 
             if not old_user_password:
-                return Response({"detail": "Old password is wrong"})
+                return Response({"detail": "Old password is wrong"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if not (new_password.isnumeric() and len(new_password) == 6):
+                return Response({"detail": "Password can only be 6 digit"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Check if old and new password are the same.
             if old_password == new_password:
-                return Response({"detail": "previously used passwords are not allowed"})
+                return Response({"detail": "previously used passwords are not allowed"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Check if new and confirm password are not the same
             if new_password != confirm_password:
-                return Response({"detail": "Passwords, does not match"})
-
-            # Check if password has atleast (more than 8 chars, 1 special char, 1 digit, 1 lower case, 1 Upper case)
-            check, detail = validate_password(new_password)
-
-            if not check:
-                raise Exception(detail)
+                return Response({"detail": "Passwords, does not match"}, status=status.HTTP_400_BAD_REQUEST)
 
             user = request.user
             user.set_password(new_password)
             user.save()
 
-            return Response({"detail": detail})
+            return Response({"detail": "Password change successfully"})
         except (Exception,) as err:
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -239,13 +234,11 @@ class ForgotPasswordView(APIView):
             if otp != CustomerOTP.objects.get(phone_number=phone_number).otp:
                 return Response({"detail": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
+            if not (new_password.isnumeric() and len(new_password) == 6):
+                return Response({"detail": "Password can only be 6 digit"}, status=status.HTTP_400_BAD_REQUEST)
+
             if new_password != confirm_password:
                 return Response({"detail": "Passwords does not match"}, status=status.HTTP_400_BAD_REQUEST)
-
-            check, detail = validate_password(new_password)
-
-            if not check:
-                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
 
             if user is not None:
                 user.set_password(new_password)
