@@ -26,9 +26,9 @@ class Homepage(views.APIView):
         data_count = Data.objects.all().count()
         cable_tv_count = CableTV.objects.all().count()
 
-        airtime_purchase_total = Airtime.objects.filter(status="success").aggregate(Sum("amount"))["amount__sum"] or 0
-        data_purchase_total = Data.objects.filter(status="success").aggregate(Sum("amount"))["amount__sum"] or 0
-        cable_tv_purchase_total = CableTV.objects.filter(status="success").aggregate(Sum("amount"))["amount__sum"] or 0
+        airtime_purchase_total = Airtime.objects.filter(status__iexact="success").aggregate(Sum("amount"))["amount__sum"] or 0
+        data_purchase_total = Data.objects.filter(status__iexact="success").aggregate(Sum("amount"))["amount__sum"] or 0
+        cable_tv_purchase_total = CableTV.objects.filter(status__iexact="success").aggregate(Sum("amount"))["amount__sum"] or 0
 
         data["recent_customer"] = recent
         data["total_customer"] = total
