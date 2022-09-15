@@ -34,6 +34,8 @@ class Customer(models.Model):
     nin = models.CharField(max_length=200, blank=True, null=True)
     transaction_pin = models.CharField(max_length=200, blank=True, null=True)
     image = models.ImageField(upload_to='profile_picture', blank=True, null=True)
+    daily_limit = models.DecimalField(max_digits=20, decimal_places=2, default=200000)
+    transfer_limit = models.DecimalField(max_digits=20, decimal_places=2, default=100000)
     active = models.BooleanField(default=False)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
@@ -47,6 +49,7 @@ class Customer(models.Model):
         data["username"] = self.user.username
         data["gender"] = self.gender
         data["customer_id"] = self.customerID
+        data["staff"] = self.user.is_staff
         return data
 
     def __str__(self):

@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.db.models import Q, Sum
 from rest_framework.response import Response
 from rest_framework import status, views
@@ -6,6 +7,7 @@ from account.models import Customer, Transaction
 from account.serializers import CustomerSerializer, TransactionSerializer
 from account.paginations import CustomPagination
 from billpayment.models import Airtime, CableTV, Data
+from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer
 
 
 class Homepage(views.APIView):
@@ -52,7 +54,8 @@ class AdminCustomerAPIView(views.APIView):
             if search:
                 query = Q(user__first_name__icontains=search) | Q(user__last_name__icontains=search) | \
                         Q(user__email__icontains=search) | Q(customerID__exact=search) | \
-                        Q(user__username__icontains=search) | Q(customeraccount__account_no__exact=search)
+                        Q(user__username__icontains=search) | Q(customeraccount__account_no__exact=search) | \
+                        Q(phone_number__exact=search)
 
                 customers = Customer.objects.filter(query).order_by('-created_on').distinct()
             elif account_status:
@@ -69,13 +72,24 @@ class AdminCustomerAPIView(views.APIView):
     def put(self, request, pk):
 
         account_status = request.data.get("account_status")
+        staff_status = request.data.get("staff_status")
+        daily_limit = request.data.get("daily_limit")
+        transfer_limit = request.data.get("transfer_limit")
         try:
             customer = Customer.objects.get(id=pk)
-            customer.active = account_status
+            if account_status:
+                customer.active = account_status
+            if daily_limit:
+                customer.daily_limit = daily_limit
+            if transfer_limit:
+                customer.transfer_limit = transfer_limit
+            if staff_status:
+                customer.user.is_staff = staff_status
+                customer.user.save()
             customer.save()
         except Exception as ex:
             return Response({"detail": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"detail": "Account status changed successfully"})
+        return Response({"detail": "Account status/limit changed successfully"})
 
 
 class AdminTransferAPIView(views.APIView, CustomPagination):
@@ -97,6 +111,50 @@ class AdminTransferAPIView(views.APIView, CustomPagination):
         return Response(data)
 
 
+class AdminBillPaymentAPIView(views.APIView, CustomPagination):
+    permission_classes = []
+
+    def get(self, request):
+
+        bill_type = request.GET.get("bill_type")
+        search = request.GET.get("search")
+
+        data = dict()
+
+        if bill_type == "airtime":
+            if search:
+                query = Q(account_no__iexact=search) | Q(beneficiary__iexact=search) | Q(network__iexact=search) | \
+                        Q(status__iexact=search) | Q(transaction_id__iexact=search)
+                queryset = Airtime.objects.filter(query).distinct().order_by('-created_on')
+            else:
+                queryset = Airtime.objects.all().order_by('-created_on')
+            queryset = self.paginate_queryset(queryset, request)
+            serializer = AirtimeSerializer(queryset, many=True).data
+
+        if bill_type == "data":
+            if search:
+                query = Q(account_no__iexact=search) | Q(beneficiary__iexact=search) | Q(network__iexact=search) | \
+                        Q(status__iexact=search) | Q(transaction_id__iexact=search) | Q(plan_id__iexact=search)
+                queryset = Data.objects.filter(query).distinct().order_by('-created_on')
+            else:
+                queryset = Data.objects.all().order_by('-created_on')
+            queryset = self.paginate_queryset(queryset, request)
+            serializer = DataSerializer(queryset, many=True).data
+
+        if bill_type == "cable_tv":
+            if search:
+                query = Q(account_no__iexact=search) | Q(service_name__iexact=search) | Q(smart_card_no__iexact=search) | \
+                        Q(status__iexact=search) | Q(transaction_id__iexact=search) | Q(phone_number__iexact=search)
+                queryset = CableTV.objects.filter(query).distinct().order_by('-created_on')
+            else:
+                queryset = CableTV.objects.all().order_by('-created_on')
+            queryset = self.paginate_queryset(queryset, request)
+            serializer = CableTVSerializer(queryset, many=True).data
+
+        detail = self.get_paginated_response(serializer).data
+        data["detail"] = detail
+
+        return Response(data)
 
 
 

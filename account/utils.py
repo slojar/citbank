@@ -1,5 +1,6 @@
 import base64
 import datetime
+import decimal
 import uuid
 import re
 
@@ -8,6 +9,7 @@ from django.conf import settings
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
+from django.db.models import Sum
 
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
@@ -270,6 +272,17 @@ def create_transaction(request):
 
     # get the customer the account_number belongs to
     customer = CustomerAccount.objects.filter(account_no=account_number).first().customer
+
+    # Check Transfer Limit
+    if decimal.Decimal(amount) > customer.transfer_limit:
+        return False, "amount is greater than your limit. please contact the bank"
+
+    # Check Daily Transfer Limit
+    today = datetime.datetime.today()
+    today_trans = Transaction.objects.filter(customer=customer, status="success", created_on__day=today.day).aggregate(Sum("amount"))["amount__sum"] or 0
+    current_limit = float(amount) + float(today_trans)
+    if current_limit > customer.daily_limit:
+        return False, f"Your current daily transfer limit is NGN{customer.daily_limit}, please contact the bank"
 
     # generate transaction reference using the format CYYMMDDCODES
     now = datetime.datetime.now()
