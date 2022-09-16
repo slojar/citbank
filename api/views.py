@@ -97,12 +97,24 @@ class AdminTransferAPIView(views.APIView, CustomPagination):
 
     def get(self, request):
         transfer_type = request.GET.get("transfer_type")
+        search = request.GET.get("search")
+
+        query = Q()
+        if search:
+            query = Q(customer__user__first_name__iexact=search) | Q(customer__user__last_name__iexact=search) | \
+                     Q(customer__customerID=search) | Q(beneficiary_name__icontains=search) | \
+                     Q(beneficiary_number=search) | Q(reference__iexact=search)
+
         if transfer_type == "local":
-            transfers = Transaction.objects.filter(transaction_option="cit_bank_transfer").order_by('-created_on')
+            query &= Q(transaction_option="cit_bank_transfer")
+            transfers = Transaction.objects.filter(query).order_by('-created_on').distinct()
         elif transfer_type == "others":
-            transfers = Transaction.objects.filter(transaction_option="other_bank_transfer").order_by('-created_on')
+            query &= Q(transaction_option="other_bank_transfer")
+            transfers = Transaction.objects.filter(query).order_by('-created_on').distinct()
+            print(query)
+            print(transfers)
         else:
-            transfers = Transaction.objects.all().order_by('-created_on')
+            transfers = Transaction.objects.filter(query).order_by('-created_on')
 
         queryset = self.paginate_queryset(transfers, request)
         serializer = TransactionSerializer(queryset, many=True).data
@@ -124,7 +136,7 @@ class AdminBillPaymentAPIView(views.APIView, CustomPagination):
         if bill_type == "airtime":
             if search:
                 query = Q(account_no__iexact=search) | Q(beneficiary__iexact=search) | Q(network__iexact=search) | \
-                        Q(status__iexact=search) | Q(transaction_id__iexact=search)
+                        Q(transaction_id__iexact=search)
                 queryset = Airtime.objects.filter(query).distinct().order_by('-created_on')
             else:
                 queryset = Airtime.objects.all().order_by('-created_on')
@@ -134,7 +146,7 @@ class AdminBillPaymentAPIView(views.APIView, CustomPagination):
         if bill_type == "data":
             if search:
                 query = Q(account_no__iexact=search) | Q(beneficiary__iexact=search) | Q(network__iexact=search) | \
-                        Q(status__iexact=search) | Q(transaction_id__iexact=search) | Q(plan_id__iexact=search)
+                        Q(transaction_id__iexact=search) | Q(plan_id__iexact=search)
                 queryset = Data.objects.filter(query).distinct().order_by('-created_on')
             else:
                 queryset = Data.objects.all().order_by('-created_on')
@@ -144,7 +156,7 @@ class AdminBillPaymentAPIView(views.APIView, CustomPagination):
         if bill_type == "cable_tv":
             if search:
                 query = Q(account_no__iexact=search) | Q(service_name__iexact=search) | Q(smart_card_no__iexact=search) | \
-                        Q(status__iexact=search) | Q(transaction_id__iexact=search) | Q(phone_number__iexact=search)
+                        Q(transaction_id__iexact=search) | Q(phone_number__iexact=search)
                 queryset = CableTV.objects.filter(query).distinct().order_by('-created_on')
             else:
                 queryset = CableTV.objects.all().order_by('-created_on')
