@@ -16,7 +16,6 @@ from tm_saas.api import get_networks, get_data_plan, purchase_airtime, purchase_
 
 
 class GetNetworksAPIView(APIView):
-    permission_classes = []
 
     def get(self, request):
 
@@ -136,7 +135,6 @@ class AirtimeDataPurchaseAPIView(APIView):
 
 
 class CableTVAPIView(APIView):
-    permission_classes = []
 
     def get(self, request, service_name=None):
 
@@ -173,6 +171,8 @@ class CableTVAPIView(APIView):
         customer_name = request.data.get("customer_name")
         product_codes = request.data.get("product_codes")
         smart_card_no = request.data.get("smart_card_no")
+
+        print(request.data)
 
         if not all([account_no, service_name, smart_card_no, phone_number, amount, product_codes, duration]):
             return Response(
