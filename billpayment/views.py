@@ -10,9 +10,9 @@ from account.models import Customer, CustomerAccount
 from account.utils import confirm_trans_pin
 from bankone.api import get_account_by_account_no, get_details_by_customer_id, charge_customer, log_reversal
 from billpayment.models import Airtime, Data, CableTV
-from billpayment.utils import check_balance_and_charge
+from billpayment.utils import check_balance_and_charge, vend_electricity
 from tm_saas.api import get_networks, get_data_plan, purchase_airtime, purchase_data, get_services, \
-    get_service_products, validate_scn, cable_tv_sub
+    get_service_products, validate_scn, cable_tv_sub, validate_meter_no, get_discos
 
 
 class GetNetworksAPIView(APIView):
@@ -93,7 +93,7 @@ class AirtimeDataPurchaseAPIView(APIView):
                 bill_id = data["billId"]
 
                 # CREATE AIRTIME INSTANCE
-                airtime = Airtime.objects.create(
+                Airtime.objects.create(
                     account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
                     status=response_status, transaction_id=trans_id, bill_id=bill_id
                 )
@@ -118,7 +118,7 @@ class AirtimeDataPurchaseAPIView(APIView):
                 bill_id = data["billId"]
 
                 # CREATE DATA INSTANCE
-                data = Data.objects.create(
+                Data.objects.create(
                     account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
                     status=response_status, transaction_id=trans_id, bill_id=bill_id, plan_id=plan_id
                 )
@@ -172,8 +172,6 @@ class CableTVAPIView(APIView):
         product_codes = request.data.get("product_codes")
         smart_card_no = request.data.get("smart_card_no")
 
-        print(request.data)
-
         if not all([account_no, service_name, smart_card_no, phone_number, amount, product_codes, duration]):
             return Response(
                 {
@@ -216,7 +214,7 @@ class CableTVAPIView(APIView):
             trans_id = data["transactionId"]
 
             # CREATE CABLE TV INSTANCE
-            subscription = CableTV.objects.create(
+            CableTV.objects.create(
                 service_name=service_name, account_no=account_no, smart_card_no=smart_card_no,
                 customer_name=customer_name, phone_number=phone_number, product=str(product_codes), months=duration,
                 amount=amount, status=response_status, transaction_id=trans_id
@@ -233,23 +231,100 @@ class CableTVAPIView(APIView):
         return Response({"detail": f"{service_name} subscription for {smart_card_no} was successful"})
 
 
-class ValidateSCNAPIView(APIView):
+class ValidateAPIView(APIView):
 
     def post(self, request):
         smart_card_no = request.data.get("smart_card_no")
         service_name = request.data.get("service_name")
+        disco_type = request.data.get("disco_type")
+        meter_no = request.data.get("meter_no")
 
-        if not all([smart_card_no, service_name]):
-            return Response({"detail": "smart_card_no and service_name are required"})
+        validate_type = request.data.get("validate_type")
 
-        # VALIDATE SMART CARD NUMBER
-        response = validate_scn(service_name, smart_card_no)
+        if validate_type == "smart_card":
+            if not all([smart_card_no, service_name]):
+                return Response(
+                    {"detail": "smart_card_no and service_name are required"}, status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # VALIDATE SMART CARD NUMBER
+            response = validate_scn(service_name, smart_card_no)
+        elif validate_type == "meter":
+            if not all([disco_type, meter_no]):
+                return Response(
+                    {"detail": "disco_type and meter_no are required"}, status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # VALIDATE METER NUMBER
+            response = validate_meter_no(disco_type, meter_no)
+        else:
+            return Response({"detail": "Invalid validate_type or not selected"}, status=status.HTTP_400_BAD_REQUEST)
+
         if "error" in response:
             return Response({"detail": "Error validating smart card number"}, status=status.HTTP_400_BAD_REQUEST)
 
         data = response["data"]
         return Response({"detail": data})
 
+
+class ElectricityAPIView(APIView):
+
+    def get(self, request):
+        response = get_discos()
+        if not response["data"]:
+            return Response({"detail": "An error occurred while fetching data"}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = dict()
+        data["detail"] = response["data"]
+
+        return Response(data)
+
+    def post(self, request):
+
+        disco_type = request.data.get("disco_type")
+        account_no = request.data.get("account_no")
+        meter_no = request.data.get("meter_no")
+        amount = request.data.get("amount")
+        phone_number = request.data.get("phone_no")
+
+        if not all([account_no, disco_type, meter_no, amount, phone_number]):
+            return Response(
+                {"detail": "account number, disco type, amount, phone number and meter number are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        success, detail = confirm_trans_pin(request)
+        if success is False:
+            return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+
+        code = str(uuid.uuid4().int)[:5]
+        narration = f"{disco_type} payment for meter: {meter_no}"
+        ref_code = f"CIT-{code}"
+        user = request.user
+
+        success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
+
+        if success is False:
+            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+
+        if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+
+            success, detail, token = vend_electricity(account_no, disco_type, meter_no, amount, phone_number)
+            if success is False:
+                # LOG REVERSAL
+                date_today = datetime.datetime.now().date()
+                Thread(target=log_reversal, args=[date_today, ref_code]).start()
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+
+        elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
+            return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
+
+        else:
+            return Response(
+                {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response({"detail": f"{disco_type} payment for meter: {meter_no} was successful", "credit_token": token})
 
 
 
