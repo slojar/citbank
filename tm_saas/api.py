@@ -104,6 +104,32 @@ def cable_tv_sub(**kwargs):
     return response
 
 
+def get_discos():
+    url = f"{baseUrl}/electricity/getDiscos"
+    response = requests.request("GET", url, headers=header).json()
+    log_request("POST", f"url: {url}", f"header: {header}", f"response: {response}")
+    return response
+
+
+def validate_meter_no(disco_type, meter_no):
+    url = f"{baseUrl}/electricity/validate"
+
+    payload = dict()
+    payload["type"] = disco_type
+    payload["customerReference"] = meter_no
+
+    response = requests.request("POST", url, data=payload, headers=header).json()
+    log_request("POST", f"url: {url}", f"header: {header}", f"payload: {payload}", f"response: {response}")
+    return response
+
+
+def electricity(data):
+    url = f"{baseUrl}/electricity/vend"
+    response = requests.request("POST", url, data=data, headers=header).json()
+    log_request("POST", f"url: {url}", f"header: {header}", f"payload: {data}", f"response: {response}")
+    return response
+
+
 
 
 

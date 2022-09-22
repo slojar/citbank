@@ -7,5 +7,7 @@ urlpatterns = [
 
     path('cable/', views.CableTVAPIView.as_view(), name="cable_tv"),
     path('cable/<str:service_name>/', views.CableTVAPIView.as_view(), name="cable_tv"),
-    path('validate-scn/', views.ValidateSCNAPIView.as_view(), name="validate-scn"),
+    path('validate/', views.ValidateAPIView.as_view(), name="validate"),
+
+    path('electricity/', views.ElectricityAPIView.as_view(), name="electricity"),
 ]
