@@ -1,4 +1,5 @@
 import datetime
+import decimal
 import uuid
 from threading import Thread
 
@@ -189,6 +190,8 @@ class CableTVAPIView(APIView):
         ref_code = f"CIT-{code}"
         user = request.user
 
+        amount = decimal.Decimal(amount) + 100
+
         success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
         if success is False:
@@ -301,6 +304,8 @@ class ElectricityAPIView(APIView):
         narration = f"{disco_type} payment for meter: {meter_no}"
         ref_code = f"CIT-{code}"
         user = request.user
+
+        amount = decimal.Decimal(amount) + 100
 
         success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 

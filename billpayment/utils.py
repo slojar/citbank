@@ -1,5 +1,7 @@
+from threading import Thread
+
 from account.models import CustomerAccount
-from bankone.api import get_details_by_customer_id, charge_customer
+from bankone.api import get_details_by_customer_id, charge_customer, send_sms
 from billpayment.models import Electricity
 from tm_saas.api import validate_meter_no, electricity
 
@@ -74,15 +76,23 @@ def vend_electricity(account_no, disco_type, meter_no, amount, phone_number):
         }
 
     elif disco_type == "EKEDC_POSTPAID":
-        # data = {
-        #     "disco": "EKEDC_POSTPAID",
-        #     "accountNumber": meter_no,
-        #     "amount": amount
-        # }
-        pass
+        data = {
+            "disco": "EKEDC_POSTPAID",
+            "accountNumber": meter_no,
+            "amount": amount
+        }
 
     elif disco_type == "EKEDC_PREPAID":
-        ...
+        data = {
+            "disco": "EKEDC_PREPAID",
+            "customerReference": meter_no,
+            "canVend": True,
+            "customerAddress": response["data"]["customerAddress"],
+            "meterNumber": meter_no,
+            "customerName": response["data"]["customerName"],
+            "customerDistrict": response["data"]["customerDistrict"],
+            "amount": amount
+        }
 
     elif disco_type == "IBEDC_POSTPAID":
         data = {
@@ -121,10 +131,17 @@ def vend_electricity(account_no, disco_type, meter_no, amount, phone_number):
         token = response["data"]["providerResponse"]["token"]
 
     # Create Electricity Instance
-    Electricity.objects.create(
+    elect = Electricity.objects.create(
         account_no=account_no, disco_type=disco_type, meter_number=meter_no, amount=amount, phone_number=phone_number,
-        status=status, transaction_id=transaction_id, bill_id=bill_id
+        status=status, transaction_id=transaction_id, bill_id=bill_id, token=token
     )
+
+    if not token == "":
+        # SEND TOKEN TO PHONE NUMBER
+        content = f"Your {disco_type} token is: {token}".replace("_", " ")
+        Thread(target=send_sms, args=[account_no, content, phone_number]).start()
+        elect.token_sent = True
+        elect.save()
 
     return True, "vending was successful", token
 
