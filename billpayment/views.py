@@ -3,6 +3,7 @@ import decimal
 import uuid
 from threading import Thread
 
+from django.conf import settings
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,6 +11,7 @@ from rest_framework.views import APIView
 from account.models import Customer, CustomerAccount
 from account.utils import confirm_trans_pin
 from bankone.api import get_account_by_account_no, get_details_by_customer_id, charge_customer, log_reversal
+from billpayment.cron import retry_eko_elect_cron
 from billpayment.models import Airtime, Data, CableTV
 from billpayment.utils import check_balance_and_charge, vend_electricity
 from tm_saas.api import get_networks, get_data_plan, purchase_airtime, purchase_data, get_services, \
@@ -96,7 +98,7 @@ class AirtimeDataPurchaseAPIView(APIView):
                 # CREATE AIRTIME INSTANCE
                 Airtime.objects.create(
                     account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
-                    status=response_status, transaction_id=trans_id, bill_id=bill_id
+                    status=response_status, transaction_id=trans_id, bill_id=bill_id, reference=ref_code
                 )
 
             if purchase_type == "data":
@@ -120,7 +122,7 @@ class AirtimeDataPurchaseAPIView(APIView):
 
                 # CREATE DATA INSTANCE
                 Data.objects.create(
-                    account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
+                    account_no=account_no, beneficiary=phone_number, network=network, amount=amount, reference=ref_code,
                     status=response_status, transaction_id=trans_id, bill_id=bill_id, plan_id=plan_id
                 )
 
@@ -190,7 +192,7 @@ class CableTVAPIView(APIView):
         ref_code = f"CIT-{code}"
         user = request.user
 
-        amount = decimal.Decimal(amount) + 100
+        amount = decimal.Decimal(amount) + settings.SERVICE_CHARGE
 
         success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
@@ -220,7 +222,7 @@ class CableTVAPIView(APIView):
             CableTV.objects.create(
                 service_name=service_name, account_no=account_no, smart_card_no=smart_card_no,
                 customer_name=customer_name, phone_number=phone_number, product=str(product_codes), months=duration,
-                amount=amount, status=response_status, transaction_id=trans_id
+                amount=amount, status=response_status, transaction_id=trans_id, reference=ref_code
             )
 
         elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
@@ -305,7 +307,7 @@ class ElectricityAPIView(APIView):
         ref_code = f"CIT-{code}"
         user = request.user
 
-        amount = decimal.Decimal(amount) + 100
+        amount = decimal.Decimal(amount) + settings.SERVICE_CHARGE
 
         success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
@@ -314,7 +316,7 @@ class ElectricityAPIView(APIView):
 
         if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
 
-            success, detail, token = vend_electricity(account_no, disco_type, meter_no, amount, phone_number)
+            success, detail, token = vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref_code)
             if success is False:
                 # LOG REVERSAL
                 date_today = datetime.datetime.now().date()
@@ -332,4 +334,9 @@ class ElectricityAPIView(APIView):
         return Response({"detail": f"{disco_type} payment for meter: {meter_no} was successful", "credit_token": token})
 
 
+class RetryElectricityCronView(APIView):
+    permission_classes = []
 
+    def get(self, request):
+        response = retry_eko_elect_cron()
+        return Response({"detail": response})

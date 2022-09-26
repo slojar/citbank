@@ -54,6 +54,8 @@ SIMPLE_JWT = {
 TM_CLIENT_ID = env('TM_CLIENT_ID')
 TM_BASE_URL = env('TM_BASE_URL')
 
+SERVICE_CHARGE = env('SERVICE_CHARGE')
+
 # Activate Django-Heroku.
 django_heroku.settings(locals())
 

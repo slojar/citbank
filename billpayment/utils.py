@@ -36,13 +36,12 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
     return True, response
 
 
-def vend_electricity(account_no, disco_type, meter_no, amount, phone_number):
+def vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref_code):
     token = ""
     response = validate_meter_no(disco_type, meter_no)
     if "error" in response:
         return False, "An error occurred while trying to vend electricity", token
 
-    data = dict()
     if disco_type == "IKEDC_POSTPAID":
         data = {
             "disco": "IKEDC_POSTPAID",
@@ -120,9 +119,13 @@ def vend_electricity(account_no, disco_type, meter_no, amount, phone_number):
     if "error" in response:
         return False, response["error"], token
 
+    status = "pending"
     transaction_id = response["data"]["transactionId"]
     bill_id = response["data"]["billId"]
-    status = response["data"]["status"]
+    provider_status = response["data"]["providerResponse"]["status"]
+
+    if provider_status == "ACCEPTED":
+        status = "success"
 
     if response["data"]["providerResponse"]["creditToken"]:
         token = response["data"]["providerResponse"]["creditToken"]
@@ -133,7 +136,7 @@ def vend_electricity(account_no, disco_type, meter_no, amount, phone_number):
     # Create Electricity Instance
     elect = Electricity.objects.create(
         account_no=account_no, disco_type=disco_type, meter_number=meter_no, amount=amount, phone_number=phone_number,
-        status=status, transaction_id=transaction_id, bill_id=bill_id, token=token
+        status=status, transaction_id=transaction_id, bill_id=bill_id, token=token, reference=ref_code
     )
 
     if not token == "":

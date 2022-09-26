@@ -10,4 +10,6 @@ urlpatterns = [
     path('validate/', views.ValidateAPIView.as_view(), name="validate"),
 
     path('electricity/', views.ElectricityAPIView.as_view(), name="electricity"),
+
+    path('retry-elect/', views.RetryElectricityCronView.as_view(), name="retry-elect"),
 ]

@@ -8,6 +8,7 @@ class Airtime(models.Model):
     amount = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     status = models.CharField(max_length=20, default="pending")
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
+    reference = models.CharField(max_length=100, blank=True, null=True)
     bill_id = models.CharField(max_length=100, blank=True, null=True)
     created_on = models.DateTimeField(auto_now_add=True)
 
@@ -23,6 +24,7 @@ class Data(models.Model):
     amount = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     status = models.CharField(max_length=20, default="pending")
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
+    reference = models.CharField(max_length=100, blank=True, null=True)
     bill_id = models.CharField(max_length=100, blank=True, null=True)
     created_on = models.DateTimeField(auto_now_add=True)
 
@@ -41,6 +43,7 @@ class CableTV(models.Model):
     amount = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     status = models.CharField(max_length=20, default="pending")
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
+    reference = models.CharField(max_length=100, blank=True, null=True)
     created_on = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -56,6 +59,7 @@ class Electricity(models.Model):
     token = models.CharField(max_length=200, blank=True, null=True)
     status = models.CharField(max_length=20, default="pending")
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
+    reference = models.CharField(max_length=100, blank=True, null=True)
     bill_id = models.CharField(max_length=100, blank=True, null=True)
     token_sent = models.BooleanField(default=False)
     created_on = models.DateTimeField(auto_now_add=True)
