@@ -130,6 +130,13 @@ def electricity(data):
     return response
 
 
+def retry_electricity(transaction_id):
+    url = f"{baseUrl}/electricity/query?disco=EKEDC_PREPAID&transactionId={transaction_id}"
+    response = requests.request("GET", url, headers=header).json()
+    log_request("GET", f"url: {url}", f"header: {header}", f"response: {response}")
+    return response
+
+
 
 
 
