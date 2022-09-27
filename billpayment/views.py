@@ -89,7 +89,7 @@ class AirtimeDataPurchaseAPIView(APIView):
 
                     Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
 
-                if response["data"]:
+                if "data" in response:
                     data = response["data"]
 
                     response_status = data["status"]
@@ -115,7 +115,7 @@ class AirtimeDataPurchaseAPIView(APIView):
 
                     Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
 
-                if response["data"]:
+                if "data" in response:
                     data = response["data"]
 
                     response_status = data["status"]
@@ -152,7 +152,7 @@ class CableTVAPIView(APIView):
             if "error" in response:
                 detail = response["error"]
                 return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
-            if response["data"]:
+            if "data" in response:
                 data = response["data"]
 
         else:
@@ -163,7 +163,7 @@ class CableTVAPIView(APIView):
             if "error" in response:
                 detail = response["error"]["message"]
                 return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
-            if response["data"]:
+            if "data" in response:
                 data = response["data"]["billers"]
         return Response({"detail": data})
 
@@ -216,7 +216,7 @@ class CableTVAPIView(APIView):
 
                 Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
 
-            if response["data"]:
+            if "data" in response:
                 data = response["data"]
 
                 response_status = data["status"]
@@ -272,7 +272,7 @@ class ValidateAPIView(APIView):
 
         if "error" in response:
             return Response({"detail": "Error validating smart card number"}, status=status.HTTP_400_BAD_REQUEST)
-        if response["data"]:
+        if "data" in response:
             data = response["data"]
         return Response({"detail": data})
 
