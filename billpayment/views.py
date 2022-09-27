@@ -79,6 +79,8 @@ class AirtimeDataPurchaseAPIView(APIView):
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+            new_success = False
+            detail = "An error occurred"
             if purchase_type == "airtime":
                 response = purchase_airtime(network=network, phone_number=phone_number, amount=amount)
 
@@ -87,9 +89,8 @@ class AirtimeDataPurchaseAPIView(APIView):
                     date_today = datetime.datetime.now().date()
                     Thread(target=log_reversal, args=[date_today, ref_code]).start()
 
-                    Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
-
                 if "data" in response:
+                    new_success = True
                     data = response["data"]
 
                     response_status = data["status"]
@@ -113,9 +114,8 @@ class AirtimeDataPurchaseAPIView(APIView):
                     date_today = datetime.datetime.now().date()
                     Thread(target=log_reversal, args=[date_today, ref_code]).start()
 
-                    Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
-
                 if "data" in response:
+                    new_success = True
                     data = response["data"]
 
                     response_status = data["status"]
@@ -128,6 +128,10 @@ class AirtimeDataPurchaseAPIView(APIView):
                         status=response_status, transaction_id=trans_id, bill_id=bill_id, plan_id=plan_id
                     )
 
+            if new_success is False:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": f"{purchase_type} purchase for {phone_number} was successful"})
+
         elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
             return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -135,8 +139,6 @@ class AirtimeDataPurchaseAPIView(APIView):
             return Response(
                 {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
             )
-
-        return Response({"detail": f"{purchase_type} purchase for {phone_number} was successful"})
 
 
 class CableTVAPIView(APIView):
