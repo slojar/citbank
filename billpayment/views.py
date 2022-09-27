@@ -88,18 +88,18 @@ class AirtimeDataPurchaseAPIView(APIView):
                     Thread(target=log_reversal, args=[date_today, ref_code]).start()
 
                     Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    data = response["data"]
 
-                data = response["data"]
+                    response_status = data["status"]
+                    trans_id = data["transactionId"]
+                    bill_id = data["billId"]
 
-                response_status = data["status"]
-                trans_id = data["transactionId"]
-                bill_id = data["billId"]
-
-                # CREATE AIRTIME INSTANCE
-                Airtime.objects.create(
-                    account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
-                    status=response_status, transaction_id=trans_id, bill_id=bill_id, reference=ref_code
-                )
+                    # CREATE AIRTIME INSTANCE
+                    Airtime.objects.create(
+                        account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
+                        status=response_status, transaction_id=trans_id, bill_id=bill_id, reference=ref_code
+                    )
 
             if purchase_type == "data":
                 plan_id = request.data.get("plan_id")
@@ -113,18 +113,19 @@ class AirtimeDataPurchaseAPIView(APIView):
                     Thread(target=log_reversal, args=[date_today, ref_code]).start()
 
                     Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
+                else:
 
-                data = response["data"]
+                    data = response["data"]
 
-                response_status = data["status"]
-                trans_id = data["transactionId"]
-                bill_id = data["billId"]
+                    response_status = data["status"]
+                    trans_id = data["transactionId"]
+                    bill_id = data["billId"]
 
-                # CREATE DATA INSTANCE
-                Data.objects.create(
-                    account_no=account_no, beneficiary=phone_number, network=network, amount=amount, reference=ref_code,
-                    status=response_status, transaction_id=trans_id, bill_id=bill_id, plan_id=plan_id
-                )
+                    # CREATE DATA INSTANCE
+                    Data.objects.create(
+                        account_no=account_no, beneficiary=phone_number, network=network, amount=amount, reference=ref_code,
+                        status=response_status, transaction_id=trans_id, bill_id=bill_id, plan_id=plan_id
+                    )
 
         elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
             return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
@@ -149,8 +150,8 @@ class CableTVAPIView(APIView):
             if "error" in response:
                 detail = response["error"]
                 return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
-
-            data = response["data"]
+            else:
+                data = response["data"]
 
         else:
             if not service_type:
@@ -160,8 +161,8 @@ class CableTVAPIView(APIView):
             if "error" in response:
                 detail = response["error"]["message"]
                 return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
-
-            data = response["data"]["billers"]
+            else:
+                data = response["data"]["billers"]
         return Response({"detail": data})
 
     def post(self, request):
@@ -212,18 +213,18 @@ class CableTVAPIView(APIView):
                 Thread(target=log_reversal, args=[date_today, ref_code]).start()
 
                 Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                data = response["data"]
 
-            data = response["data"]
+                response_status = data["status"]
+                trans_id = data["transactionId"]
 
-            response_status = data["status"]
-            trans_id = data["transactionId"]
-
-            # CREATE CABLE TV INSTANCE
-            CableTV.objects.create(
-                service_name=service_name, account_no=account_no, smart_card_no=smart_card_no,
-                customer_name=customer_name, phone_number=phone_number, product=str(product_codes), months=duration,
-                amount=amount, status=response_status, transaction_id=trans_id, reference=ref_code
-            )
+                # CREATE CABLE TV INSTANCE
+                CableTV.objects.create(
+                    service_name=service_name, account_no=account_no, smart_card_no=smart_card_no,
+                    customer_name=customer_name, phone_number=phone_number, product=str(product_codes), months=duration,
+                    amount=amount, status=response_status, transaction_id=trans_id, reference=ref_code
+                )
 
         elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
             return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
@@ -267,8 +268,8 @@ class ValidateAPIView(APIView):
 
         if "error" in response:
             return Response({"detail": "Error validating smart card number"}, status=status.HTTP_400_BAD_REQUEST)
-
-        data = response["data"]
+        else:
+            data = response["data"]
         return Response({"detail": data})
 
 
