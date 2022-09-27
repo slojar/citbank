@@ -1,3 +1,4 @@
+import time
 import uuid
 
 import requests
@@ -65,6 +66,7 @@ def log_reversal(tran_date, trans_ref):
     payload['TransactionDate'] = str(tran_date)
     payload['RetrievalReference'] = trans_ref
 
+    time.sleep(120)
     response = requests.request('POST', url=url, data=payload)
     log_request(url, payload, response.json())
     return response
