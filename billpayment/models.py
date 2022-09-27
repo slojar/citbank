@@ -1,5 +1,9 @@
 from django.db import models
 
+REVERSAL_STATUS = (
+    ("completed", "Completed"), ("pending", "Pending")
+)
+
 
 class Airtime(models.Model):
     account_no = models.CharField(max_length=10)
@@ -68,3 +72,14 @@ class Electricity(models.Model):
         return f"{self.account_no}, {self.disco_type} -----> {self.meter_number} - {self.amount}"
 
 
+class BillPaymentReversal(models.Model):
+    transaction_date = models.CharField(max_length=50)
+    transaction_reference = models.CharField(max_length=50)
+    payment_type = models.CharField(max_length=50, default="airtime")
+    status = models.CharField(max_length=50, choices=REVERSAL_STATUS, default="pending")
+    ref = models.CharField(max_length=100, blank=True, null=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.transaction_date} - {self.transaction_reference}, {self.status}"

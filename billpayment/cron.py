@@ -2,8 +2,8 @@ from threading import Thread
 
 from django.db.models import Q
 
-from bankone.api import send_sms
-from billpayment.models import Electricity
+from bankone.api import send_sms, log_reversal
+from billpayment.models import Electricity, BillPaymentReversal
 from tm_saas.api import retry_electricity
 
 
@@ -29,5 +29,21 @@ def retry_eko_elect_cron():
                     Thread(target=send_sms, args=[query.account_no, content, query.phone_number]).start()
     return "Elect Retry Cron ran successfully"
 
+
+def bill_payment_reversal_cron():
+    queryset = BillPaymentReversal.objects.filter(status="pending")
+
+    for query in queryset:
+        trans_date = query.transaction_date
+        trans_ref = query.transaction_reference
+        response = log_reversal(trans_date, trans_ref)
+
+        if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+            ref_no = response["Reference"]
+            query.status = "completed"
+            query.ref = ref_no
+            query.save()
+
+    return "Bill Payment Reversal Cron ran successfully"
 
 

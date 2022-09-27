@@ -10,9 +10,8 @@ from rest_framework.views import APIView
 
 from account.models import Customer, CustomerAccount
 from account.utils import confirm_trans_pin
-from bankone.api import get_account_by_account_no, get_details_by_customer_id, charge_customer, log_reversal
-from billpayment.cron import retry_eko_elect_cron
-from billpayment.models import Airtime, Data, CableTV
+from billpayment.cron import retry_eko_elect_cron, bill_payment_reversal_cron
+from billpayment.models import Airtime, Data, CableTV, BillPaymentReversal
 from billpayment.utils import check_balance_and_charge, vend_electricity
 from tm_saas.api import get_networks, get_data_plan, purchase_airtime, purchase_data, get_services, \
     get_service_products, validate_scn, cable_tv_sub, validate_meter_no, get_discos
@@ -87,7 +86,7 @@ class AirtimeDataPurchaseAPIView(APIView):
                 if "error" in response:
                     # LOG REVERSAL
                     date_today = datetime.datetime.now().date()
-                    Thread(target=log_reversal, args=[date_today, ref_code]).start()
+                    BillPaymentReversal.objects.create(transaction_reference=ref_code, transaction_date=str(date_today))
 
                 if "data" in response:
                     new_success = True
@@ -112,7 +111,9 @@ class AirtimeDataPurchaseAPIView(APIView):
                 if "error" in response:
                     # LOG REVERSAL
                     date_today = datetime.datetime.now().date()
-                    Thread(target=log_reversal, args=[date_today, ref_code]).start()
+                    BillPaymentReversal.objects.create(
+                        transaction_reference=ref_code, transaction_date=str(date_today), payment_type="data"
+                    )
 
                 if "data" in response:
                     new_success = True
@@ -214,7 +215,9 @@ class CableTVAPIView(APIView):
             if "error" in response:
                 # LOG REVERSAL
                 date_today = datetime.datetime.now().date()
-                Thread(target=log_reversal, args=[date_today, ref_code]).start()
+                BillPaymentReversal.objects.create(
+                    transaction_reference=ref_code, transaction_date=str(date_today), payment_type="cableTv"
+                )
 
                 Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -327,7 +330,9 @@ class ElectricityAPIView(APIView):
             if success is False:
                 # LOG REVERSAL
                 date_today = datetime.datetime.now().date()
-                Thread(target=log_reversal, args=[date_today, ref_code]).start()
+                BillPaymentReversal.objects.create(
+                    transaction_reference=ref_code, transaction_date=str(date_today), payment_type="electricity"
+                )
                 return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
 
         elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
@@ -347,3 +352,13 @@ class RetryElectricityCronView(APIView):
     def get(self, request):
         response = retry_eko_elect_cron()
         return Response({"detail": response})
+
+
+class BillPaymentReversalCronView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        response = bill_payment_reversal_cron()
+        return Response({"detail": response})
+
+

@@ -11,5 +11,7 @@ urlpatterns = [
 
     path('electricity/', views.ElectricityAPIView.as_view(), name="electricity"),
 
+    # CRON-JOBS
     path('retry-elect/', views.RetryElectricityCronView.as_view(), name="retry-elect"),
+    path('bill-reversal/', views.BillPaymentReversalCronView.as_view(), name="bill-reversal"),
 ]
