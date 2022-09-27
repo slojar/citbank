@@ -88,7 +88,8 @@ class AirtimeDataPurchaseAPIView(APIView):
                     Thread(target=log_reversal, args=[date_today, ref_code]).start()
 
                     Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
-                else:
+
+                if response["data"]:
                     data = response["data"]
 
                     response_status = data["status"]
@@ -113,8 +114,8 @@ class AirtimeDataPurchaseAPIView(APIView):
                     Thread(target=log_reversal, args=[date_today, ref_code]).start()
 
                     Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
-                else:
 
+                if response["data"]:
                     data = response["data"]
 
                     response_status = data["status"]
@@ -144,13 +145,14 @@ class CableTVAPIView(APIView):
 
         service_type = request.GET.get("service_type")
         product_code = request.GET.get("product_code")
+        data = ""
 
         if service_name:
             response = get_service_products(service_name, product_code)
             if "error" in response:
                 detail = response["error"]
                 return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
-            else:
+            if response["data"]:
                 data = response["data"]
 
         else:
@@ -161,7 +163,7 @@ class CableTVAPIView(APIView):
             if "error" in response:
                 detail = response["error"]["message"]
                 return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
-            else:
+            if response["data"]:
                 data = response["data"]["billers"]
         return Response({"detail": data})
 
@@ -213,7 +215,8 @@ class CableTVAPIView(APIView):
                 Thread(target=log_reversal, args=[date_today, ref_code]).start()
 
                 Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
-            else:
+
+            if response["data"]:
                 data = response["data"]
 
                 response_status = data["status"]
@@ -244,6 +247,7 @@ class ValidateAPIView(APIView):
         service_name = request.data.get("service_name")
         disco_type = request.data.get("disco_type")
         meter_no = request.data.get("meter_no")
+        data = ""
 
         validate_type = request.data.get("validate_type")
 
@@ -268,7 +272,7 @@ class ValidateAPIView(APIView):
 
         if "error" in response:
             return Response({"detail": "Error validating smart card number"}, status=status.HTTP_400_BAD_REQUEST)
-        else:
+        if response["data"]:
             data = response["data"]
         return Response({"detail": data})
 
