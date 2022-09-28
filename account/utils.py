@@ -74,6 +74,8 @@ def create_new_customer(data, account_no):
         detail = 'Username, Transaction PIN, OTP, and Password are required'
         return success, detail
 
+    username = str(username).replace(" ", "")
+
     if len(username) < 8:
         detail = 'Username is too short. Please input minimum of 8 characters'
         return success, detail
