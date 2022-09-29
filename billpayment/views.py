@@ -207,6 +207,9 @@ class CableTVAPIView(APIView):
 
         if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
 
+            # remove service charge from amount
+            amount -= 100
+
             response = cable_tv_sub(
                 service_name=service_name, duration=duration, customer_number=phone_number,
                 customer_name=customer_name, amount=amount, product_codes=product_codes, smart_card_no=smart_card_no
@@ -327,6 +330,9 @@ class ElectricityAPIView(APIView):
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+
+            # remove service charge from amount
+            amount -= 100
 
             success, detail, token = vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref_code)
             if success is False:
