@@ -219,7 +219,9 @@ class CableTVAPIView(APIView):
                     transaction_reference=ref_code, transaction_date=str(date_today), payment_type="cableTv"
                 )
 
-                Response({"detail": "An error has occurred"}, status=status.HTTP_400_BAD_REQUEST)
+                Response(
+                    {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
+                )
 
             if "data" in response:
                 data = response["data"]
@@ -333,7 +335,10 @@ class ElectricityAPIView(APIView):
                 BillPaymentReversal.objects.create(
                     transaction_reference=ref_code, transaction_date=str(date_today), payment_type="electricity"
                 )
-                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "An error while vending electricity, please try again later"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
             return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
