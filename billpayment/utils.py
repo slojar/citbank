@@ -21,7 +21,7 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
     accounts = response["Accounts"]
     for account in accounts:
         if account["NUBAN"] == str(account_no):
-            balance = account["withdrawableAmount"]
+            balance = str(account["withdrawableAmount"]).replace(",", "")
 
     if float(balance) <= 0:
         return False, "Insufficient balance"
