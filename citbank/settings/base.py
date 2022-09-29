@@ -1,7 +1,13 @@
-from pathlib import Path
 import logging
+import os.path
+from pathlib import Path
+from datetime import timedelta
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+import environ
+
+env = environ.Env()
+environ.Env.read_env(os.path.join('.env'))
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -19,28 +25,48 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # simple JWT app
+    # dependencies
     'rest_framework_simplejwt',
-    # DRF
     'rest_framework',
+    'corsheaders',
+    'django_crontab',
+    'storages',
+
+    # modules
+    'account.apps.AccountConfig',
+    'api.apps.ApiConfig',
+    'superadmin.apps.SuperadminConfig',
+    'billpayment.apps.BillpaymentConfig',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django_graylog.GraylogMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
 ROOT_URLCONF = 'citbank.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -79,23 +105,24 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Lagos'
 
 USE_I18N = True
 
+USE_L10N = True
+
 USE_TZ = True
 
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 
 # Logging
 logging.basicConfig(
@@ -148,3 +175,14 @@ LOGGING = {
     },
 }
 
+MEDIA_URL = 'media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# CIT
+# CIT_INSTITUTION_CODE = "100321"
+CIT_INSTITUTION_CODE = "100125"
+CIT_MFB_CODE = "100125"
+CIT_EMAIL_FROM = "support@citmfb.com"
+CIT_ENQUIRY_EMAIL = "info@citmfb.com"
+CIT_FEEDBACK_EMAIL = "helpdesk@citmfb.com"
+CIT_ACCOUNT_OFFICE_RATING_EMAIL = "rating@citmfb.com"
