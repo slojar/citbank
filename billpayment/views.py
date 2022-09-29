@@ -198,7 +198,7 @@ class CableTVAPIView(APIView):
         ref_code = f"CIT-{code}"
         user = request.user
 
-        amount = decimal.Decimal(amount) + settings.SERVICE_CHARGE
+        amount = decimal.Decimal(amount) + decimal.Decimal(settings.SERVICE_CHARGE)
 
         success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
@@ -317,7 +317,7 @@ class ElectricityAPIView(APIView):
         ref_code = f"CIT-{code}"
         user = request.user
 
-        amount = decimal.Decimal(amount) + settings.SERVICE_CHARGE
+        amount = decimal.Decimal(amount) + decimal.Decimal(settings.SERVICE_CHARGE)
 
         success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
