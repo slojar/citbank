@@ -151,12 +151,15 @@ def create_new_customer(data, account_no):
     #     detail = 'Account is already registered, please proceed to login with your credentials'
     #     return success, detail
 
-    user, _ = User.objects.get_or_create(username=username)
-    user.password = make_password(password)
-    user.email = email
-    user.last_name = last_name
-    user.first_name = first_name
-    user.save()
+    if User.objects.filter(email=email).exists():
+        user = User.objects.get(email=email)
+    else:
+        user, _ = User.objects.get_or_create(username=username)
+        user.password = make_password(password)
+        user.email = email
+        user.last_name = last_name
+        user.first_name = first_name
+        user.save()
 
     customer, created = Customer.objects.get_or_create(user=user)
     customer.customerID = customer_id
@@ -171,6 +174,8 @@ def create_new_customer(data, account_no):
     for account in accounts:
         customer_acct, _ = CustomerAccount.objects.get_or_create(customer=customer, account_no=account['NUBAN'])
         customer_acct.account_type = account['AccountType']
+        if not account['AccountStatus'] == "Active":
+            customer_acct.active = False
         customer_acct.save()
 
     detail = 'Registration is successful'
@@ -180,6 +185,7 @@ def create_new_customer(data, account_no):
 def authenticate_user(request) -> (str, bool):
     try:
         username, password, details, success = request.data.get('username'), request.data.get('password'), '', False
+        username = str(username).replace(" ", "")
 
         if not (username and password):
             details, success = "username and password are required", success
@@ -277,6 +283,8 @@ def create_transaction(request):
 
     # Check Transfer Limit
     if decimal.Decimal(amount) > customer.transfer_limit:
+        from bankone.api import log_request
+        log_request(f"Amount sent: {decimal.Decimal(amount)}, transfer_limit: {customer.transfer_limit}")
         return False, "amount is greater than your limit. please contact the bank"
 
     # Check Daily Transfer Limit
