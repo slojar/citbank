@@ -281,8 +281,11 @@ def create_transaction(request):
     # get the customer the account_number belongs to
     customer = CustomerAccount.objects.filter(account_no=account_number).first().customer
 
+    # convert amount from to NGN
+    amount = decimal.Decimal(amount) / 100
+
     # Check Transfer Limit
-    if decimal.Decimal(amount) > customer.transfer_limit:
+    if amount > customer.transfer_limit:
         from bankone.api import log_request
         log_request(f"Amount sent: {decimal.Decimal(amount)}, transfer_limit: {customer.transfer_limit}")
         return False, "amount is greater than your limit. please contact the bank"
