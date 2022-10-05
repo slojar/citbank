@@ -34,13 +34,8 @@ def generate_new_otp(phone_number):
 
 def send_otp_message(phone_number, content, subject, account_no, email):
     phone_number = format_phone_number(phone_number)
-    success = False
     Thread(target=send_email, args=[email, subject, content]).start()
-    # Thread(target=send_email_temporal_fix, args=[email, content, subject]).start()
-    response = send_sms(account_no, content, receiver=phone_number)
-    # if response['Status'] is False:
-    #     detail = 'OTP not sent via sms, please check your email'
-    #     return True, detail
+    Thread(target=send_sms, args=[account_no, content, phone_number]).start()
     detail = 'OTP successfully sent'
 
     return True, detail
@@ -177,6 +172,15 @@ def create_new_customer(data, account_no):
         if not account['AccountStatus'] == "Active":
             customer_acct.active = False
         customer_acct.save()
+
+    # send email to admin
+    app_reg = str(settings.CIT_APP_REG_EMAIL)
+    content = str("A new customer just registered on the mobile app. Please unlock {f_name} {l_name} with "
+                  "username {u_name} and telephone number {tel}.").format(
+        f_name=str(user.first_name).title(), l_name=str(user.last_name).title(), u_name=user.username,
+        tel=customer.phone_number
+    )
+    Thread(target=send_email, args=[app_reg, "New Registration on CIT Mobile App", content]).start()
 
     detail = 'Registration is successful'
     return True, detail
