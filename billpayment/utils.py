@@ -1,6 +1,7 @@
 from threading import Thread
 
 from account.models import CustomerAccount
+from account.utils import check_account_status
 from bankone.api import get_details_by_customer_id, charge_customer, send_sms
 from billpayment.models import Electricity
 from tm_saas.api import validate_meter_no, electricity
@@ -11,11 +12,14 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
     if not CustomerAccount.objects.filter(customer__user=user, active=True, account_no=account_no).exists():
         return False, "Account not found"
 
+    # Check if customer status is active
+    customer = CustomerAccount.objects.get(customer__user=user, active=True, account_no=account_no).customer
+    check = check_account_status(customer)
+    if check is False:
+        return False, "Your account is locked, please contact the bank to unlock"
+
     # CHECK ACCOUNT BALANCE
-    customer_id = CustomerAccount.objects.get(
-        customer__user=user, active=True, account_no=account_no
-    ).customer.customerID
-    response = get_details_by_customer_id(customer_id).json()
+    response = get_details_by_customer_id(customer.customerID).json()
 
     balance = 0
     accounts = response["Accounts"]

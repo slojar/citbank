@@ -34,13 +34,8 @@ def generate_new_otp(phone_number):
 
 def send_otp_message(phone_number, content, subject, account_no, email):
     phone_number = format_phone_number(phone_number)
-    success = False
     Thread(target=send_email, args=[email, subject, content]).start()
-    # Thread(target=send_email_temporal_fix, args=[email, content, subject]).start()
-    response = send_sms(account_no, content, receiver=phone_number)
-    # if response['Status'] is False:
-    #     detail = 'OTP not sent via sms, please check your email'
-    #     return True, detail
+    Thread(target=send_sms, args=[account_no, content, phone_number]).start()
     detail = 'OTP successfully sent'
 
     return True, detail
@@ -178,6 +173,15 @@ def create_new_customer(data, account_no):
             customer_acct.active = False
         customer_acct.save()
 
+    # send email to admin
+    app_reg = str(settings.CIT_APP_REG_EMAIL)
+    content = str("A new customer just registered on the mobile app. Please unlock {f_name} {l_name} with "
+                  "username {u_name} and telephone number {tel}.").format(
+        f_name=str(user.first_name).title(), l_name=str(user.last_name).title(), u_name=user.username,
+        tel=customer.phone_number
+    )
+    Thread(target=send_email, args=[app_reg, "New Registration on CIT Mobile App", content]).start()
+
     detail = 'Registration is successful'
     return True, detail
 
@@ -258,6 +262,20 @@ def generate_transaction_ref_code(code):
     return ref_code
 
 
+def check_account_status(customer):
+    success = False
+    if customer.active is True:
+        success = True
+    return success
+
+
+# if customer.active is False:
+#     return Response(
+#         {"detail": "Your account is locked, please contact the bank to unlock"},
+#         status=status.HTTP_400_BAD_REQUEST
+#     )
+
+
 def create_transaction(request):
     data = request.data
 
@@ -296,6 +314,11 @@ def create_transaction(request):
     current_limit = float(amount) + float(today_trans)
     if current_limit > customer.daily_limit:
         return False, f"Your current daily transfer limit is NGN{customer.daily_limit}, please contact the bank"
+
+    # Check if customer status is active
+    result = check_account_status(customer)
+    if result is False:
+        return False, "Your account is locked, please contact the bank to unlock"
 
     # generate transaction reference using the format CYYMMDDCODES
     now = datetime.datetime.now()
