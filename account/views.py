@@ -80,6 +80,7 @@ class SignupView(APIView):
 
         success, detail = create_new_customer(data, account_no)
         if not success:
+            log_request(f"error-message: {detail}")
             return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'detail': detail})
 
@@ -88,22 +89,19 @@ class LoginView(APIView):
     permission_classes = []
 
     def post(self, request):
-        details, success = authenticate_user(request)
+        detail, success = authenticate_user(request)
         if success is True:
             try:
                 customer = Customer.objects.get(user=request.user)
             except Exception as ex:
+                log_request(f"error-message: {ex}")
                 return Response({"detail": "An error occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
             data = CustomerSerializer(customer).data
-            if customer.active is False:
-                return Response(
-                    {"detail": "Your account is locked, please contact the bank to unlock"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
             return Response({
-                "detail": details, "access_token": str(AccessToken.for_user(request.user)),
+                "detail": detail, "access_token": str(AccessToken.for_user(request.user)),
                 "refresh_token": str(RefreshToken.for_user(request.user)), 'data': data})
-        return Response({"detail": details}, status=status.HTTP_400_BAD_REQUEST)
+        log_request(f"error-message: {detail}")
+        return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class SignupOtpView(APIView):
@@ -113,15 +111,18 @@ class SignupOtpView(APIView):
         account_no = request.data.get('account_no')
 
         if not account_no:
+            log_request("detail: Account number is required")
             return Response({'detail': 'Account number is required'}, status=status.HTTP_400_BAD_REQUEST)
 
         if CustomerAccount.objects.filter(account_no=account_no).exists():
+            log_request("detail: Account already registered")
             return Response({'detail': 'Account already registered'}, status=status.HTTP_400_BAD_REQUEST)
 
         response = get_account_by_account_no(account_no)
         if response.status_code != 200:
             for response in response.json():
                 detail = response['error-Message']
+                log_request(f"error-message: {detail}")
                 return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
 
         customer_data = response.json()
@@ -135,6 +136,7 @@ class SignupOtpView(APIView):
         subject = "CIT Mobile Registration"
         success, detail = send_otp_message(phone_number, content, subject, account_no, email)
         if success is False:
+            log_request(f"error-message: {detail}")
             return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'detail': detail})
 
@@ -150,6 +152,7 @@ class CustomerProfileView(APIView):
         profile_picture = request.data.get('profile_picture')
 
         if not profile_picture:
+            log_request(f"error-message: No picture selected")
             return Response({'detail': 'No picture selected'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             customer = Customer.objects.get(user=request.user)
@@ -157,6 +160,7 @@ class CustomerProfileView(APIView):
             customer.save()
             return Response({'detail': 'Profile updated'})
         except Exception as err:
+            log_request(f"error-message: {err}")
             return Response({'detail': 'An error has occurred', 'error': str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -172,17 +176,21 @@ class ChangePasswordView(APIView):
             old_user_password = request.user.check_password(old_password)
 
             if not old_user_password:
+                log_request("detail: Old password is wrong")
                 return Response({"detail": "Old password is wrong"}, status=status.HTTP_400_BAD_REQUEST)
 
             if not (new_password.isnumeric() and len(new_password) == 6):
+                log_request("detail: Password must be only 6 digits")
                 return Response({"detail": "Password can only be 6 digit"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Check if old and new password are the same.
             if old_password == new_password:
+                log_request("detail: previously used passwords not allowed")
                 return Response({"detail": "previously used passwords are not allowed"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Check if new and confirm password are not the same
             if new_password != confirm_password:
+                log_request("detail: passwords mismatch")
                 return Response({"detail": "Passwords, does not match"}, status=status.HTTP_400_BAD_REQUEST)
 
             user = request.user
@@ -191,6 +199,7 @@ class ChangePasswordView(APIView):
 
             return Response({"detail": "Password change successfully"})
         except (Exception,) as err:
+            log_request(f"error-message: {err}")
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -201,7 +210,8 @@ class ResetOTPView(APIView):
         email = request.data.get('email')
         reset_type = request.data.get('reset_type', 'password')  # password or transaction pin
         if not email:
-            return Response({"detail": "Email is required"})
+            log_request("detail: email is required")
+            return Response({"detail": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = User.objects.get(email=email)
@@ -216,9 +226,11 @@ class ResetOTPView(APIView):
                 subject = f"Reset {reset_type} on CIT Mobile"
                 success, detail = send_otp_message(user_phone_number, content, subject, account_no, email)
                 if success is False:
+                    log_request(f"error-message: {detail}")
                     return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
                 return Response({'detail': detail})
         except (Exception,) as err:
+            log_request(f"error-message: {err}")
             return Response({"detail": "Error", "data": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -241,12 +253,15 @@ class ForgotPasswordView(APIView):
             phone_number = Customer.objects.get(user=user).phone_number
 
             if otp != CustomerOTP.objects.get(phone_number=phone_number).otp:
+                log_request(f"error-message: Invalid OTP")
                 return Response({"detail": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
             if not (new_password.isnumeric() and len(new_password) == 6):
+                log_request(f"error-message: Password can only be 6 digit")
                 return Response({"detail": "Password can only be 6 digit"}, status=status.HTTP_400_BAD_REQUEST)
 
             if new_password != confirm_password:
+                log_request(f"error-message: Passwords does not match")
                 return Response({"detail": "Passwords does not match"}, status=status.HTTP_400_BAD_REQUEST)
 
             if user is not None:
@@ -259,6 +274,7 @@ class ForgotPasswordView(APIView):
             return Response({"detail": "Successfully changed Password, Login with your new password."})
 
         except (Exception,) as err:
+            log_request(f"error-message: {err}")
             return Response({"detail": "An Error Occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -280,15 +296,19 @@ class ChangeTransactionPinView(APIView):
             pin = decrypt_text(customer.transaction_pin)
 
             if old_pin != pin:
+                log_request(f"error-message: Old PIN not correct")
                 return Response({"detail": "Old PIN is not correct"}, status=status.HTTP_400_BAD_REQUEST)
 
             if not (new_pin.isnumeric() and len(new_pin) == 4):
+                log_request(f"error-message: PIN must be 4 digits")
                 return Response({"detail": "PIN must be 4 digits"}, status=status.HTTP_400_BAD_REQUEST)
 
             if new_pin != confirm_pin:
+                log_request(f"error-message: PIN does not match")
                 return Response({"detail": "PIN does not match"}, status=status.HTTP_400_BAD_REQUEST)
 
             if new_pin == old_pin:
+                log_request(f"error-message: New Pin can't be the same as the Old Pin")
                 return Response({"detail": "New Pin can't be the same as the Old Pin"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
@@ -298,6 +318,7 @@ class ChangeTransactionPinView(APIView):
 
             return Response({"detail": "Transaction PIN changed successfully"})
         except (Exception,) as err:
+            log_request(f"error-message: {err}")
             return Response({"detail": "An error occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -310,6 +331,7 @@ class ResetTransactionPinView(APIView):
         confirm_new_pin = request.data.get('confirm_new_pin')
 
         if not (token and new_pin and confirm_new_pin):
+            log_request(f"error-message: {detail}")
             return Response({'detail': 'You may have missed the PIN or OTP input, please check'},
                             status=status.HTTP_400_BAD_REQUEST)
 
@@ -317,17 +339,21 @@ class ResetTransactionPinView(APIView):
         otp = CustomerOTP.objects.get(phone_number=customer.phone_number).otp
 
         if token != otp:
+            log_request(f"error-message: Invalid OTP")
             return Response({"detail": "OTP is not valid"}, status=status.HTTP_400_BAD_REQUEST)
 
         old_tran_pin = decrypt_text(customer.transaction_pin)
 
         if old_tran_pin == new_pin:
+            log_request(f"error-message: Invalid PIN")
             return Response({"detail": "PIN not allowed"}, status=status.HTTP_400_BAD_REQUEST)
 
         if not (new_pin.isnumeric() and len(new_pin) == 4):
+            log_request(f"error-message: PIN not 4 digits")
             return Response({"detail": "PIN must be 4 digits"}, status=status.HTTP_400_BAD_REQUEST)
 
         if new_pin != confirm_new_pin:
+            log_request(f"error-message: PINs not matching")
             return Response({"detail": "PIN mismatch"}, status=status.HTTP_400_BAD_REQUEST)
 
         encrypt_new_pin = encrypt_text(new_pin)
@@ -353,6 +379,7 @@ class TransactionView(APIView, CustomPagination):
                 data = TransactionSerializer(Transaction.objects.get(reference=ref)).data
                 return Response(data)
             except Exception as err:
+                log_request(f"error-message: {err}")
                 return Response({"detail": str(err)})
 
         query = Q(customer__user=request.user)
@@ -363,6 +390,7 @@ class TransactionView(APIView, CustomPagination):
 
         if date_from or date_to:
             if not all([date_to, date_from]):
+                log_request(f"error-message: date_from and date_to not selected")
                 return Response({"detail": "date_from and date_to are required to filter"},
                                 status=status.HTTP_400_BAD_REQUEST)
             query = query & Q(created_on__range=[date_from, date_to])
@@ -377,10 +405,12 @@ class TransactionView(APIView, CustomPagination):
         success, response = confirm_trans_pin(request)
 
         if success is False:
+            log_request(f"error-message: {response}")
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         success, response = create_transaction(request)
         if success is False:
+            log_request(f"error-message: {response}")
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"detail": "Successfully created a transaction", "reference_code": str(response)})
@@ -388,6 +418,7 @@ class TransactionView(APIView, CustomPagination):
     def put(self, request, ref):
         trans_status = request.data.get('status')
         if not trans_status:
+            log_request(f"error-message: status is required")
             return Response({"detail": "status is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -396,6 +427,7 @@ class TransactionView(APIView, CustomPagination):
             transaction.save()
             return Response({"detail": "Successfully updated transaction"})
         except Exception as err:
+            log_request(f"error-message: {err}")
             return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -408,6 +440,7 @@ class BeneficiaryView(APIView, CustomPagination):
             search = request.GET.get("search")
 
             if "search" in request.GET and "beneficiary_type" not in request.GET:
+                log_request(f"error-message: beneficiary type not selected")
                 return Response({"detail": "beneficiary type is required"}, status=status.HTTP_400_BAD_REQUEST)
 
             customer = Customer.objects.get(user=request.user)
@@ -430,9 +463,11 @@ class BeneficiaryView(APIView, CustomPagination):
             return Response({"detail": paginated_query})
 
         except KeyError as err:
+            log_request(f"error-message: {err}")
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as err:
+            log_request(f"error-message: {err}")
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request):
@@ -446,19 +481,23 @@ class BeneficiaryView(APIView, CustomPagination):
             biller_name: str = data.get('biller_name')
 
             if not beneficiary_type or beneficiary_type is None:
+                log_request(f"error-message: beneficiary type is not selected")
                 raise KeyError("Beneficiary type is required")
 
             if beneficiary_type == "cit_bank_transfer":
                 if not all([beneficiary_name, beneficiary_acct_no]):
+                    log_request(f"error-message: beneficiary name and account number is required")
                     raise KeyError("Beneficiary Name and Account Number are required fields for Type CIT BANK TRANSFER")
 
             if beneficiary_type == "other_bank_transfer":
                 if not all([beneficiary_name, beneficiary_bank, beneficiary_acct_no]):
+                    log_request(f"error-message: beneficiary name, bank, and account number is required")
                     raise KeyError("Beneficiary Name, Bank and Account Number are required for Type "
                                    "OTHER BANK TRANSFER")
 
             if beneficiary_type in ('airtime', 'data', 'utility'):
                 if not all([beneficiary_number, biller_name]):
+                    log_request(f"error-message: beneficiary number and biller name is required")
                     raise KeyError("Beneficiary Number and Biller's Name are required")
 
             customer = Customer.objects.get(user=request.user)
@@ -472,15 +511,19 @@ class BeneficiaryView(APIView, CustomPagination):
                 biller_name=biller_name
             )
             if not success:
+                log_request(f"error-message: beneficiary already added")
                 return Response({"detail": "Already a beneficiary"}, status=status.HTTP_302_FOUND)
 
         except KeyError as err:
+            log_request(f"error-message: {err}")
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         except Customer.DoesNotExist as err:
+            log_request(f"error-message: {err}")
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         except (Exception,) as err:
+            log_request(f"error-message: {err}")
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"detail": "Successfully created beneficiary"})
@@ -493,17 +536,21 @@ class ConfirmTransactionPin(APIView):
         pin = request.data.get("pin", "")
 
         if not pin:
+            log_request(f"error-message: PIN is required")
             return Response({"detail": "pin is a required field"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = Customer.objects.get(user=request.user)
             if user is None:
+                log_request(f"error-message: User not found")
                 return Response({"detail": "This user is not Found"}, status=status.HTTP_404_NOT_FOUND)
 
             if decrypt_text(user.transaction_pin) != pin:
+                log_request(f"error-message: Incorrect transaction pin")
                 return Response({"detail": "Transaction Pin Does Not Match"}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as err:
+            log_request(f"error-message: {err}")
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"detail": "Transaction Pin is Correct"})
@@ -518,6 +565,7 @@ class FeedbackView(APIView):
         name = str("{} {}").format(self.request.user.first_name, self.request.user.last_name).capitalize()
 
         if not all([message, message_type]):
+            log_request(f"error-message: required are message and message_type")
             return Response({"detail": "message and message_type are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         rating_email = settings.CIT_ACCOUNT_OFFICE_RATING_EMAIL

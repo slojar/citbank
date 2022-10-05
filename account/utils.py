@@ -258,6 +258,20 @@ def generate_transaction_ref_code(code):
     return ref_code
 
 
+def check_account_status(customer):
+    success = False
+    if customer.active is True:
+        success = True
+    return success
+
+
+# if customer.active is False:
+#     return Response(
+#         {"detail": "Your account is locked, please contact the bank to unlock"},
+#         status=status.HTTP_400_BAD_REQUEST
+#     )
+
+
 def create_transaction(request):
     data = request.data
 
@@ -296,6 +310,11 @@ def create_transaction(request):
     current_limit = float(amount) + float(today_trans)
     if current_limit > customer.daily_limit:
         return False, f"Your current daily transfer limit is NGN{customer.daily_limit}, please contact the bank"
+
+    # Check if customer status is active
+    result = check_account_status(customer)
+    if result is False:
+        return False, "Your account is locked, please contact the bank to unlock"
 
     # generate transaction reference using the format CYYMMDDCODES
     now = datetime.datetime.now()

@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from account.models import Customer, CustomerAccount
 from account.utils import confirm_trans_pin
+from bankone.api import log_request
 from billpayment.cron import retry_eko_elect_cron, bill_payment_reversal_cron
 from billpayment.models import Airtime, Data, CableTV, BillPaymentReversal
 from billpayment.utils import check_balance_and_charge, vend_electricity
@@ -56,6 +57,7 @@ class AirtimeDataPurchaseAPIView(APIView):
         purchase_type = request.data.get("purchase_type")
 
         if not all([phone_number, network, amount, purchase_type]):
+            log_request(f"error-message: number, amount, network, and purchase type are required fields")
             return Response(
                 {"detail": "phone_number, network, amount, and purchase_type are required"},
                 status=status.HTTP_400_BAD_REQUEST
@@ -63,6 +65,7 @@ class AirtimeDataPurchaseAPIView(APIView):
 
         success, response = confirm_trans_pin(request)
         if success is False:
+            log_request(f"error-message: {response}")
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         phone_number = f"234{phone_number[-10:]}"
@@ -75,6 +78,7 @@ class AirtimeDataPurchaseAPIView(APIView):
         success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
         if success is False:
+            log_request(f"error-message: {response}")
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
@@ -105,6 +109,7 @@ class AirtimeDataPurchaseAPIView(APIView):
             if purchase_type == "data":
                 plan_id = request.data.get("plan_id")
                 if not plan_id:
+                    log_request(f"error-message: no plan selected")
                     return Response({"detail": "Please select a plan to continue"}, status=status.HTTP_400_BAD_REQUEST)
                 response = purchase_data(plan_id=plan_id, phone_number=phone_number, network=network, amount=amount)
 
@@ -130,6 +135,7 @@ class AirtimeDataPurchaseAPIView(APIView):
                     )
 
             if new_success is False:
+                log_request(f"error-message: {detail}")
                 return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"detail": f"{purchase_type} purchase for {phone_number} was successful"})
 
@@ -154,17 +160,20 @@ class CableTVAPIView(APIView):
             response = get_service_products(service_name, product_code)
             if "error" in response:
                 detail = response["error"]
+                log_request(f"error-message: {detail}")
                 return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
             if "data" in response:
                 data = response["data"]
 
         else:
             if not service_type:
+                log_request("error-message: service type is required")
                 return Response({"detail": "service_type is required"}, status=status.HTTP_400_BAD_REQUEST)
 
             response = get_services(service_type)
             if "error" in response:
                 detail = response["error"]["message"]
+                log_request(f"error-message: {detail}")
                 return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
             if "data" in response:
                 data = response["data"]["billers"]
@@ -191,6 +200,7 @@ class CableTVAPIView(APIView):
 
         success, response = confirm_trans_pin(request)
         if success is False:
+            log_request(f"error-message: {response}")
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         code = str(uuid.uuid4().int)[:5]
@@ -203,6 +213,7 @@ class CableTVAPIView(APIView):
         success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
         if success is False:
+            log_request(f"error-message: {response}")
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
@@ -240,6 +251,7 @@ class CableTVAPIView(APIView):
                 )
 
         elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
+            log_request(f"error-message: Insufficient balance")
             return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
 
         else:
@@ -317,8 +329,8 @@ class ElectricityAPIView(APIView):
         if success is False:
             return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
 
-        code = str(uuid.uuid4().int)[:5]
         narration = f"{disco_type} payment for meter: {meter_no}"
+        code = str(uuid.uuid4().int)[:5]
         ref_code = f"CIT-{code}"
         user = request.user
 
@@ -327,6 +339,7 @@ class ElectricityAPIView(APIView):
         success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
         if success is False:
+            log_request(f"error-message: {response}")
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
