@@ -231,7 +231,7 @@ class ResetOTPView(APIView):
                 return Response({'detail': detail})
         except (Exception,) as err:
             log_request(f"error-message: {err}")
-            return Response({"detail": "Error", "data": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ForgotPasswordView(APIView):
@@ -275,7 +275,7 @@ class ForgotPasswordView(APIView):
 
         except (Exception,) as err:
             log_request(f"error-message: {err}")
-            return Response({"detail": "An Error Occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ChangeTransactionPinView(APIView):
