@@ -137,24 +137,23 @@ def create_new_customer(data, account_no):
         encrypted_trans_pin = encrypt_text(transaction_pin)
 
         accounts = customer_data['Accounts']
-    except Exception as ex:
-        detail = f'An error has occurred: {ex}'
-        return success, detail
 
-    # Create User and Customer
-    # if User.objects.filter(email=email).exists():
-    #     detail = 'Account is already registered, please proceed to login with your credentials'
-    #     return success, detail
+        # Create User and Customer
+        if not email == "" or None:
+            if User.objects.filter(email=email).exists():
+                detail = 'Account is already registered, please proceed to login with your credentials'
+                return success, detail
 
-    if User.objects.filter(email=email).exists():
-        user = User.objects.get(email=email)
-    else:
         user, _ = User.objects.get_or_create(username=username)
         user.password = make_password(password)
         user.email = email
         user.last_name = last_name
         user.first_name = first_name
         user.save()
+
+    except Exception as ex:
+        detail = f'An error has occurred: {ex}'
+        return success, detail
 
     customer, created = Customer.objects.get_or_create(user=user)
     customer.customerID = customer_id
