@@ -62,9 +62,9 @@ class RerouteView(APIView):
 
         log_request(
             "CALLING BANKONE_API FROM MOBILE ||", f"URL: {url}", f"headers: {header}",
-            f"payload: {payload}", f"response: {response}, response_code: {response.status_code}"
+            f"payload: {payload}", f"response: {response.text}, response_code: {response.status_code}"
         )
-        return Response(response, status=response.status_code)
+        return Response(response.text, status=response.status_code)
 
 
 class SignupView(APIView):
