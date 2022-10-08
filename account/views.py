@@ -56,15 +56,15 @@ class RerouteView(APIView):
         payload = json.loads(payload)
 
         if verb == "GET":
-            response = requests.request("GET", url, params=payload, headers=header).json()
+            response = requests.request("GET", url, params=payload, headers=header)
         if verb == "POST":
-            response = requests.request("POST", url, data=payload, headers=header).json()
+            response = requests.request("POST", url, data=payload, headers=header)
 
         log_request(
             "CALLING BANKONE_API FROM MOBILE ||", f"URL: {url}", f"headers: {header}",
-            f"payload: {payload}", f"response: {response}"
+            f"payload: {payload}", f"response: {response}, response_code: {response.status_code}"
         )
-        return Response(response)
+        return Response(response, status=response.status_code)
 
 
 class SignupView(APIView):
