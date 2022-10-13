@@ -64,9 +64,7 @@ class RerouteView(APIView):
             "CALLING BANKONE_API FROM MOBILE ||", f"URL: {url}", f"headers: {header}",
             f"payload: {payload}", f"response: {response.json()}, response_code: {response.status_code}"
         )
-        request.graylog.info["header"] = header
-        request.graylog.info["payload"] = payload
-        request.graylog.info["response"] = response
+        request.graylog.info(f"header: {header}\n payload: {payload}\n response: {response}")
         return Response(response.json(), status=response.status_code)
 
 
