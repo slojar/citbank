@@ -67,7 +67,7 @@ def log_reversal(tran_date, trans_ref):
     payload['RetrievalReference'] = trans_ref
 
     response = requests.request('POST', url=url, data=payload).json()
-    log_request(url, payload, response.json())
+    log_request(url, payload, response)
     return response
 
 
