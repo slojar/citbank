@@ -208,28 +208,32 @@ class ResetOTPView(APIView):
     permission_classes = []
 
     def post(self, request):
-        email = request.data.get('email')
+        phone_number = request.data.get('phone_number')
         reset_type = request.data.get('reset_type', 'password')  # password or transaction pin
-        if not email:
-            log_request("detail: email is required")
-            return Response({"detail": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not phone_number:
+            log_request("detail: phone number is required")
+            return Response({"detail": "Phone number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not Customer.objects.filter(phone_number=phone_number).exists():
+            log_request("detail: customer does not exist")
+            return Response({"detail": "Customer does not exist"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            user = User.objects.get(email=email)
-            customer = Customer.objects.get(user=user)
+            customer = Customer.objects.get(phone_number=phone_number)
             customer_acct = CustomerAccount.objects.filter(customer=customer).first()
-            user_phone_number = customer.phone_number
-            if user_phone_number is not None:
-                otp = generate_new_otp(user_phone_number)
-                first_name = user.first_name
-                account_no = customer_acct.account_no
-                content = f"Dear {first_name},\nKindly use this OTP: {otp} to reset your {reset_type} on CIT Mobile App."
-                subject = f"Reset {reset_type} on CIT Mobile"
-                success, detail = send_otp_message(user_phone_number, content, subject, account_no, email)
-                if success is False:
-                    log_request(f"error-message: {detail}")
-                    return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
-                return Response({'detail': detail})
+            # user_phone_number = customer.phone_number
+            # if user_phone_number is not None:
+            otp = generate_new_otp(phone_number)
+            first_name = customer.user.first_name
+            account_no = customer_acct.account_no
+            content = f"Dear {first_name},\nKindly use this OTP: {otp} to reset your {reset_type} on CIT Mobile App."
+            subject = f"Reset {reset_type} on CIT Mobile"
+            email = customer.user.email
+            success, detail = send_otp_message(phone_number, content, subject, account_no, email)
+            if success is False:
+                log_request(f"error-message: {detail}")
+                return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': detail})
         except (Exception,) as err:
             log_request(f"error-message: {err}")
             return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
