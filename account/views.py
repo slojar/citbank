@@ -246,16 +246,16 @@ class ForgotPasswordView(APIView):
         otp = request.data.get('otp', '')
         new_password = request.data.get('new_password', '')
         confirm_password = request.data.get('confirm_password', '')
-        email = request.data.get('email', '')
-        fields = [otp, new_password, confirm_password, email]
+        phone_number = request.data.get('phone_number', '')
+        fields = [otp, new_password, confirm_password, phone_number]
 
         # Check if all fields are empty
         if not all(fields):
-            return Response({"detail": "Requires OTP, New Password, Confirm Password and Email Fields"},
+            return Response({"detail": "Requires OTP, New Password, Confirm Password and Phone number Fields"},
                             status=status.HTTP_400_BAD_REQUEST)
         try:
-            user = User.objects.get(email=email)
-            phone_number = Customer.objects.get(user=user).phone_number
+            # user = User.objects.get(email=email)
+            customer = Customer.objects.get(phone_number=phone_number)
 
             if otp != CustomerOTP.objects.get(phone_number=phone_number).otp:
                 log_request(f"error-message: Invalid OTP")
@@ -269,13 +269,14 @@ class ForgotPasswordView(APIView):
                 log_request(f"error-message: Passwords does not match")
                 return Response({"detail": "Passwords does not match"}, status=status.HTTP_400_BAD_REQUEST)
 
-            if user is not None:
-                user.set_password(new_password)
-                user.save()
-                # CustomerOTP.objects.get(phone_number=phone_number).update(otp=str(uuid.uuid4().int)[:6])
-                new_otp = CustomerOTP.objects.get(phone_number=phone_number)
-                new_otp.otp = str(uuid.uuid4().int)[:6]
-                new_otp.save()
+            user = customer.user
+
+            user.set_password(new_password)
+            user.save()
+            # CustomerOTP.objects.filter(phone_number=phone_number).update(otp=str(uuid.uuid4().int)[:6])
+            new_otp = CustomerOTP.objects.get(phone_number=phone_number)
+            new_otp.otp = str(uuid.uuid4().int)[:6]
+            new_otp.save()
             return Response({"detail": "Successfully changed Password, Login with your new password."})
 
         except (Exception,) as err:
