@@ -35,37 +35,43 @@ class RerouteView(APIView):
     permission_classes = []
 
     def post(self, request):
-        url = request.data.get("url", "")
-        verb = request.data.get("method", "GET")
-        header = request.data.get("header", {})
-        payload = request.data.get("payload", {})
+        try:
+            url = request.data.get("url", "")
+            verb = request.data.get("method", "GET")
+            header = request.data.get("header", {})
+            payload = request.data.get("payload", {})
 
-        header = json.dumps(header)
-        payload = json.dumps(payload)
+            header = json.dumps(header)
+            payload = json.dumps(payload)
 
-        response = {}
+            response = {}
 
-        if str("live_token") in url:
-            url = str(url).replace("live_token", bankOneToken)
-        if str("live_token") in header:
-            header = str(header).replace("live_token", bankOneToken)
-        if str("live_token") in payload:
-            payload = str(payload).replace("live_token", bankOneToken)
+            if str("live_token") in url:
+                url = str(url).replace("live_token", bankOneToken)
+            if str("live_token") in header:
+                header = str(header).replace("live_token", bankOneToken)
+            if str("live_token") in payload:
+                payload = str(payload).replace("live_token", bankOneToken)
 
-        header = json.loads(header)
-        payload = json.loads(payload)
+            header = json.loads(header)
+            payload = json.loads(payload)
 
-        if verb == "GET":
-            response = requests.request("GET", url, params=payload, headers=header)
-        if verb == "POST":
-            response = requests.request("POST", url, data=payload, headers=header)
+            if verb == "GET":
+                response = requests.request("GET", url, params=payload, headers=header)
+            if verb == "POST":
+                response = requests.request("POST", url, data=payload, headers=header)
 
-        log_request(
-            "CALLING BANKONE_API FROM MOBILE ||", f"URL: {url}", f"headers: {header}",
-            f"payload: {payload}", f"response: {response.json()}, response_code: {response.status_code}"
-        )
-        request.graylog.info(f"header: {header}\n payload: {payload}\n response: {response}")
-        return Response(response.json(), status=response.status_code)
+            log_request(
+                "CALLING BANKONE_API FROM MOBILE ||", f"URL: {url}", f"headers: {header}",
+                f"payload: {payload}", f"response: {response.json()}, response_code: {response.status_code}"
+            )
+            request.graylog.info(
+                "API Call was successful \n url: {url} \n headers: {headers} \n payload: {payload} \n "
+                "response: {response}", url=url, payload=payload, headers=header, response=response.json()
+            )
+            return Response(response.json(), status=response.status_code)
+        except Exception as err:
+            log_request("An error has occurred", f"error: {err}")
 
 
 class SignupView(APIView):
