@@ -168,6 +168,7 @@ def create_new_customer(data, account_no):
     for account in accounts:
         customer_acct, _ = CustomerAccount.objects.get_or_create(customer=customer, account_no=account['NUBAN'])
         customer_acct.account_type = account['AccountType']
+        customer_acct.bank_acct_number = account['AccountNumber']
         if not account['AccountStatus'] == "Active":
             customer_acct.active = False
         customer_acct.save()

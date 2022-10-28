@@ -16,6 +16,7 @@ citbank.log
 .DS_Store
 *.DS_Store
 .push.py
+.version2.py
 
 # Project image and file folders
 profile_picture/

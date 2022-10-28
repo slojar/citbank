@@ -23,8 +23,35 @@ NOTIFICATION_TYPE_CHOICES = (
 )
 
 
+# class Provider(models.Model):
+#     name = models.CharField(max_length=100)
+#     base_url = models.CharField(max_length=200, blank=True, null=True)
+#     email_api = models.CharField(max_length=200, blank=True, null=True)
+#     sms_api = models.CharField(max_length=200, blank=True, null=True)
+#     local_transfer_api = models.CharField(max_length=200, blank=True, null=True)
+#     others_transfer_api = models.CharField(max_length=200, blank=True, null=True)
+#     local_name_enquiry_api = models.CharField(max_length=200, blank=True, null=True)
+#     other_name_enquiry_api = models.CharField(max_length=200, blank=True, null=True)
+#     bvn_validation_api = models.CharField(max_length=200, blank=True, null=True)
+#     bvn_validation_api = models.CharField(max_length=200, blank=True, null=True)
+
+
+class Bank(models.Model):
+    name = models.CharField(max_length=200)
+    short_name = models.CharField(max_length=50)
+    support_email = models.CharField(max_length=50)
+    website = models.CharField(max_length=50)
+    address = models.TextField()
+    logo = models.ImageField(upload_to="bank-logo")
+    # provide = models.ForeignKey(Provider, on_delete=models.SET_NULL, blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
 class Customer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    bank = models.ForeignKey(Bank, on_delete=models.CASCADE, null=True, blank=True)
     customerID = models.CharField(max_length=200, null=True, blank=True)
     other_name = models.CharField(max_length=100, blank=True, null=True)
     gender = models.CharField(max_length=20, blank=True, null=True)
@@ -59,6 +86,7 @@ class Customer(models.Model):
 class CustomerAccount(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     account_no = models.CharField(max_length=10, null=True, blank=True)
+    bank_acct_number = models.CharField(max_length=200, blank=True, null=True)
     account_type = models.CharField(max_length=200, blank=True, null=True)
     card_no = models.CharField(max_length=200, blank=True, null=True)
     active = models.BooleanField(default=True)
@@ -111,16 +139,6 @@ class Beneficiary(models.Model):
     def __str__(self):
         return f"{self.customer}: {self.created_on}"
 
-
-# class Notification(models.Model):
-#     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-#     content = models.TextField()
-#     rating = models.IntegerField(default=0)
-#     message_type = models.CharField(max_length=200, choices=NOTIFICATION_TYPE_CHOICES, default='enquiry_email')
-#     created_on = models.DateTimeField(auto_now_add=True)
-#
-#     def __str__(self):
-#         return f"{self.customer}-{self.message_type}"
 
 
 
