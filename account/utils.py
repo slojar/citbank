@@ -257,6 +257,9 @@ def generate_transaction_ref_code(code):
     year = str(now.year)[2:]
 
     ref_code = f"C{year}{month}{day}{code}"
+    if Transaction.objects.filter(reference=ref_code).exists():
+        x_code = str(uuid.uuid4().int)[:5]
+        ref_code = f"C{year}{month}{day}{x_code}"
 
     return ref_code
 
