@@ -324,7 +324,8 @@ def create_transaction(request):
 
     # generate transaction reference using the format CYYMMDDCODES
     now = datetime.datetime.now()
-    start_date = datetime.datetime.today().date().replace(day=1)
+    start_date = now.date()
+    # start_date = datetime.datetime.today().date().replace(day=1)
     end_date = datetime.date(now.year, 1 if now.month == 12 else now.month + 1, 1) - datetime.timedelta(days=1)
     month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date)).count()
     code = str(month_transaction + 1)
