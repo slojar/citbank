@@ -20,7 +20,7 @@ from .utils import authenticate_user, generate_new_otp, \
     decrypt_text, encrypt_text, create_transaction, confirm_trans_pin
 
 from bankone.api import get_account_by_account_no, log_request, send_otp_message, \
-    create_new_customer, generate_random_ref_code, send_email, get_details_by_customer_id
+    cit_create_new_customer, generate_random_ref_code, send_email, get_details_by_customer_id
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
 
 bankOneToken = settings.BANK_ONE_AUTH_TOKEN
@@ -93,7 +93,7 @@ class SignupView(APIView):
                 return Response({'detail': "Error, bank is inactive"}, status=status.HTTP_400_BAD_REQUEST)
 
             if bank.short_name == "cit":
-                success, detail = create_new_customer(data, account_no)
+                success, detail = cit_create_new_customer(data, account_no)
                 if not success:
                     log_request(f"error-message: {detail}")
                     return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)

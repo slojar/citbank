@@ -305,7 +305,7 @@ def send_otp_message(phone_number, content, subject, account_no, email):
     return True, detail
 
 
-def create_new_customer(data, account_no):
+def cit_create_new_customer(data, account_no):
     from account.utils import format_phone_number, encrypt_text
     success = False
 
