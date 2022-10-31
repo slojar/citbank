@@ -43,6 +43,7 @@ class Bank(models.Model):
     website = models.CharField(max_length=50)
     address = models.TextField()
     logo = models.ImageField(upload_to="bank-logo")
+    active = models.BooleanField(default=False)
     # provide = models.ForeignKey(Provider, on_delete=models.SET_NULL, blank=True, null=True)
 
     def __str__(self):

@@ -1,10 +1,16 @@
+import datetime
 import json
 import time
 import uuid
+from threading import Thread
 
 import requests
 import logging
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth.models import User
+
+from account.models import CustomerAccount, CustomerOTP, Customer
 
 base_url = settings.BANK_ONE_BASE_URL
 base_url_3ps = settings.BANK_ONE_3PS_URL
@@ -12,7 +18,6 @@ version = settings.BANK_ONE_VERSION
 auth_token = settings.BANK_ONE_AUTH_TOKEN
 institution_code = settings.CIT_INSTITUTION_CODE
 mfb_code = settings.CIT_MFB_CODE
-email_from = settings.CIT_EMAIL_FROM
 
 
 def log_request(*args):
@@ -93,25 +98,7 @@ def send_sms(account_no, content, receiver):
     return response
 
 
-def send_email(to, subject, body):
-    url = f'{base_url}/Messaging/SaveEmail/{version}'
-
-    data = dict()
-
-    data['institutionCode'] = institution_code
-    data['mfbCode'] = mfb_code
-    data['emailFrom'] = email_from
-    data['emailTo'] = to
-    data['subject'] = subject
-    data['Message'] = body
-
-    response = requests.request('GET', url, params=data).json()
-
-    log_request(url, data, response)
-    return response
-
-
-def send_enquiry_email(mail_from, email_to, subject, body):
+def send_email(mail_from, to, subject, body):
     url = f'{base_url}/Messaging/SaveEmail/{version}'
 
     data = dict()
@@ -119,7 +106,7 @@ def send_enquiry_email(mail_from, email_to, subject, body):
     data['institutionCode'] = institution_code
     data['mfbCode'] = mfb_code
     data['emailFrom'] = mail_from
-    data['emailTo'] = email_to
+    data['emailTo'] = to
     data['subject'] = subject
     data['Message'] = body
 
@@ -307,3 +294,186 @@ def freeze_or_unfreeze_card(serial_no, reason, account_no, action):
     return response
 
 
+def send_otp_message(phone_number, content, subject, account_no, email):
+    from account.utils import format_phone_number
+    phone_number = format_phone_number(phone_number)
+    email_from = str(settings.CIT_EMAIL_FROM)
+    Thread(target=send_email, args=[email_from, email, subject, content]).start()
+    Thread(target=send_sms, args=[account_no, content, phone_number]).start()
+    detail = 'OTP successfully sent'
+
+    return True, detail
+
+
+def create_new_customer(data, account_no):
+    from account.utils import format_phone_number, encrypt_text
+    success = False
+
+    username = data.get('username')
+    transaction_pin = data.get('transaction_pin')
+    transaction_pin_confirm = data.get('transaction_pin_confirm')
+    password = data.get('password')
+    password_confirm = data.get('password_confirm')
+    token = data.get('otp')
+
+    if not all([username, transaction_pin, password, transaction_pin_confirm, password_confirm, token]):
+        detail = 'Username, Transaction PIN, OTP, and Password are required'
+        return success, detail
+
+    username = str(username).replace(" ", "")
+
+    if len(username) < 8:
+        detail = 'Username is too short. Please input minimum of 8 characters'
+        return success, detail
+
+    if not (transaction_pin.isnumeric() and len(transaction_pin) == 4):
+        detail = 'Transactional PIN can only be 4 digit'
+        return success, detail
+
+    if transaction_pin != transaction_pin_confirm:
+        detail = 'Transaction PIN mismatch'
+        return success, detail
+
+    if not (password.isnumeric() and len(password) == 6):
+        detail = 'Password can only be 6 digit'
+        return success, detail
+
+    if password != password_confirm:
+        detail = 'Password mismatch'
+        return success, detail
+
+    # check, detail = validate_password(password)
+
+    # if check is False:
+    #     return check, detail
+
+    if User.objects.filter(username=username).exists():
+        detail = 'username is taken, please choose another one or contact admin'
+        return success, detail
+
+    if CustomerAccount.objects.filter(account_no=account_no).exists():
+        detail = 'A profile associated with this account number already exist, please proceed to login or contact admin'
+        return success, detail
+
+    try:
+        # API to check if account exist
+        response = get_account_by_account_no(account_no)
+        if response.status_code != 200:
+            for response in response.json():
+                # print("from for loop: ", response, f"response.json: ", response.json())
+                detail = response['error-Message']
+                return success, detail
+
+        customer_data = response.json()
+
+        customer_id = customer_data['CustomerDetails']['CustomerID']
+        bvn = customer_data['CustomerDetails']['BVN']
+        email = customer_data['CustomerDetails']['Email']
+        names = str(customer_data['CustomerDetails']['Name']).split(',')
+        phone_number = customer_data['CustomerDetails']['PhoneNumber']
+
+        phone_number = format_phone_number(phone_number)
+
+        if token != CustomerOTP.objects.get(phone_number=phone_number).otp:
+            detail = 'OTP is not valid'
+            return success, detail
+
+        last_name, first_name = '', ''
+
+        for name in range(len(names)):
+            last_name = names[0]
+            first_name = names[1].replace(' ', '')
+
+        encrypted_bvn = encrypt_text(bvn)
+        encrypted_trans_pin = encrypt_text(transaction_pin)
+
+        accounts = customer_data['Accounts']
+
+        # Create User and Customer
+        if not email == "" or None:
+            if User.objects.filter(email=email).exists():
+                detail = 'Account is already registered, please proceed to login with your credentials'
+                return success, detail
+
+        user, _ = User.objects.get_or_create(username=username)
+        user.password = make_password(password)
+        user.email = email
+        user.last_name = last_name
+        user.first_name = first_name
+        user.save()
+
+    except Exception as ex:
+        detail = f'An error has occurred: {ex}'
+        return success, detail
+
+    customer, created = Customer.objects.get_or_create(user=user)
+    customer.customerID = customer_id
+    customer.dob = customer_data['CustomerDetails']['DateOfBirth']
+    customer.gender = customer_data['CustomerDetails']['Gender']
+    customer.phone_number = phone_number
+    customer.bvn = encrypted_bvn
+    customer.transaction_pin = encrypted_trans_pin
+    customer.save()
+
+    # Create customer account
+    for account in accounts:
+        customer_acct, _ = CustomerAccount.objects.get_or_create(customer=customer, account_no=account['NUBAN'])
+        customer_acct.account_type = account['AccountType']
+        customer_acct.bank_acct_number = account['AccountNumber']
+        if not account['AccountStatus'] == "Active":
+            customer_acct.active = False
+        customer_acct.save()
+
+    # send email to admin
+    app_reg = str(settings.CIT_APP_REG_EMAIL)
+    sender = str(settings.CIT_EMAIL_FROM)
+    content = str("A new customer just registered on the mobile app. Please unlock {f_name} {l_name} with "
+                  "username {u_name} and telephone number {tel}.").format(
+        f_name=str(user.first_name).title(), l_name=str(user.last_name).title(), u_name=user.username,
+        tel=customer.phone_number
+    )
+    Thread(target=send_email, args=[sender, app_reg, "New Registration on CIT Mobile App", content]).start()
+
+    detail = 'Registration is successful'
+    return True, detail
+
+
+def generate_transaction_ref_code(code):
+    if len(code) == 1:
+        code = f"0000{code}"
+    elif len(code) == 2:
+        code = f"000{code}"
+    elif len(code) == 3:
+        code = f"00{code}"
+    else:
+        code = f"0{code}"
+
+    now = datetime.date.today()
+    day = str(now.day)
+    if len(day) < 2:
+        day = f"0{day}"
+    month = str(now.month)
+    if len(month) < 2:
+        month = f"0{month}"
+    year = str(now.year)[2:]
+
+    ref_code = f"C{year}{month}{day}{code}"
+
+    return ref_code
+
+
+def generate_random_ref_code():
+
+    now = datetime.date.today()
+    day = str(now.day)
+    if len(day) < 2:
+        day = f"0{day}"
+    month = str(now.month)
+    if len(month) < 2:
+        month = f"0{month}"
+    year = str(now.year)[2:]
+
+    code = str(uuid.uuid4().int)[:5]
+
+    ref_code = f"CIT-{year}{month}{day}{code}"
+    return ref_code

@@ -4,16 +4,12 @@ import decimal
 import uuid
 import re
 
-from threading import Thread
 from django.conf import settings
 from django.contrib.auth import login, authenticate
-from django.contrib.auth.hashers import make_password
-from django.contrib.auth.models import User
 from django.db.models import Sum
 
+from bankone.api import generate_transaction_ref_code
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction
-
-from bankone.api import get_account_by_account_no, send_sms, send_email
 
 from cryptography.fernet import Fernet
 
@@ -32,15 +28,6 @@ def generate_new_otp(phone_number):
     return otp
 
 
-def send_otp_message(phone_number, content, subject, account_no, email):
-    phone_number = format_phone_number(phone_number)
-    Thread(target=send_email, args=[email, subject, content]).start()
-    Thread(target=send_sms, args=[account_no, content, phone_number]).start()
-    detail = 'OTP successfully sent'
-
-    return True, detail
-
-
 def encrypt_text(text: str):
     key = base64.urlsafe_b64encode(settings.SECRET_KEY.encode()[:32])
     fernet = Fernet(key)
@@ -53,137 +40,6 @@ def decrypt_text(text: str):
     fernet = Fernet(key)
     decrypt = fernet.decrypt(text.encode())
     return decrypt.decode()
-
-
-def create_new_customer(data, account_no):
-    success = False
-
-    username = data.get('username')
-    transaction_pin = data.get('transaction_pin')
-    transaction_pin_confirm = data.get('transaction_pin_confirm')
-    password = data.get('password')
-    password_confirm = data.get('password_confirm')
-    token = data.get('otp')
-
-    if not all([username, transaction_pin, password, transaction_pin_confirm, password_confirm, token]):
-        detail = 'Username, Transaction PIN, OTP, and Password are required'
-        return success, detail
-
-    username = str(username).replace(" ", "")
-
-    if len(username) < 8:
-        detail = 'Username is too short. Please input minimum of 8 characters'
-        return success, detail
-
-    if not (transaction_pin.isnumeric() and len(transaction_pin) == 4):
-        detail = 'Transactional PIN can only be 4 digit'
-        return success, detail
-
-    if transaction_pin != transaction_pin_confirm:
-        detail = 'Transaction PIN mismatch'
-        return success, detail
-
-    if not (password.isnumeric() and len(password) == 6):
-        detail = 'Password can only be 6 digit'
-        return success, detail
-
-    if password != password_confirm:
-        detail = 'Password mismatch'
-        return success, detail
-
-    # check, detail = validate_password(password)
-
-    # if check is False:
-    #     return check, detail
-
-    if User.objects.filter(username=username).exists():
-        detail = 'username is taken, please choose another one or contact admin'
-        return success, detail
-
-    if CustomerAccount.objects.filter(account_no=account_no).exists():
-        detail = 'A profile associated with this account number already exist, please proceed to login or contact admin'
-        return success, detail
-
-    try:
-        # API to check if account exist
-        response = get_account_by_account_no(account_no)
-        if response.status_code != 200:
-            for response in response.json():
-                # print("from for loop: ", response, f"response.json: ", response.json())
-                detail = response['error-Message']
-                return success, detail
-
-        customer_data = response.json()
-
-        customer_id = customer_data['CustomerDetails']['CustomerID']
-        bvn = customer_data['CustomerDetails']['BVN']
-        email = customer_data['CustomerDetails']['Email']
-        names = str(customer_data['CustomerDetails']['Name']).split(',')
-        phone_number = customer_data['CustomerDetails']['PhoneNumber']
-
-        phone_number = format_phone_number(phone_number)
-
-        if token != CustomerOTP.objects.get(phone_number=phone_number).otp:
-            detail = 'OTP is not valid'
-            return success, detail
-
-        last_name, first_name = '', ''
-
-        for name in range(len(names)):
-            last_name = names[0]
-            first_name = names[1].replace(' ', '')
-
-        encrypted_bvn = encrypt_text(bvn)
-        encrypted_trans_pin = encrypt_text(transaction_pin)
-
-        accounts = customer_data['Accounts']
-
-        # Create User and Customer
-        if not email == "" or None:
-            if User.objects.filter(email=email).exists():
-                detail = 'Account is already registered, please proceed to login with your credentials'
-                return success, detail
-
-        user, _ = User.objects.get_or_create(username=username)
-        user.password = make_password(password)
-        user.email = email
-        user.last_name = last_name
-        user.first_name = first_name
-        user.save()
-
-    except Exception as ex:
-        detail = f'An error has occurred: {ex}'
-        return success, detail
-
-    customer, created = Customer.objects.get_or_create(user=user)
-    customer.customerID = customer_id
-    customer.dob = customer_data['CustomerDetails']['DateOfBirth']
-    customer.gender = customer_data['CustomerDetails']['Gender']
-    customer.phone_number = phone_number
-    customer.bvn = encrypted_bvn
-    customer.transaction_pin = encrypted_trans_pin
-    customer.save()
-
-    # Create customer account
-    for account in accounts:
-        customer_acct, _ = CustomerAccount.objects.get_or_create(customer=customer, account_no=account['NUBAN'])
-        customer_acct.account_type = account['AccountType']
-        customer_acct.bank_acct_number = account['AccountNumber']
-        if not account['AccountStatus'] == "Active":
-            customer_acct.active = False
-        customer_acct.save()
-
-    # send email to admin
-    app_reg = str(settings.CIT_APP_REG_EMAIL)
-    content = str("A new customer just registered on the mobile app. Please unlock {f_name} {l_name} with "
-                  "username {u_name} and telephone number {tel}.").format(
-        f_name=str(user.first_name).title(), l_name=str(user.last_name).title(), u_name=user.username,
-        tel=customer.phone_number
-    )
-    Thread(target=send_email, args=[app_reg, "New Registration on CIT Mobile App", content]).start()
-
-    detail = 'Registration is successful'
-    return True, detail
 
 
 def authenticate_user(request) -> (str, bool):
@@ -238,42 +94,11 @@ def validate_password(new_password):
     return check, detail
 
 
-def generate_transaction_ref_code(code):
-    if len(code) == 1:
-        code = f"0000{code}"
-    elif len(code) == 2:
-        code = f"000{code}"
-    elif len(code) == 3:
-        code = f"00{code}"
-    else:
-        code = f"0{code}"
-
-    now = datetime.date.today()
-    day = str(now.day)
-    if len(day) < 2:
-        day = f"0{day}"
-    month = str(now.month)
-    if len(month) < 2:
-        month = f"0{month}"
-    year = str(now.year)[2:]
-
-    ref_code = f"C{year}{month}{day}{code}"
-
-    return ref_code
-
-
 def check_account_status(customer):
     success = False
     if customer.active is True:
         success = True
     return success
-
-
-# if customer.active is False:
-#     return Response(
-#         {"detail": "Your account is locked, please contact the bank to unlock"},
-#         status=status.HTTP_400_BAD_REQUEST
-#     )
 
 
 def create_transaction(request):
@@ -333,23 +158,6 @@ def create_transaction(request):
                                              beneficiary_name=beneficiary_name, biller_name=biller_name,
                                              beneficiary_number=beneficiary_number)
     return True, transaction.reference
-
-
-def generate_random_ref_code():
-
-    now = datetime.date.today()
-    day = str(now.day)
-    if len(day) < 2:
-        day = f"0{day}"
-    month = str(now.month)
-    if len(month) < 2:
-        month = f"0{month}"
-    year = str(now.year)[2:]
-
-    code = str(uuid.uuid4().int)[:5]
-
-    ref_code = f"CIT-{year}{month}{day}{code}"
-    return ref_code
 
 
 def confirm_trans_pin(request):

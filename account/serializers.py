@@ -1,6 +1,22 @@
-from .models import Customer, CustomerAccount, Transaction, Beneficiary
+from .models import Customer, CustomerAccount, Transaction, Beneficiary, Bank
 from rest_framework import serializers
 from .utils import decrypt_text
+
+
+class BankSerializer(serializers.ModelSerializer):
+    logo = serializers.SerializerMethodField()
+
+    def get_logo(self, obj):
+        if obj.logo:
+            request = self.context.get('request')
+            if request:
+                image = request.build_absolute_uri(obj.logo.url)
+                return image
+            return obj.logo.url
+
+    class Meta:
+        model = Bank
+        exclude = []
 
 
 class CustomerAccountSerializer(serializers.ModelSerializer):
@@ -14,6 +30,13 @@ class CustomerSerializer(serializers.ModelSerializer):
     accounts = serializers.SerializerMethodField()
     bvn_number = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
+    bank = serializers.SerializerMethodField()
+
+    def get_bank(self, obj):
+        bank = None
+        if obj.bank:
+            bank = BankSerializer(obj.bank, context={"request": self.context.get("request")}).data
+        return bank
 
     def get_customer_detail(self, obj):
         return obj.get_customer_detail()
