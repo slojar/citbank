@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.auth import login, authenticate
 from django.db.models import Sum
 
-from bankone.api import generate_transaction_ref_code
+from bankone.api import generate_transaction_ref_code, generate_random_ref_code, get_acct_officer
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
 from cryptography.fernet import Fernet
@@ -175,6 +175,33 @@ def confirm_trans_pin(request):
     return True, "PIN Correct"
 
 
+def open_account_with_banks(bank, request):
+    data = request.data
+    if bank.short_name == "cit":
+        bvn = data.get("bvn")
+        phone_no = data.get("phone_no")
+        fname = data.get("first_name")
+        lname = data.get("last_name")
+        oname = data.get("other_name")
+        gender = data.get("gender")
+        dob = data.get("dob")
+        nin = data.get("nin")
+        email = data.get("email")
+        address = data.get("address")
+        signature = data.get("signature_image")
+        image = data.get("image")
+
+        if not all([bvn, phone_no, fname, lname, oname, gender, dob, nin, email, address]):
+            return False, "All fields are required to open account with bank"
+        if not all([image, signature]):
+            return False, "Please upload your signature and image/picture"
+
+        # GENERATE TRANSACTION REF
+        code = generate_random_ref_code()
+
+        # GET RANDOM ACCOUNT OFFICER
+        acct_officer = get_acct_officer()
+    return True, "Account opening was successful"
 
 
 

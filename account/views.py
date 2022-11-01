@@ -1,3 +1,4 @@
+import decimal
 import json
 import uuid
 import requests
@@ -17,7 +18,7 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from .paginations import CustomPagination
 from .serializers import CustomerSerializer, TransactionSerializer, BeneficiarySerializer, BankSerializer
 from .utils import authenticate_user, generate_new_otp, \
-    decrypt_text, encrypt_text, create_transaction, confirm_trans_pin
+    decrypt_text, encrypt_text, create_transaction, confirm_trans_pin, open_account_with_banks
 
 from bankone.api import get_account_by_account_no, log_request, send_otp_message, \
     cit_create_new_customer, generate_random_ref_code, send_email, get_details_by_customer_id
@@ -116,6 +117,7 @@ class LoginView(APIView):
                 return Response({"detail": "An error occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
             data = dict()
             if customer.bank.short_name == "cit":
+                # GET ACCOUNT BALANCES
                 response = get_details_by_customer_id(customer.customerID).json()
                 accounts = response["Accounts"]
                 customer_account = list()
@@ -123,10 +125,10 @@ class LoginView(APIView):
                     if account["NUBAN"]:
                         account_detail = dict()
                         account_detail["account_no"] = account["NUBAN"]
-                        account_detail["ledger_balance"] = account["ledgerBalance"]
-                        account_detail["withdrawable_balance"] = account["withdrawableAmount"]
-                        account_detail["kyc_level"] = account["kycLevel"]
-                        account_detail["available_balance"] = account["availableBalance"]
+                        account_detail["ledger_balance"] = decimal.Decimal(account["ledgerBalance"]) / 100
+                        account_detail["withdrawable_balance"] = decimal.Decimal(account["withdrawableAmount"]) / 100
+                        account_detail["kyc_level"] = decimal.Decimal(account["kycLevel"]) / 100
+                        account_detail["available_balance"] = decimal.Decimal(account["availableBalance"]) / 100
                         customer_account.append(account_detail)
                 data["account_balances"] = customer_account
 
@@ -155,10 +157,12 @@ class SignupOtpView(APIView):
                 return Response({'detail': 'Account already registered'}, status=status.HTTP_400_BAD_REQUEST)
 
             bank = Bank.objects.get(id=bank_id)
+            phone_number = content = subject = email = None
 
             if bank.active is False:
                 return Response({'detail': "Error, bank is inactive"}, status=status.HTTP_400_BAD_REQUEST)
 
+            # GET CUSTOMER PHONE NUMBER AND EMAIL
             if bank.short_name == "cit":
                 response = get_account_by_account_no(account_no)
                 if response.status_code != 200:
@@ -176,10 +180,11 @@ class SignupOtpView(APIView):
                 content = f"Dear {name}, \nKindly use this OTP: {otp} to complete " \
                           f"your registration on CIT Mobile App."
                 subject = "CIT Mobile Registration"
-                success, detail = send_otp_message(phone_number, content, subject, account_no, email)
-                if success is False:
-                    log_request(f"error-message: {detail}")
-                    return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+            # SEND OTP TO USER
+            success, detail = send_otp_message(phone_number, content, subject, account_no, email, bank)
+            if success is False:
+                log_request(f"error-message: {detail}")
+                return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as err:
             return Response({'detail': "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -263,15 +268,18 @@ class ResetOTPView(APIView):
         try:
             customer = Customer.objects.get(phone_number=phone_number)
             customer_acct = CustomerAccount.objects.filter(customer=customer).first()
+            bank = customer.bank
             # user_phone_number = customer.phone_number
             # if user_phone_number is not None:
             otp = generate_new_otp(phone_number)
             first_name = customer.user.first_name
             account_no = customer_acct.account_no
-            content = f"Dear {first_name},\nKindly use this OTP: {otp} to reset your {reset_type} on CIT Mobile App."
-            subject = f"Reset {reset_type} on CIT Mobile"
             email = customer.user.email
-            success, detail = send_otp_message(phone_number, content, subject, account_no, email)
+            content = subject = ""
+            if bank.short_name == "cit":
+                content = f"Dear {first_name},\nKindly use this OTP: {otp} to reset your {reset_type} on CIT Mobile App."
+                subject = f"Reset {reset_type} on CIT Mobile"
+            success, detail = send_otp_message(phone_number, content, subject, account_no, email, bank)
             if success is False:
                 log_request(f"error-message: {detail}")
                 return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
@@ -315,10 +323,10 @@ class ForgotPasswordView(APIView):
 
             user.set_password(new_password)
             user.save()
-            # CustomerOTP.objects.filter(phone_number=phone_number).update(otp=str(uuid.uuid4().int)[:6])
-            new_otp = CustomerOTP.objects.get(phone_number=phone_number)
-            new_otp.otp = str(uuid.uuid4().int)[:6]
-            new_otp.save()
+            CustomerOTP.objects.filter(phone_number=phone_number).update(otp=str(uuid.uuid4().int)[:6])
+            # new_otp = CustomerOTP.objects.get(phone_number=phone_number)
+            # new_otp.otp = str(uuid.uuid4().int)[:6]
+            # new_otp.save()
             return Response({"detail": "Successfully changed Password, Login with your new password."})
 
         except (Exception,) as err:
@@ -332,8 +340,7 @@ class ChangeTransactionPinView(APIView):
     def post(self, request):
         try:
             data = request.data
-            old_pin, new_pin, confirm_pin = data.get('old_pin', ''), data.get('new_pin', ''), data.get('confirm_pin',
-                                                                                                       '')
+            old_pin, new_pin, confirm_pin = data.get('old_pin', ''), data.get('new_pin', ''), data.get('confirm_pin', '')
             fields = [old_pin, new_pin, confirm_pin]
 
             if not all(fields):
@@ -640,10 +647,20 @@ class GenerateRandomCode(APIView):
         return Response({"detail": code})
 
 
-class BankAPIView(generics.ListAPIView):
+class BankAPIListView(generics.ListAPIView):
     permission_classes = []
     serializer_class = BankSerializer
     queryset = Bank.objects.all()
 
+
+class OpenAccountAPIView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        bank_id = request.data.get("bank_id")
+
+        bank = Bank.objects.get(id=bank_id)
+
+        success, detail = open_account_with_banks(bank, request)
 
 

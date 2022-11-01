@@ -132,7 +132,7 @@ def create_account(**kwargs):
         "Address": kwargs.get("address"),
         "TransactionTrackingRef": kwargs.get("transRef"),
         "ProductCode": 102,
-        "AccountOfficerCode": kwargs.get("officeCode"),
+        "AccountOfficerCode": kwargs.get("officerCode"),
         # select random account officer from acct office ep
         "CustomerSignature": kwargs.get("signatureString"),
         "CustomerImage": kwargs.get("imageString"),
@@ -294,12 +294,13 @@ def freeze_or_unfreeze_card(serial_no, reason, account_no, action):
     return response
 
 
-def send_otp_message(phone_number, content, subject, account_no, email):
+def send_otp_message(phone_number, content, subject, account_no, email, bank):
     from account.utils import format_phone_number
     phone_number = format_phone_number(phone_number)
-    email_from = str(settings.CIT_EMAIL_FROM)
-    Thread(target=send_email, args=[email_from, email, subject, content]).start()
-    Thread(target=send_sms, args=[account_no, content, phone_number]).start()
+    if bank.short_name == "cit":
+        email_from = str(settings.CIT_EMAIL_FROM)
+        Thread(target=send_email, args=[email_from, email, subject, content]).start()
+        Thread(target=send_sms, args=[account_no, content, phone_number]).start()
     detail = 'OTP successfully sent'
 
     return True, detail
