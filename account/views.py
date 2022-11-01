@@ -657,10 +657,18 @@ class OpenAccountAPIView(APIView):
     permission_classes = []
 
     def post(self, request):
-        bank_id = request.data.get("bank_id")
+        try:
+            bank_id = request.data.get("bank_id")
+            if not bank_id:
+                return Response({"detail": "bank_id is required"})
 
-        bank = Bank.objects.get(id=bank_id)
+            bank = Bank.objects.get(id=bank_id)
 
-        success, detail = open_account_with_banks(bank, request)
+            success, detail = open_account_with_banks(bank, request)
+            if success is False:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": detail})
+        except Exception as err:
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 

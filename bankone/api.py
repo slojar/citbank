@@ -116,10 +116,12 @@ def send_email(mail_from, to, subject, body):
     return response
 
 
-def create_account(**kwargs):
-    url = f'{base_url}/Account/CreateAccountQuick/{version}?{auth_token}'
+def cit_create_account(**kwargs):
+    url = f'{base_url}/Account/CreateAccountQuick/{version}?authtoken={auth_token}'
+    signature = str(kwargs.get("signatureString"), "utf-8")
+    image = str(kwargs.get("imageString"), "utf-8")
 
-    payload = json.dumps({
+    payload = {
         "BVN": kwargs.get("bvnNumber"),
         "PhoneNo": kwargs.get("phoneNumber"),
         "FirstName": kwargs.get("firstName"),
@@ -134,10 +136,10 @@ def create_account(**kwargs):
         "ProductCode": 102,
         "AccountOfficerCode": kwargs.get("officerCode"),
         # select random account officer from acct office ep
-        "CustomerSignature": kwargs.get("signatureString"),
-        "CustomerImage": kwargs.get("imageString"),
+        "CustomerSignature": signature,
+        "CustomerImage": image,
         "NotificationPreference": 3,
-    })
+    }
 
     response = requests.request('POST', url, data=payload).json()
 

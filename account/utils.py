@@ -1,6 +1,7 @@
 import base64
 import datetime
 import decimal
+import random
 import uuid
 import re
 
@@ -8,7 +9,7 @@ from django.conf import settings
 from django.contrib.auth import login, authenticate
 from django.db.models import Sum
 
-from bankone.api import generate_transaction_ref_code, generate_random_ref_code, get_acct_officer
+from bankone.api import generate_transaction_ref_code, generate_random_ref_code, get_acct_officer, cit_create_account
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
 from cryptography.fernet import Fernet
@@ -179,7 +180,7 @@ def open_account_with_banks(bank, request):
     data = request.data
     if bank.short_name == "cit":
         bvn = data.get("bvn")
-        phone_no = data.get("phone_no")
+        phone = data.get("phone_number")
         fname = data.get("first_name")
         lname = data.get("last_name")
         oname = data.get("other_name")
@@ -191,16 +192,36 @@ def open_account_with_banks(bank, request):
         signature = data.get("signature_image")
         image = data.get("image")
 
-        if not all([bvn, phone_no, fname, lname, oname, gender, dob, nin, email, address]):
+        if not all([bvn, phone, fname, lname, oname, gender, dob, nin, email, address]):
             return False, "All fields are required to open account with bank"
         if not all([image, signature]):
             return False, "Please upload your signature and image/picture"
 
+        # REFORMAT PHONE NUMBER
+        phone_no = format_phone_number(phone)
+
         # GENERATE TRANSACTION REF
-        code = generate_random_ref_code()
+        tran_code = generate_random_ref_code()
 
         # GET RANDOM ACCOUNT OFFICER
-        acct_officer = get_acct_officer()
+        officers = get_acct_officer()
+        acct_officer = random.choice(officers)
+        officer_code = acct_officer["Code"]
+
+        # CONVERT IMAGES TO STRING
+        signature_str = base64.b64encode(signature.read())
+        image_str = base64.b64encode(image.read())
+
+        # OPEN ACCOUNT FOR CUSTOMER
+        response = cit_create_account(
+            bvnNumber=bvn, phoneNumber=phone_no, firstName=fname, otherName=oname, lastName=lname, gender=gender,
+            dob=dob, nin=nin, email=email, address=address, transRef=tran_code, officerCode=officer_code,
+            signatureString=signature_str, imageString=image_str
+        )
+
+        if response["IsSuccessful"] is False:
+            return False, response["Message"]["CreationMessage"]
+
     return True, "Account opening was successful"
 
 
