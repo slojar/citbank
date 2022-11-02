@@ -1,10 +1,11 @@
+import datetime
 import decimal
 import json
 import uuid
 import requests
 from threading import Thread
 
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.http import HttpResponse
@@ -15,10 +16,13 @@ from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
+from billpayment.models import Airtime, Data, CableTV, Electricity
 from .paginations import CustomPagination
 from .serializers import CustomerSerializer, TransactionSerializer, BeneficiarySerializer, BankSerializer
 from .utils import authenticate_user, generate_new_otp, \
-    decrypt_text, encrypt_text, create_transaction, confirm_trans_pin, open_account_with_banks, get_account_balance
+    decrypt_text, encrypt_text, create_transaction, confirm_trans_pin, open_account_with_banks, get_account_balance, \
+    get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
+    get_year_start_and_end_datetime
 
 from bankone.api import get_account_by_account_no, log_request, send_otp_message, \
     cit_create_new_customer, generate_random_ref_code, send_email, cit_get_details_by_customer_id
@@ -29,8 +33,9 @@ bankOneToken = settings.BANK_ONE_AUTH_TOKEN
 
 class HomepageView(APIView):
     permission_classes = []
+
     def get(self, request):
-        return HttpResponse("<h1>Welcome to CIT MFB User Management</h1>")
+        return HttpResponse("<h1>Welcome to BankPro</h1>")
 
 
 class RerouteView(APIView):
@@ -653,5 +658,97 @@ class OpenAccountAPIView(APIView):
             return Response({"detail": detail})
         except Exception as err:
             return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CustomerDashboardAPIView(APIView):
+
+    def get(self, request, bank_id):
+
+        try:
+            date_from = request.GET.get("date_from")
+            date_to = request.GET.get("date_to")
+            last_7_days = request.GET.get("last_7_days")
+            this_month = request.GET.get("this_month")
+            this_year = request.GET.get("this_year")
+            this_week = request.GET.get("this_week")
+
+            present_day = datetime.datetime.now()
+            if last_7_days == "true":
+                past_7_day = get_previous_date(date=present_day, delta=7)
+                start_date = past_7_day
+                end_date = present_day
+            elif this_month == "true":
+                month_start, month_end = get_month_start_and_end_datetime(present_day)
+                start_date = month_start
+                end_date = month_end
+            elif this_year == "true":
+                year_start, year_end = get_year_start_and_end_datetime(present_day)
+                start_date = year_start
+                end_date = year_end
+            elif this_week == "true":
+                week_start, week_end = get_week_start_and_end_datetime(present_day)
+                start_date = week_start
+                end_date = week_end
+            else:
+                start_date = date_from
+                end_date = date_to
+
+            account_no = [
+                account.account_no for account in
+                CustomerAccount.objects.filter(customer__user=request.user, customer__bank_id=bank_id)
+            ]
+
+            transfer = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__user=request.user)
+            airtime = Airtime.objects.filter(
+                created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+            ).distinct()
+            data = Data.objects.filter(
+                created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+            ).distinct()
+            cable = CableTV.objects.filter(
+                created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+            ).distinct()
+            electricity = Electricity.objects.filter(
+                created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+            ).distinct()
+
+            result = dict()
+            result["transfer"] = dict()
+            result["transfer"]["total"] = transfer.count()
+            result["transfer"]["amount"] = transfer.aggregate(Sum("amount"))["amount__sum"] or 0
+            result["transfer"]["recent"] = TransactionSerializer(transfer[:10], many=True).data
+
+            result["airtime"] = dict()
+            result["airtime"]["total"] = airtime.count()
+            result["airtime"]["amount"] = airtime.aggregate(Sum("amount"))["amount__sum"] or 0
+
+            result["data"] = dict()
+            result["data"]["total"] = data.count()
+            result["data"]["amount"] = data.aggregate(Sum("amount"))["amount__sum"] or 0
+
+            result["cableTv"] = dict()
+            result["cableTv"]["total"] = cable.count()
+            result["cableTv"]["amount"] = cable.aggregate(Sum("amount"))["amount__sum"] or 0
+
+            result["electricity"] = dict()
+            result["electricity"]["total"] = electricity.count()
+            result["electricity"]["amount"] = electricity.aggregate(Sum("amount"))["amount__sum"] or 0
+
+            return Response(result)
+        except Exception as ex:
+            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+
+
+        return Response({})
 
 

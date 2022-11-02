@@ -1,4 +1,5 @@
 import base64
+import calendar
 import datetime
 import decimal
 import random
@@ -241,7 +242,7 @@ def get_account_balance(customer, request):
                 account_detail["account_no"] = account["NUBAN"]
                 account_detail["ledger_balance"] = decimal.Decimal(account["ledgerBalance"]) / 100
                 account_detail["withdrawable_balance"] = decimal.Decimal(account["withdrawableAmount"]) / 100
-                account_detail["kyc_level"] = decimal.Decimal(account["kycLevel"]) / 100
+                account_detail["kyc_level"] = account["kycLevel"]
                 account_detail["available_balance"] = decimal.Decimal(account["availableBalance"]) / 100
                 customer_account.append(account_detail)
         data["account_balances"] = customer_account
@@ -249,5 +250,34 @@ def get_account_balance(customer, request):
     data["customer"] = CustomerSerializer(customer, context={"request": request}).data
 
     return data
+
+
+def get_previous_date(date, delta):
+    previous_date = date - datetime.timedelta(days=delta)
+    return previous_date
+
+
+def get_week_start_and_end_datetime(date_time):
+    week_start = date_time - datetime.timedelta(days=date_time.weekday())
+    week_end = week_start + datetime.timedelta(days=6)
+    week_start = datetime.datetime.combine(week_start.date(), datetime.time.min)
+    week_end = datetime.datetime.combine(week_end.date(), datetime.time.max)
+    return week_start, week_end
+
+
+def get_month_start_and_end_datetime(date_time):
+    month_start = date_time.replace(day=1)
+    month_end = month_start.replace(day=calendar.monthrange(month_start.year, month_start.month)[1])
+    month_start = datetime.datetime.combine(month_start.date(), datetime.time.min)
+    month_end = datetime.datetime.combine(month_end.date(), datetime.time.max)
+    return month_start, month_end
+
+
+def get_year_start_and_end_datetime(date_time):
+    year_start = date_time.replace(day=1, month=1, year=date_time.year)
+    year_end = date_time.replace(day=31, month=12, year=date_time.year)
+    year_start = datetime.datetime.combine(year_start.date(), datetime.time.min)
+    year_end = datetime.datetime.combine(year_end.date(), datetime.time.max)
+    return year_start, year_end
 
 

@@ -8,6 +8,8 @@ urlpatterns = [
     path('banks/', views.BankAPIListView.as_view(), name='banks'),
     path('open-account/', views.OpenAccountAPIView.as_view(), name='open-account'),
 
+    path('dashboard/<int:bank_id>', views.CustomerDashboardAPIView.as_view(), name='dashboard'),
+
     path('signup/', views.SignupView.as_view(), name='sign-up'),
     path('login/', views.LoginView.as_view(), name='login'),
     path('refresh-token/', TokenRefreshView.as_view(), name='refresh-token'),
