@@ -2,7 +2,7 @@ from threading import Thread
 
 from account.models import CustomerAccount
 from account.utils import check_account_status
-from bankone.api import get_details_by_customer_id, charge_customer, send_sms
+from bankone.api import cit_get_details_by_customer_id, charge_customer, send_sms
 from billpayment.models import Electricity
 from tm_saas.api import validate_meter_no, electricity
 
@@ -19,7 +19,7 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
         return False, "Your account is locked, please contact the bank to unlock"
 
     # CHECK ACCOUNT BALANCE
-    response = get_details_by_customer_id(customer.customerID).json()
+    response = cit_get_details_by_customer_id(customer.customerID).json()
 
     balance = 0
     accounts = response["Accounts"]

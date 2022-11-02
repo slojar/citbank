@@ -18,10 +18,10 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from .paginations import CustomPagination
 from .serializers import CustomerSerializer, TransactionSerializer, BeneficiarySerializer, BankSerializer
 from .utils import authenticate_user, generate_new_otp, \
-    decrypt_text, encrypt_text, create_transaction, confirm_trans_pin, open_account_with_banks
+    decrypt_text, encrypt_text, create_transaction, confirm_trans_pin, open_account_with_banks, get_account_balance
 
 from bankone.api import get_account_by_account_no, log_request, send_otp_message, \
-    cit_create_new_customer, generate_random_ref_code, send_email, get_details_by_customer_id
+    cit_create_new_customer, generate_random_ref_code, send_email, cit_get_details_by_customer_id
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
 
 bankOneToken = settings.BANK_ONE_AUTH_TOKEN
@@ -115,24 +115,7 @@ class LoginView(APIView):
             except Exception as ex:
                 log_request(f"error-message: {ex}")
                 return Response({"detail": "An error occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
-            data = dict()
-            if customer.bank.short_name == "cit":
-                # GET ACCOUNT BALANCES
-                response = get_details_by_customer_id(customer.customerID).json()
-                accounts = response["Accounts"]
-                customer_account = list()
-                for account in accounts:
-                    if account["NUBAN"]:
-                        account_detail = dict()
-                        account_detail["account_no"] = account["NUBAN"]
-                        account_detail["ledger_balance"] = decimal.Decimal(account["ledgerBalance"]) / 100
-                        account_detail["withdrawable_balance"] = decimal.Decimal(account["withdrawableAmount"]) / 100
-                        account_detail["kyc_level"] = decimal.Decimal(account["kycLevel"]) / 100
-                        account_detail["available_balance"] = decimal.Decimal(account["availableBalance"]) / 100
-                        customer_account.append(account_detail)
-                data["account_balances"] = customer_account
-
-            data["customer"] = CustomerSerializer(customer, context={"request": request}).data
+            data = get_account_balance(customer, request)
             return Response({
                 "detail": detail, "access_token": str(AccessToken.for_user(request.user)),
                 "refresh_token": str(RefreshToken.for_user(request.user)), 'data': data})
@@ -190,11 +173,11 @@ class SignupOtpView(APIView):
 
 
 class CustomerProfileView(APIView):
-    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        query = CustomerSerializer(Customer.objects.get(user=request.user), context={'request': request}).data
-        return Response(query)
+        customer = Customer.objects.get(user=request.user)
+        data = get_account_balance(customer, request)
+        return Response(data)
 
     def put(self, request):
         profile_picture = request.data.get('profile_picture')

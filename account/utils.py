@@ -9,7 +9,8 @@ from django.conf import settings
 from django.contrib.auth import login, authenticate
 from django.db.models import Sum
 
-from bankone.api import generate_transaction_ref_code, generate_random_ref_code, get_acct_officer, cit_create_account
+from bankone.api import generate_transaction_ref_code, generate_random_ref_code, get_acct_officer, cit_create_account, \
+    cit_get_details_by_customer_id
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
 from cryptography.fernet import Fernet
@@ -181,9 +182,9 @@ def open_account_with_banks(bank, request):
     if bank.short_name == "cit":
         bvn = data.get("bvn")
         phone = data.get("phone_number")
-        fname = data.get("first_name")
-        lname = data.get("last_name")
-        oname = data.get("other_name")
+        f_name = data.get("first_name")
+        l_name = data.get("last_name")
+        o_name = data.get("other_name")
         gender = data.get("gender")
         dob = data.get("dob")
         nin = data.get("nin")
@@ -192,7 +193,7 @@ def open_account_with_banks(bank, request):
         signature = data.get("signature_image")
         image = data.get("image")
 
-        if not all([bvn, phone, fname, lname, oname, gender, dob, nin, email, address]):
+        if not all([bvn, phone, f_name, l_name, o_name, gender, dob, nin, email, address]):
             return False, "All fields are required to open account with bank"
         if not all([image, signature]):
             return False, "Please upload your signature and image/picture"
@@ -214,7 +215,7 @@ def open_account_with_banks(bank, request):
 
         # OPEN ACCOUNT FOR CUSTOMER
         response = cit_create_account(
-            bvnNumber=bvn, phoneNumber=phone_no, firstName=fname, otherName=oname, lastName=lname, gender=gender,
+            bvnNumber=bvn, phoneNumber=phone_no, firstName=f_name, otherName=o_name, lastName=l_name, gender=gender,
             dob=dob, nin=nin, email=email, address=address, transRef=tran_code, officerCode=officer_code,
             signatureString=signature_str, imageString=image_str
         )
@@ -225,5 +226,28 @@ def open_account_with_banks(bank, request):
     return True, "Account opening was successful"
 
 
+def get_account_balance(customer, request):
+    from .serializers import CustomerSerializer
+
+    data = dict()
+    if customer.bank.short_name == "cit":
+        # GET ACCOUNT BALANCES
+        response = cit_get_details_by_customer_id(customer.customerID).json()
+        accounts = response["Accounts"]
+        customer_account = list()
+        for account in accounts:
+            if account["NUBAN"]:
+                account_detail = dict()
+                account_detail["account_no"] = account["NUBAN"]
+                account_detail["ledger_balance"] = decimal.Decimal(account["ledgerBalance"]) / 100
+                account_detail["withdrawable_balance"] = decimal.Decimal(account["withdrawableAmount"]) / 100
+                account_detail["kyc_level"] = decimal.Decimal(account["kycLevel"]) / 100
+                account_detail["available_balance"] = decimal.Decimal(account["availableBalance"]) / 100
+                customer_account.append(account_detail)
+        data["account_balances"] = customer_account
+
+    data["customer"] = CustomerSerializer(customer, context={"request": request}).data
+
+    return data
 
 

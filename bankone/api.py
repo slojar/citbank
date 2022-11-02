@@ -37,7 +37,7 @@ def get_account_by_account_no(account_no):
     return response
 
 
-def get_details_by_customer_id(customer_id):
+def cit_get_details_by_customer_id(customer_id):
     url = f'{base_url}/Account/GetAccountsByCustomerId/2?authtoken={auth_token}&customerId={customer_id}'
 
     response = requests.request('GET', url=url)
