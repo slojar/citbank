@@ -11,7 +11,7 @@ from django.contrib.auth import login, authenticate
 from django.db.models import Sum
 
 from bankone.api import generate_transaction_ref_code, generate_random_ref_code, get_acct_officer, cit_create_account, \
-    cit_get_details_by_customer_id
+    cit_get_details_by_customer_id, cit_transaction_history
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
 from cryptography.fernet import Fernet
@@ -280,4 +280,79 @@ def get_year_start_and_end_datetime(date_time):
     year_end = datetime.datetime.combine(year_end.date(), datetime.time.max)
     return year_start, year_end
 
+
+def get_transaction_history(bank, acct_no, result_count=None):
+    if bank.short_name == "cit":
+        # response = cit_transaction_history(item_no=result_count, acct_no=acct_no)
+        # BELOW SAMPLE RESPONSE TO BE REMOVED LATER
+        response = {
+            'IsSuccessful': True,
+            'CustomerIDInString': None,
+            'Message': [
+                {
+                    'Id': 2067036,
+                    'CurrentDate': '2022-11-02T12:26:02',
+                    'IsReversed': False,
+                    'ReversalReferenceNo': None,
+                    'WithdrawableAmount': 0.0,
+                    'UniqueIdentifier': None,
+                    'InstrumentNo': None,
+                    'TransactionDate': '2022-10-31T00:00:00',
+                    'TransactionDateString': 'Monday, October 31, 2022 12:00 AM',
+                    'ReferenceID': 'AE22103199999',
+                    'Narration': 'INTEREST CAPITALIZED FOR Oct-2022- 01290011020029851',
+                    'Amount': 384.834,
+                    'OpeningBalance': 43809.874,
+                    'Balance': 44194.708,
+                    'PostingType': 'EndOfDayPosting',
+                    'Debit': '',
+                    'Credit': '3.85',
+                    'IsCardTransation': False,
+                    'AccountNumber': None,
+                    'ServiceCode': None,
+                    'RecordType': 'Credit'
+                },
+                {
+                    'Id': 2063893,
+                    'CurrentDate': '2022-11-02T12:25:49',
+                    'IsReversed': False,
+                    'ReversalReferenceNo': None,
+                    'WithdrawableAmount': 0.0,
+                    'UniqueIdentifier': None,
+                    'InstrumentNo': None,
+                    'TransactionDate': '2022-10-31T00:00:00',
+                    'TransactionDateString': 'Monday, October 31, 2022 12:00 AM',
+                    'ReferenceID': 'AE22103199999',
+                    'Narration': 'SMS Charge for Oct-2022',
+                    'Amount': 1500.0,
+                    'OpeningBalance': 45309.874,
+                    'Balance': 43809.874,
+                    'PostingType': 'EndOfDayPosting',
+                    'Debit': '15.00',
+                    'Credit': '',
+                    'IsCardTransation': False,
+                    'AccountNumber': None,
+                    'ServiceCode': None,
+                    'RecordType': 'Debit'
+                }
+            ],
+            'TransactionTrackingRef': None,
+            'Page': None
+        }
+
+        result = list()
+
+        if response["IsSuccessful"] is True:
+            messages = response["Message"]
+            for item in messages:
+                message = dict()
+                message["date"] = item["TransactionDate"]
+                message["date_string"] = item["TransactionDateString"]
+                message["direction"] = item["RecordType"]
+                message["amount"] = decimal.Decimal(item["Amount"]) / 100
+                message["description"] = item["Narration"]
+                message["reference_no"] = item["ReferenceID"]
+                result.append(message)
+
+        return result
 

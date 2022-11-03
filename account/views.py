@@ -22,10 +22,11 @@ from .serializers import CustomerSerializer, TransactionSerializer, BeneficiaryS
 from .utils import authenticate_user, generate_new_otp, \
     decrypt_text, encrypt_text, create_transaction, confirm_trans_pin, open_account_with_banks, get_account_balance, \
     get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
-    get_year_start_and_end_datetime
+    get_year_start_and_end_datetime, get_transaction_history
 
 from bankone.api import get_account_by_account_no, log_request, send_otp_message, \
-    cit_create_new_customer, generate_random_ref_code, send_email, cit_get_details_by_customer_id
+    cit_create_new_customer, generate_random_ref_code, send_email, cit_get_details_by_customer_id, \
+    cit_transaction_history
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
 
 bankOneToken = settings.BANK_ONE_AUTH_TOKEN
@@ -665,6 +666,11 @@ class CustomerDashboardAPIView(APIView):
     def get(self, request, bank_id):
 
         try:
+            account_no = [
+                account.account_no for account in
+                CustomerAccount.objects.filter(customer__user=request.user, customer__bank_id=bank_id)
+            ]
+
             date_from = request.GET.get("date_from")
             date_to = request.GET.get("date_to")
             last_7_days = request.GET.get("last_7_days")
@@ -693,11 +699,6 @@ class CustomerDashboardAPIView(APIView):
                 start_date = date_from
                 end_date = date_to
 
-            account_no = [
-                account.account_no for account in
-                CustomerAccount.objects.filter(customer__user=request.user, customer__bank_id=bank_id)
-            ]
-
             transfer = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__user=request.user)
             airtime = Airtime.objects.filter(
                 created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
@@ -712,11 +713,15 @@ class CustomerDashboardAPIView(APIView):
                 created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
             ).distinct()
 
+            account_number = CustomerAccount.objects.filter(customer__user=request.user).first().account_no
+
+            bank = Bank.objects.get(id=bank_id)
+            last_ten_trans = get_transaction_history(bank, account_number, result_count=10)
+
             result = dict()
             result["transfer"] = dict()
             result["transfer"]["total"] = transfer.count()
             result["transfer"]["amount"] = transfer.aggregate(Sum("amount"))["amount__sum"] or 0
-            result["transfer"]["recent"] = TransactionSerializer(transfer[:10], many=True).data
 
             result["airtime"] = dict()
             result["airtime"]["total"] = airtime.count()
@@ -734,6 +739,8 @@ class CustomerDashboardAPIView(APIView):
             result["electricity"]["total"] = electricity.count()
             result["electricity"]["amount"] = electricity.aggregate(Sum("amount"))["amount__sum"] or 0
 
+            result["recent_transactions"] = last_ten_trans
+
             return Response(result)
         except Exception as ex:
             return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
@@ -749,6 +756,5 @@ class CustomerDashboardAPIView(APIView):
 
 
 
-        return Response({})
 
 

@@ -182,7 +182,7 @@ def get_customer_acct_officer(acct_no):
     return response
 
 
-def transaction_history(**kwargs):
+def transaction_history_paginated(**kwargs):
     url = f'{base_url}/Account/GetTransactionsPaginated/{version}'
 
     page_no = kwargs.get("page_no")
@@ -197,6 +197,28 @@ def transaction_history(**kwargs):
         payload['pageNo'] = page_no
 
     payload['PageSize'] = 10
+
+    response = requests.request('GET', url=url, params=payload).json()
+    log_request(url, payload, response)
+    return response
+
+
+def cit_transaction_history(**kwargs):
+    url = f'{base_url}/Account/GetTransactions/{version}'
+
+    item_no = kwargs.get("item_no")
+    date_from = kwargs.get("date_from")
+    date_to = kwargs.get("date_to")
+
+    payload = dict()
+    payload['accountNumber'] = kwargs.get("acct_no")
+    payload['authtoken'] = auth_token
+    payload['institutionCode'] = institution_code
+    if date_from and date_to:
+        payload['fromDate'] = date_from
+        payload['toDate'] = date_to
+    if item_no:
+        payload['numberOfItems'] = item_no
 
     response = requests.request('GET', url=url, params=payload).json()
     log_request(url, payload, response)
