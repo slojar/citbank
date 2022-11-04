@@ -90,6 +90,7 @@ class CustomerAccount(models.Model):
     bank_acct_number = models.CharField(max_length=200, blank=True, null=True)
     account_type = models.CharField(max_length=200, blank=True, null=True)
     card_no = models.CharField(max_length=200, blank=True, null=True)
+    statement = models.FileField(null=True, blank=True, upload_to='statements')
     active = models.BooleanField(default=True)
 
     def __str__(self):

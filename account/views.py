@@ -22,10 +22,10 @@ from .serializers import CustomerSerializer, TransactionSerializer, BeneficiaryS
 from .utils import authenticate_user, generate_new_otp, \
     decrypt_text, encrypt_text, create_transaction, confirm_trans_pin, open_account_with_banks, get_account_balance, \
     get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
-    get_year_start_and_end_datetime, get_transaction_history
+    get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement
 
 from bankone.api import get_account_by_account_no, log_request, send_otp_message, \
-    cit_create_new_customer, generate_random_ref_code, send_email, cit_get_details_by_customer_id, \
+    cit_create_new_customer, generate_random_ref_code, cit_send_email, cit_get_details_by_customer_id, \
     cit_transaction_history
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
 
@@ -623,7 +623,7 @@ class FeedbackView(APIView):
         else:
             subject, receiver = f"ENQUIRY FROM {name}", enquiry_email
 
-        Thread(target=send_email, args=[request.user.email, receiver, subject, message])
+        Thread(target=cit_send_email, args=[request.user.email, receiver, subject, message])
 
         return Response({"detail": "Message sent successfully"})
 
@@ -665,85 +665,147 @@ class CustomerDashboardAPIView(APIView):
 
     def get(self, request, bank_id):
 
-        try:
-            account_no = [
-                account.account_no for account in
-                CustomerAccount.objects.filter(customer__user=request.user, customer__bank_id=bank_id)
-            ]
+        # try:
+        account_no = [
+            account.account_no for account in
+            CustomerAccount.objects.filter(customer__user=request.user, customer__bank_id=bank_id)
+        ]
 
+        date_from = request.GET.get("date_from")
+        date_to = request.GET.get("date_to")
+        last_7_days = request.GET.get("last_7_days")
+        this_month = request.GET.get("this_month")
+        this_year = request.GET.get("this_year")
+        this_week = request.GET.get("this_week")
+
+        present_day = datetime.datetime.now()
+        if last_7_days == "true":
+            past_7_day = get_previous_date(date=present_day, delta=7)
+            start_date = past_7_day
+            end_date = present_day
+        elif this_month == "true":
+            month_start, month_end = get_month_start_and_end_datetime(present_day)
+            start_date = month_start
+            end_date = month_end
+        elif this_year == "true":
+            year_start, year_end = get_year_start_and_end_datetime(present_day)
+            start_date = year_start
+            end_date = year_end
+        elif this_week == "true":
+            week_start, week_end = get_week_start_and_end_datetime(present_day)
+            start_date = week_start
+            end_date = week_end
+        else:
+            start_date = date_from
+            end_date = date_to
+
+        transfer = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__user=request.user)
+        airtime = Airtime.objects.filter(
+            created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+        ).distinct()
+        data = Data.objects.filter(
+            created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+        ).distinct()
+        cable = CableTV.objects.filter(
+            created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+        ).distinct()
+        electricity = Electricity.objects.filter(
+            created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+        ).distinct()
+
+        account_number = CustomerAccount.objects.filter(customer__user=request.user).first().account_no
+
+        bank = Bank.objects.get(id=bank_id)
+        last_ten_trans, pagination = get_transaction_history(bank, account_number)
+
+        result = dict()
+        result["transfer"] = dict()
+        result["transfer"]["total"] = transfer.count()
+        result["transfer"]["amount"] = transfer.aggregate(Sum("amount"))["amount__sum"] or 0
+
+        result["airtime"] = dict()
+        result["airtime"]["total"] = airtime.count()
+        result["airtime"]["amount"] = airtime.aggregate(Sum("amount"))["amount__sum"] or 0
+
+        result["data"] = dict()
+        result["data"]["total"] = data.count()
+        result["data"]["amount"] = data.aggregate(Sum("amount"))["amount__sum"] or 0
+
+        result["cableTv"] = dict()
+        result["cableTv"]["total"] = cable.count()
+        result["cableTv"]["amount"] = cable.aggregate(Sum("amount"))["amount__sum"] or 0
+
+        result["electricity"] = dict()
+        result["electricity"]["total"] = electricity.count()
+        result["electricity"]["amount"] = electricity.aggregate(Sum("amount"))["amount__sum"] or 0
+
+        result["recent_transactions"] = last_ten_trans
+
+        return Response(result)
+        # except Exception as ex:
+        #     return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BankHistoryAPIView(APIView):
+
+    def get(self, request, bank_id):
+
+        try:
+            account_no = request.GET.get("account_no")
             date_from = request.GET.get("date_from")
             date_to = request.GET.get("date_to")
-            last_7_days = request.GET.get("last_7_days")
-            this_month = request.GET.get("this_month")
-            this_year = request.GET.get("this_year")
-            this_week = request.GET.get("this_week")
+            page_no = request.GET.get("page_no")
 
-            present_day = datetime.datetime.now()
-            if last_7_days == "true":
-                past_7_day = get_previous_date(date=present_day, delta=7)
-                start_date = past_7_day
-                end_date = present_day
-            elif this_month == "true":
-                month_start, month_end = get_month_start_and_end_datetime(present_day)
-                start_date = month_start
-                end_date = month_end
-            elif this_year == "true":
-                year_start, year_end = get_year_start_and_end_datetime(present_day)
-                start_date = year_start
-                end_date = year_end
-            elif this_week == "true":
-                week_start, week_end = get_week_start_and_end_datetime(present_day)
-                start_date = week_start
-                end_date = week_end
-            else:
-                start_date = date_from
-                end_date = date_to
-
-            transfer = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__user=request.user)
-            airtime = Airtime.objects.filter(
-                created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
-            ).distinct()
-            data = Data.objects.filter(
-                created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
-            ).distinct()
-            cable = CableTV.objects.filter(
-                created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
-            ).distinct()
-            electricity = Electricity.objects.filter(
-                created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
-            ).distinct()
-
-            account_number = CustomerAccount.objects.filter(customer__user=request.user).first().account_no
+            if not CustomerAccount.objects.filter(customer__user=request.user, account_no=account_no,
+                                                  customer__bank_id=bank_id).exists():
+                return Response({"detail": "Account number is not valid"}, status=status.HTTP_400_BAD_REQUEST)
 
             bank = Bank.objects.get(id=bank_id)
-            last_ten_trans = get_transaction_history(bank, account_number, result_count=10)
+            result, pages = get_transaction_history(bank, account_no, date_from, date_to, page_no)
 
-            result = dict()
-            result["transfer"] = dict()
-            result["transfer"]["total"] = transfer.count()
-            result["transfer"]["amount"] = transfer.aggregate(Sum("amount"))["amount__sum"] or 0
+            return Response({"detail": result, "pagination": pages})
 
-            result["airtime"] = dict()
-            result["airtime"]["total"] = airtime.count()
-            result["airtime"]["amount"] = airtime.aggregate(Sum("amount"))["amount__sum"] or 0
+        except Exception as err:
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
-            result["data"] = dict()
-            result["data"]["total"] = data.count()
-            result["data"]["amount"] = data.aggregate(Sum("amount"))["amount__sum"] or 0
 
-            result["cableTv"] = dict()
-            result["cableTv"]["total"] = cable.count()
-            result["cableTv"]["amount"] = cable.aggregate(Sum("amount"))["amount__sum"] or 0
+class GenerateStatement(APIView):
 
-            result["electricity"] = dict()
-            result["electricity"]["total"] = electricity.count()
-            result["electricity"]["amount"] = electricity.aggregate(Sum("amount"))["amount__sum"] or 0
+    def post(self, request, bank_id):
+        try:
+            date_from = request.data.get("date_from")
+            date_to = request.data.get("date_to")
+            account_no = request.data.get("account_no")
+            download = request.data.get("download")
+            email = request.data.get("email")
 
-            result["recent_transactions"] = last_ten_trans
+            if not all([date_to, date_from, account_no]):
+                return Response({"detail": "Dates and account number are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response(result)
-        except Exception as ex:
-            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+            if not CustomerAccount.objects.filter(
+                    customer__user=request.user, customer__bank_id=bank_id, account_no=account_no).exists():
+                return Response({"detail": "Account not valid for user"}, status=status.HTTP_400_BAD_REQUEST)
+
+            bank = Bank.objects.get(id=bank_id)
+            if download is True:
+                success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "pdf")
+            else:
+                success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "html")
+                if success is True:
+                    if email:
+                        # Send statement to customer
+                        email_from = str(settings.CIT_EMAIL_FROM)
+                        Thread(
+                            target=cit_send_email,
+                            args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}",
+                                  response]
+                        ).start()
+
+            if success is False:
+                return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": response})
+        except Exception as err:
+            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 

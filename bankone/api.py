@@ -98,7 +98,7 @@ def send_sms(account_no, content, receiver):
     return response
 
 
-def send_email(mail_from, to, subject, body):
+def cit_send_email(mail_from, to, subject, body):
     url = f'{base_url}/Messaging/SaveEmail/{version}'
 
     data = dict()
@@ -182,43 +182,25 @@ def get_customer_acct_officer(acct_no):
     return response
 
 
-def transaction_history_paginated(**kwargs):
+def cit_transaction_history(**kwargs):
     url = f'{base_url}/Account/GetTransactionsPaginated/{version}'
 
     page_no = kwargs.get("page_no")
-
-    payload = dict()
-    payload['authtoken'] = auth_token
-    payload['accountNumber'] = kwargs.get("acct_no")
-    payload['fromDate'] = kwargs.get("date_from")
-    payload['toDate'] = kwargs.get("date_to")
-    payload['institutionCode'] = institution_code
-    if page_no:
-        payload['pageNo'] = page_no
-
-    payload['PageSize'] = 10
-
-    response = requests.request('GET', url=url, params=payload).json()
-    log_request(url, payload, response)
-    return response
-
-
-def cit_transaction_history(**kwargs):
-    url = f'{base_url}/Account/GetTransactions/{version}'
-
-    item_no = kwargs.get("item_no")
     date_from = kwargs.get("date_from")
     date_to = kwargs.get("date_to")
 
     payload = dict()
-    payload['accountNumber'] = kwargs.get("acct_no")
     payload['authtoken'] = auth_token
-    payload['institutionCode'] = institution_code
+    payload['accountNumber'] = kwargs.get("acct_no")
     if date_from and date_to:
         payload['fromDate'] = date_from
         payload['toDate'] = date_to
-    if item_no:
-        payload['numberOfItems'] = item_no
+    payload['institutionCode'] = institution_code
+    payload['PageSize'] = 15
+    if page_no:
+        payload['pageNo'] = page_no
+    else:
+        payload['pageNo'] = 1
 
     response = requests.request('GET', url=url, params=payload).json()
     log_request(url, payload, response)
@@ -323,7 +305,7 @@ def send_otp_message(phone_number, content, subject, account_no, email, bank):
     phone_number = format_phone_number(phone_number)
     if bank.short_name == "cit":
         email_from = str(settings.CIT_EMAIL_FROM)
-        Thread(target=send_email, args=[email_from, email, subject, content]).start()
+        Thread(target=cit_send_email, args=[email_from, email, subject, content]).start()
         Thread(target=send_sms, args=[account_no, content, phone_number]).start()
     detail = 'OTP successfully sent'
 
@@ -457,7 +439,7 @@ def cit_create_new_customer(data, account_no):
         f_name=str(user.first_name).title(), l_name=str(user.last_name).title(), u_name=user.username,
         tel=customer.phone_number
     )
-    Thread(target=send_email, args=[sender, app_reg, "New Registration on CIT Mobile App", content]).start()
+    Thread(target=cit_send_email, args=[sender, app_reg, "New Registration on CIT Mobile App", content]).start()
 
     detail = 'Registration is successful'
     return True, detail
@@ -488,7 +470,6 @@ def generate_transaction_ref_code(code):
 
 
 def generate_random_ref_code():
-
     now = datetime.date.today()
     day = str(now.day)
     if len(day) < 2:
@@ -502,3 +483,23 @@ def generate_random_ref_code():
 
     ref_code = f"CIT-{year}{month}{day}{code}"
     return ref_code
+
+
+def cit_generate_statement(**kwargs):
+    url = f"{base_url}/Account/GenerateAccountStatement/{version}"
+
+    _format = kwargs.get("format")  # html or pdf
+
+    payload = dict()
+    payload['authtoken'] = auth_token
+    payload['accountNumber'] = kwargs.get("accountNo")
+    payload['fromDate'] = kwargs.get("dateFrom")
+    payload['toDate'] = kwargs.get("dateTo")
+    if _format == "pdf":
+        payload['isPdf'] = True
+    else:
+        payload['isPdf'] = False
+
+    response = requests.request('GET', url=url, params=payload).json()
+    log_request(url, payload, response)
+    return response
