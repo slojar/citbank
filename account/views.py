@@ -22,9 +22,9 @@ from .serializers import CustomerSerializer, TransactionSerializer, BeneficiaryS
 from .utils import authenticate_user, generate_new_otp, \
     decrypt_text, encrypt_text, create_transaction, confirm_trans_pin, open_account_with_banks, get_account_balance, \
     get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
-    get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement
+    get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, get_account_officer
 
-from bankone.api import get_account_by_account_no, log_request, send_otp_message, \
+from bankone.api import cit_get_account_by_account_no, send_otp_message, \
     cit_create_new_customer, generate_random_ref_code, cit_send_email, cit_get_details_by_customer_id, \
     cit_transaction_history
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
@@ -153,7 +153,7 @@ class SignupOtpView(APIView):
 
             # GET CUSTOMER PHONE NUMBER AND EMAIL
             if bank.short_name == "cit":
-                response = get_account_by_account_no(account_no)
+                response = cit_get_account_by_account_no(account_no)
                 if response.status_code != 200:
                     for response in response.json():
                         detail = response['error-Message']
@@ -174,6 +174,7 @@ class SignupOtpView(APIView):
             if success is False:
                 log_request(f"error-message: {detail}")
                 return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "OPT sent to email and phone number"})
         except Exception as err:
             return Response({'detail': "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -800,12 +801,29 @@ class GenerateStatement(APIView):
                             args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}",
                                   response]
                         ).start()
+                        response = f"Statement sent to {email}"
 
             if success is False:
                 return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"detail": response})
         except Exception as err:
             return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AccountOfficerAPIView(APIView):
+
+    def get(self, request):
+        account_no = request.GET.get("account_no")
+
+        if not CustomerAccount.objects.filter(account_no=account_no).exists():
+            return Response({"detail": "User with account not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        account = CustomerAccount.objects.get(account_no=account_no)
+
+        data = get_account_officer(account)
+
+        return Response({"detail": data})
+
 
 
 

@@ -1,6 +1,6 @@
 import requests
 from django.conf import settings
-from bankone.api import log_request
+from account.utils import log_request
 
 baseUrl = settings.TM_BASE_URL
 header = {

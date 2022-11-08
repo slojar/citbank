@@ -9,8 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from account.models import Customer, CustomerAccount
-from account.utils import confirm_trans_pin
-from bankone.api import log_request
+from account.utils import confirm_trans_pin, log_request
 from billpayment.cron import retry_eko_elect_cron, bill_payment_reversal_cron
 from billpayment.models import Airtime, Data, CableTV, BillPaymentReversal
 from billpayment.utils import check_balance_and_charge, vend_electricity

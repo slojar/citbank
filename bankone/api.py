@@ -1,11 +1,9 @@
 import datetime
 import json
-import time
 import uuid
 from threading import Thread
 
 import requests
-import logging
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
@@ -20,12 +18,8 @@ institution_code = settings.CIT_INSTITUTION_CODE
 mfb_code = settings.CIT_MFB_CODE
 
 
-def log_request(*args):
-    for arg in args:
-        logging.info(arg)
-
-
-def get_account_by_account_no(account_no):
+def cit_get_account_by_account_no(account_no):
+    from account.utils import log_request
     url = f'{base_url}/Customer/GetByAccountNo/{version}'
 
     payload = dict()
@@ -38,6 +32,7 @@ def get_account_by_account_no(account_no):
 
 
 def cit_get_details_by_customer_id(customer_id):
+    from account.utils import log_request
     url = f'{base_url}/Account/GetAccountsByCustomerId/2?authtoken={auth_token}&customerId={customer_id}'
 
     response = requests.request('GET', url=url)
@@ -45,7 +40,8 @@ def cit_get_details_by_customer_id(customer_id):
     return response
 
 
-def charge_customer(**kwargs):
+def cit_charge_customer(**kwargs):
+    from account.utils import log_request
     url = f"{base_url_3ps}/CoreTransactions/LocalFundsTransfer"
 
     amount = kwargs.get("amount") * 100
@@ -63,7 +59,8 @@ def charge_customer(**kwargs):
     return response
 
 
-def log_reversal(tran_date, trans_ref):
+def cit_log_reversal(tran_date, trans_ref):
+    from account.utils import log_request
     url = f"{base_url_3ps}/CoreTransactions/Reversal"
 
     payload = dict()
@@ -77,7 +74,8 @@ def log_reversal(tran_date, trans_ref):
     return response
 
 
-def send_sms(account_no, content, receiver):
+def cit_send_sms(account_no, content, receiver):
+    from account.utils import log_request
     url = f'{base_url}/Messaging/SaveBulkSms/{version}?authtoken={auth_token}&institutionCode={institution_code}'
     ref = 'CIT-REF-' + str(uuid.uuid4().int)[:12]
 
@@ -99,6 +97,7 @@ def send_sms(account_no, content, receiver):
 
 
 def cit_send_email(mail_from, to, subject, body):
+    from account.utils import log_request
     url = f'{base_url}/Messaging/SaveEmail/{version}'
 
     data = dict()
@@ -117,6 +116,7 @@ def cit_send_email(mail_from, to, subject, body):
 
 
 def cit_create_account(**kwargs):
+    from account.utils import log_request
     url = f'{base_url}/Account/CreateAccountQuick/{version}?authtoken={auth_token}'
     signature = str(kwargs.get("signatureString"), "utf-8")
     image = str(kwargs.get("imageString"), "utf-8")
@@ -147,7 +147,8 @@ def cit_create_account(**kwargs):
     return response
 
 
-def get_acct_officer():
+def cit_get_acct_officer():
+    from account.utils import log_request
     url = f'{base_url}/AccountOfficer/Get/{version}'
 
     payload = dict()
@@ -158,7 +159,8 @@ def get_acct_officer():
     return response
 
 
-def get_fix_deposit_by_phone_no(phone_no):
+def cit_get_fix_deposit_by_phone_no(phone_no):
+    from account.utils import log_request
     url = f'{base_url}/FixedDeposit/GetFixedDepositAccountByPhoneNumber/{version}'
 
     payload = dict()
@@ -170,7 +172,8 @@ def get_fix_deposit_by_phone_no(phone_no):
     return response
 
 
-def get_customer_acct_officer(acct_no):
+def cit_get_customer_acct_officer(acct_no):
+    from account.utils import log_request
     url = f'{base_url}/AccountOfficer/GetCustomerAccountOfficer/{version}'
 
     payload = dict()
@@ -183,6 +186,7 @@ def get_customer_acct_officer(acct_no):
 
 
 def cit_transaction_history(**kwargs):
+    from account.utils import log_request
     url = f'{base_url}/Account/GetTransactionsPaginated/{version}'
 
     page_no = kwargs.get("page_no")
@@ -208,6 +212,7 @@ def cit_transaction_history(**kwargs):
 
 
 def bvn_lookup(bvn):
+    from account.utils import log_request
     url = f'{base_url_3ps}/Account/BVN/GetBvnDetails'
 
     payload = dict()
@@ -220,6 +225,7 @@ def bvn_lookup(bvn):
 
 
 def other_bank_transfer(**kwargs):
+    from account.utils import log_request
     url = f'{base_url_3ps}/Transfer/InterBankTransfer'
 
     amount = kwargs.get("amount") * 100
@@ -250,6 +256,7 @@ def other_bank_transfer(**kwargs):
 
 
 def others_name_enquiry(account_no, bank_code):
+    from account.utils import log_request
     url = f'{base_url_3ps}/Transfer/NameEnquiry'
 
     payload = dict()
@@ -263,6 +270,7 @@ def others_name_enquiry(account_no, bank_code):
 
 
 def get_banks():
+    from account.utils import log_request
     url = f'{base_url_3ps}/BillsPayment/GetCommercialBanks/{auth_token}'
 
     response = requests.request('GET', url=url)
@@ -271,6 +279,7 @@ def get_banks():
 
 
 def get_customer_cards(customer_id):
+    from account.utils import log_request
     url = f'{base_url_3ps}/Cards/RetrieveCustomerCards'
 
     payload = dict()
@@ -283,6 +292,7 @@ def get_customer_cards(customer_id):
 
 
 def freeze_or_unfreeze_card(serial_no, reason, account_no, action):
+    from account.utils import log_request
     url = ""
     if action == "freeze":
         url = f'{base_url_3ps}/Cards/Freeze'
@@ -306,7 +316,7 @@ def send_otp_message(phone_number, content, subject, account_no, email, bank):
     if bank.short_name == "cit":
         email_from = str(settings.CIT_EMAIL_FROM)
         Thread(target=cit_send_email, args=[email_from, email, subject, content]).start()
-        Thread(target=send_sms, args=[account_no, content, phone_number]).start()
+        Thread(target=cit_send_sms, args=[account_no, content, phone_number]).start()
     detail = 'OTP successfully sent'
 
     return True, detail
@@ -364,7 +374,7 @@ def cit_create_new_customer(data, account_no):
 
     try:
         # API to check if account exist
-        response = get_account_by_account_no(account_no)
+        response = cit_get_account_by_account_no(account_no)
         if response.status_code != 200:
             for response in response.json():
                 # print("from for loop: ", response, f"response.json: ", response.json())
@@ -486,6 +496,7 @@ def generate_random_ref_code():
 
 
 def cit_generate_statement(**kwargs):
+    from account.utils import log_request
     url = f"{base_url}/Account/GenerateAccountStatement/{version}"
 
     _format = kwargs.get("format")  # html or pdf

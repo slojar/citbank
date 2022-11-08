@@ -2,7 +2,7 @@ from threading import Thread
 
 from account.models import CustomerAccount
 from account.utils import check_account_status
-from bankone.api import cit_get_details_by_customer_id, charge_customer, send_sms
+from bankone.api import cit_get_details_by_customer_id, cit_charge_customer, cit_send_sms
 from billpayment.models import Electricity
 from tm_saas.api import validate_meter_no, electricity
 
@@ -34,7 +34,7 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
         return False, "Amount cannot be greater than current balance"
 
     # CHARGE CUSTOMER ACCOUNT
-    response = charge_customer(account_no=account_no, amount=amount, trans_ref=ref_code, description=narration)
+    response = cit_charge_customer(account_no=account_no, amount=amount, trans_ref=ref_code, description=narration)
     response = response.json()
 
     return True, response
@@ -146,7 +146,7 @@ def vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref
     if not token == "":
         # SEND TOKEN TO PHONE NUMBER
         content = f"Your {disco_type} token is: {token}".replace("_", " ")
-        Thread(target=send_sms, args=[account_no, content, phone_number]).start()
+        Thread(target=cit_send_sms, args=[account_no, content, phone_number]).start()
         elect.token_sent = True
         elect.save()
 

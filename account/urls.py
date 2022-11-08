@@ -37,6 +37,8 @@ urlpatterns = [
 
     path('history/<int:bank_id>', views.BankHistoryAPIView.as_view(), name="history"),
     path('statement/<int:bank_id>', views.GenerateStatement.as_view(), name="statement"),
+
+    path('manager', views.AccountOfficerAPIView.as_view(), name="account-officer"),
 ]
 
 
