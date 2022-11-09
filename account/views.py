@@ -840,6 +840,14 @@ class BankFlexAPIView(APIView):
             return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class TransferAPIView(APIView):
+
+    def post(self, request, bank_id):
+        try:
+            bank = Bank.objects.get(id=bank_id)
+
+        except Exception as ex:
+            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 

@@ -18,7 +18,7 @@ from dateutil.relativedelta import relativedelta
 from bankone.api import generate_transaction_ref_code, generate_random_ref_code, cit_get_acct_officer, \
     cit_create_account, \
     cit_get_details_by_customer_id, cit_transaction_history, cit_generate_statement, cit_get_customer_acct_officer, \
-    bank_flex
+    bank_flex, cit_to_cit_bank_transfer
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
 from cryptography.fernet import Fernet
@@ -465,6 +465,14 @@ def get_bank_flex_balance(customer):
         return True, data
 
 
+def transfer_to_same_bank(bank, send_from, send_to, amount, description, reference):
+    if bank.short_name == "cit":
+        # Narration max is 100 char, Reference max is 12 char, amount should be in kobo (i.e multiply by 100)
+        narration = description[:100]
+
+        cit_to_cit_bank_transfer()
+        ...
+    ...
 
 
 

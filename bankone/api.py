@@ -533,6 +533,24 @@ def bank_flex(bvn):
     return response
 
 
+def cit_to_cit_bank_transfer(**kwargs):
+    from account.utils import log_request
+    url = f"{base_url_3ps}/CoreTransactions/LocalFundsTransfer"
+
+    amount = kwargs.get("amount") * 100
+
+    payload = dict()
+    payload['AuthenticationKey'] = auth_token
+    payload['Amount'] = amount
+    payload['FromAccountNumber'] = kwargs.get("sender")
+    payload['ToAccountNumber'] = kwargs.get("receiver")
+    payload['RetrievalReference'] = kwargs.get("trans_ref")
+    payload['Narration'] = kwargs.get("description")
+
+    response = requests.request('POST', url=url, data=payload)
+    log_request(url, payload, response.json())
+    return response
+
 
 
 

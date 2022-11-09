@@ -40,6 +40,8 @@ urlpatterns = [
 
     path('manager', views.AccountOfficerAPIView.as_view(), name="account-officer"),
     path('bank-flex/', views.BankFlexAPIView.as_view(), name="bank-flex"),
+
+    path('transfer/', views.BankFlexAPIView.as_view(), name="bank-flex"),
 ]
 
 
