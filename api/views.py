@@ -3,8 +3,8 @@ from django.db.models import Q, Sum
 from rest_framework.response import Response
 from rest_framework import status, views
 
-from account.models import Customer, Transaction
-from account.serializers import CustomerSerializer, TransactionSerializer
+from account.models import Customer, Transfer
+from account.serializers import CustomerSerializer, TransferSerializer
 from account.paginations import CustomPagination
 from billpayment.models import Airtime, CableTV, Data
 from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer
@@ -107,17 +107,17 @@ class AdminTransferAPIView(views.APIView, CustomPagination):
 
         if transfer_type == "local":
             query &= Q(transaction_option="cit_bank_transfer")
-            transfers = Transaction.objects.filter(query).order_by('-created_on').distinct()
+            transfers = Transfer.objects.filter(query).order_by('-created_on').distinct()
         elif transfer_type == "others":
             query &= Q(transaction_option="other_bank_transfer")
-            transfers = Transaction.objects.filter(query).order_by('-created_on').distinct()
+            transfers = Transfer.objects.filter(query).order_by('-created_on').distinct()
             print(query)
             print(transfers)
         else:
-            transfers = Transaction.objects.filter(query).order_by('-created_on')
+            transfers = Transfer.objects.filter(query).order_by('-created_on')
 
         queryset = self.paginate_queryset(transfers, request)
-        serializer = TransactionSerializer(queryset, many=True).data
+        serializer = TransferSerializer(queryset, many=True).data
         data = self.get_paginated_response(serializer).data
 
         return Response(data)

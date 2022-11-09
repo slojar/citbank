@@ -18,16 +18,16 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from billpayment.models import Airtime, Data, CableTV, Electricity
 from .paginations import CustomPagination
-from .serializers import CustomerSerializer, TransactionSerializer, BeneficiarySerializer, BankSerializer
+from .serializers import CustomerSerializer, TransferSerializer, BeneficiarySerializer, BankSerializer
 from .utils import authenticate_user, generate_new_otp, \
-    decrypt_text, encrypt_text, create_transaction, confirm_trans_pin, open_account_with_banks, get_account_balance, \
+    decrypt_text, encrypt_text, confirm_trans_pin, open_account_with_banks, get_account_balance, \
     get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
     get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, get_account_officer, \
-    get_bank_flex_balance
+    get_bank_flex_balance, perform_bank_transfer
 
 from bankone.api import cit_get_account_by_account_no, send_otp_message, cit_create_new_customer, \
     generate_random_ref_code, cit_send_email
-from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
+from .models import CustomerAccount, Customer, CustomerOTP, Transfer, Beneficiary, Bank
 
 bankOneToken = settings.BANK_ONE_AUTH_TOKEN
 
@@ -224,7 +224,8 @@ class ChangePasswordView(APIView):
             # Check if old and new password are the same.
             if old_password == new_password:
                 log_request("detail: previously used passwords not allowed")
-                return Response({"detail": "previously used passwords are not allowed"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"detail": "previously used passwords are not allowed"},
+                                status=status.HTTP_400_BAD_REQUEST)
 
             # Check if new and confirm password are not the same
             if new_password != confirm_password:
@@ -330,7 +331,8 @@ class ChangeTransactionPinView(APIView):
     def post(self, request):
         try:
             data = request.data
-            old_pin, new_pin, confirm_pin = data.get('old_pin', ''), data.get('new_pin', ''), data.get('confirm_pin', '')
+            old_pin, new_pin, confirm_pin = data.get('old_pin', ''), data.get('new_pin', ''), data.get('confirm_pin',
+                                                                                                       '')
             fields = [old_pin, new_pin, confirm_pin]
 
             if not all(fields):
@@ -421,7 +423,7 @@ class TransactionView(APIView, CustomPagination):
 
         if ref:
             try:
-                data = TransactionSerializer(Transaction.objects.get(reference=ref)).data
+                data = TransferSerializer(Transfer.objects.get(reference=ref)).data
                 return Response(data)
             except Exception as err:
                 log_request(f"error-message: {err}")
@@ -440,40 +442,10 @@ class TransactionView(APIView, CustomPagination):
                                 status=status.HTTP_400_BAD_REQUEST)
             query = query & Q(created_on__range=[date_from, date_to])
 
-        queryset = Transaction.objects.filter(query).order_by('-id').distinct()
+        queryset = Transfer.objects.filter(query).order_by('-id').distinct()
         transaction = self.paginate_queryset(queryset, request)
-        data = self.get_paginated_response(TransactionSerializer(transaction, many=True).data).data
+        data = self.get_paginated_response(TransferSerializer(transaction, many=True).data).data
         return Response(data)
-
-    def post(self, request):
-
-        success, response = confirm_trans_pin(request)
-
-        if success is False:
-            log_request(f"error-message: {response}")
-            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
-
-        success, response = create_transaction(request)
-        if success is False:
-            log_request(f"error-message: {response}")
-            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response({"detail": "Successfully created a transaction", "reference_code": str(response)})
-
-    def put(self, request, ref):
-        trans_status = request.data.get('status')
-        if not trans_status:
-            log_request(f"error-message: status is required")
-            return Response({"detail": "status is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            transaction = Transaction.objects.get(reference=ref)
-            transaction.status = trans_status
-            transaction.save()
-            return Response({"detail": "Successfully updated transaction"})
-        except Exception as err:
-            log_request(f"error-message: {err}")
-            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class BeneficiaryView(APIView, CustomPagination):
@@ -700,7 +672,7 @@ class CustomerDashboardAPIView(APIView):
             start_date = date_from
             end_date = date_to
 
-        transfer = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__user=request.user)
+        transfer = Transfer.objects.filter(created_on__range=(start_date, end_date), customer__user=request.user)
         airtime = Airtime.objects.filter(
             created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
         ).distinct()
@@ -845,19 +817,10 @@ class TransferAPIView(APIView):
     def post(self, request, bank_id):
         try:
             bank = Bank.objects.get(id=bank_id)
-
+            success, detail = perform_bank_transfer(bank, request)
+            if success is False:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+            data = TransferSerializer(detail).data
+            return Response({"detail": "Transfer successful", "data": data})
         except Exception as ex:
             return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
-
-
-
-
-
-
-
-
-

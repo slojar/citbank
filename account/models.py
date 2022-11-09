@@ -8,13 +8,12 @@ STATUS_CHOICES = (
     ('pending', 'Pending'), ('failed', 'Failed'), ('success', 'Success')
 )
 
-TRANSACTION_TYPE_CHOICES = (
-    ('transfer', 'Transfer'), ('bill_payment', 'Bill Payment')
+TRANSFER_TYPE_CHOICES = (
+    ('local_transfer', 'Local Transfer'), ('external_transfer', 'External Transfer')
 )
 
 BENEFICIARY_TYPE_CHOICES = (
-    ('cit_bank_transfer', 'CIT Bank Transfer'), ('other_bank_transfer', 'Other Bank Transfer'), ('airtime', 'Airtime'),
-    ('data', 'Data'), ('utility', 'Utility')
+    ('cit_bank_transfer', 'CIT Bank Transfer'), ('cit_other_bank_transfer', 'CIT Other Bank Transfer')
 )
 
 NOTIFICATION_TYPE_CHOICES = (
@@ -80,6 +79,9 @@ class Customer(models.Model):
         data["staff"] = self.user.is_staff
         return data
 
+    def get_full_name(self):
+        return self.user.get_full_name()
+
     def __str__(self):
         return f"{self.user.first_name}-{self.user.last_name}"
 
@@ -106,13 +108,14 @@ class CustomerOTP(models.Model):
         return f"{self.phone_number} - {self.otp}"
 
 
-class Transaction(models.Model):
+class Transfer(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, blank=True, null=True)
-    transaction_type = models.CharField(max_length=100, choices=TRANSACTION_TYPE_CHOICES, default='transfer')
-    transaction_option = models.CharField(max_length=100, blank=True, null=True, choices=BENEFICIARY_TYPE_CHOICES)
+    sender_acct_no = models.CharField(max_length=200, blank=True, null=True)
+    transfer_type = models.CharField(max_length=100, choices=TRANSFER_TYPE_CHOICES, default='transfer')
+    beneficiary_type = models.CharField(max_length=100, blank=True, null=True, choices=BENEFICIARY_TYPE_CHOICES)
     beneficiary_name = models.CharField(max_length=100, blank=True, null=True)
-    biller_name = models.CharField(max_length=200, blank=True, null=True)
-    beneficiary_number = models.CharField(max_length=200, blank=True, null=True)
+    bank_name = models.CharField(max_length=200, blank=True, null=True)
+    beneficiary_acct_no = models.CharField(max_length=200, blank=True, null=True)
     status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='pending')
     amount = models.FloatField()
     narration = models.TextField(blank=True, null=True)
@@ -131,7 +134,6 @@ class Beneficiary(models.Model):
     beneficiary_bank = models.CharField(max_length=200, blank=True, null=True)
     beneficiary_acct_no = models.CharField(max_length=200, blank=True, null=True)
     beneficiary_number = models.CharField(max_length=200, blank=True, null=True)
-    biller_name = models.CharField(max_length=200, blank=True, null=True)
     created_on = models.DateTimeField(auto_now_add=True)
 
     class Meta:

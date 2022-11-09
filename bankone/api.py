@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 
-from account.models import CustomerAccount, CustomerOTP, Customer
+from account.models import CustomerAccount, CustomerOTP, Customer, Transfer
 
 base_url = settings.BANK_ONE_BASE_URL
 base_url_3ps = settings.BANK_ONE_3PS_URL
@@ -226,7 +226,7 @@ def bvn_lookup(bvn):
     return response
 
 
-def other_bank_transfer(**kwargs):
+def cit_other_bank_transfer(**kwargs):
     from account.utils import log_request
     url = f'{base_url_3ps}/Transfer/InterBankTransfer'
 
@@ -257,7 +257,7 @@ def other_bank_transfer(**kwargs):
     return response
 
 
-def others_name_enquiry(account_no, bank_code):
+def cit_others_name_enquiry(account_no, bank_code):
     from account.utils import log_request
     url = f'{base_url_3ps}/Transfer/NameEnquiry'
 
@@ -271,7 +271,7 @@ def others_name_enquiry(account_no, bank_code):
     return response
 
 
-def get_banks():
+def cit_get_banks():
     from account.utils import log_request
     url = f'{base_url_3ps}/BillsPayment/GetCommercialBanks/{auth_token}'
 
@@ -280,7 +280,7 @@ def get_banks():
     return response
 
 
-def get_customer_cards(customer_id):
+def cit_customer_cards(customer_id):
     from account.utils import log_request
     url = f'{base_url_3ps}/Cards/RetrieveCustomerCards'
 
@@ -293,7 +293,7 @@ def get_customer_cards(customer_id):
     return response
 
 
-def freeze_or_unfreeze_card(serial_no, reason, account_no, action):
+def cit_freeze_or_unfreeze_card(serial_no, reason, account_no, action):
     from account.utils import log_request
     url = ""
     if action == "freeze":
@@ -457,7 +457,7 @@ def cit_create_new_customer(data, account_no):
     return True, detail
 
 
-def generate_transaction_ref_code(code):
+def cit_generate_transaction_ref_code(code):
     if len(code) == 1:
         code = f"0000{code}"
     elif len(code) == 2:
@@ -477,6 +477,9 @@ def generate_transaction_ref_code(code):
     year = str(now.year)[2:]
 
     ref_code = f"C{year}{month}{day}{code}"
+    if Transfer.objects.filter(reference=ref_code).exists():
+        x_code = str(uuid.uuid4().int)[:5]
+        ref_code = f"C{year}{month}{day}{x_code}"
 
     return ref_code
 
