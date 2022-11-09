@@ -17,7 +17,8 @@ from dateutil.relativedelta import relativedelta
 
 from bankone.api import generate_transaction_ref_code, generate_random_ref_code, cit_get_acct_officer, \
     cit_create_account, \
-    cit_get_details_by_customer_id, cit_transaction_history, cit_generate_statement, cit_get_customer_acct_officer
+    cit_get_details_by_customer_id, cit_transaction_history, cit_generate_statement, cit_get_customer_acct_officer, \
+    bank_flex
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
 from cryptography.fernet import Fernet
@@ -450,4 +451,20 @@ def get_account_officer(account):
                 data["branch"] = result["Branch"]
 
     return data
+
+
+def get_bank_flex_balance(customer):
+    if customer.bvn:
+        # decrypt bvn
+        bvn = decrypt_text(customer.bvn)
+        response = bank_flex(bvn)
+        if response["code"] != 200:
+            return False, "Could not retrieve bank flex details at the moment, please try again later"
+        data = response["data"]
+
+        return True, data
+
+
+
+
 

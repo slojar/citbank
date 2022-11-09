@@ -39,6 +39,7 @@ urlpatterns = [
     path('statement/<int:bank_id>', views.GenerateStatement.as_view(), name="statement"),
 
     path('manager', views.AccountOfficerAPIView.as_view(), name="account-officer"),
+    path('bank-flex/', views.BankFlexAPIView.as_view(), name="bank-flex"),
 ]
 
 

@@ -16,6 +16,8 @@ version = settings.BANK_ONE_VERSION
 auth_token = settings.BANK_ONE_AUTH_TOKEN
 institution_code = settings.CIT_INSTITUTION_CODE
 mfb_code = settings.CIT_MFB_CODE
+base_url_bank_flex = settings.BANK_FLEX_BASE_URL
+auth_key_bank_flex = settings.BANK_FLEX_KEY
 
 
 def cit_get_account_by_account_no(account_no):
@@ -514,3 +516,24 @@ def cit_generate_statement(**kwargs):
     response = requests.request('GET', url=url, params=payload).json()
     log_request(url, payload, response)
     return response
+
+
+# Bank Flex API
+def bank_flex(bvn):
+    from account.utils import log_request
+    url = f"{base_url_bank_flex}/load_account?bvn={bvn}"
+    payload = {}
+    headers = {
+        'Accept': 'application/json',
+        'Authorization': f'Bearer {auth_key_bank_flex}'
+    }
+
+    response = requests.request("GET", url, headers=headers, data=payload).json()
+    log_request(url, headers, response)
+    return response
+
+
+
+
+
+

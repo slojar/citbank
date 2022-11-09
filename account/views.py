@@ -22,11 +22,11 @@ from .serializers import CustomerSerializer, TransactionSerializer, BeneficiaryS
 from .utils import authenticate_user, generate_new_otp, \
     decrypt_text, encrypt_text, create_transaction, confirm_trans_pin, open_account_with_banks, get_account_balance, \
     get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
-    get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, get_account_officer
+    get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, get_account_officer, \
+    get_bank_flex_balance
 
-from bankone.api import cit_get_account_by_account_no, send_otp_message, \
-    cit_create_new_customer, generate_random_ref_code, cit_send_email, cit_get_details_by_customer_id, \
-    cit_transaction_history
+from bankone.api import cit_get_account_by_account_no, send_otp_message, cit_create_new_customer, \
+    generate_random_ref_code, cit_send_email
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
 
 bankOneToken = settings.BANK_ONE_AUTH_TOKEN
@@ -823,6 +823,21 @@ class AccountOfficerAPIView(APIView):
         data = get_account_officer(account)
 
         return Response({"detail": data})
+
+
+class BankFlexAPIView(APIView):
+
+    def get(self, request):
+
+        try:
+            customer = Customer.objects.get(user=request.user)
+
+            success, detail = get_bank_flex_balance(customer)
+            if success is False:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": detail})
+        except Exception as err:
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
