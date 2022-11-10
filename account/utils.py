@@ -191,13 +191,16 @@ def get_account_balance(customer, request):
         customer_account = list()
         for account in accounts:
             if account["NUBAN"]:
-                account_detail = dict()
-                account_detail["account_no"] = account["NUBAN"]
-                account_detail["ledger_balance"] = decimal.Decimal(account["ledgerBalance"]) / 100
-                account_detail["withdrawable_balance"] = decimal.Decimal(account["withdrawableAmount"]) / 100
-                account_detail["kyc_level"] = account["kycLevel"]
-                account_detail["available_balance"] = decimal.Decimal(account["availableBalance"]) / 100
-                customer_account.append(account_detail)
+                try:
+                    account_detail = dict()
+                    account_detail["account_no"] = account["NUBAN"]
+                    account_detail["ledger_balance"] = decimal.Decimal(account["ledgerBalance"]) / 100
+                    account_detail["withdrawable_balance"] = decimal.Decimal(account["withdrawableAmount"]) / 100
+                    account_detail["kyc_level"] = account["kycLevel"]
+                    account_detail["available_balance"] = decimal.Decimal(account["availableBalance"]) / 100
+                    customer_account.append(account_detail)
+                except decimal.InvalidOperation:
+                    ...
         data["account_balances"] = customer_account
 
     data["customer"] = CustomerSerializer(customer, context={"request": request}).data

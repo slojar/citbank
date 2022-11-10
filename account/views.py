@@ -100,7 +100,7 @@ class SignupView(APIView):
                 return Response({'detail': "Error, bank is inactive"}, status=status.HTTP_400_BAD_REQUEST)
 
             if bank.short_name == "cit":
-                success, detail = cit_create_new_customer(data, account_no)
+                success, detail = cit_create_new_customer(data, account_no, bank)
                 if not success:
                     log_request(f"error-message: {detail}")
                     return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)

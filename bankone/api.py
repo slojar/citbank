@@ -324,7 +324,7 @@ def send_otp_message(phone_number, content, subject, account_no, email, bank):
     return True, detail
 
 
-def cit_create_new_customer(data, account_no):
+def cit_create_new_customer(data, account_no, bank):
     from account.utils import format_phone_number, encrypt_text
     success = False
 
@@ -426,6 +426,7 @@ def cit_create_new_customer(data, account_no):
         return success, detail
 
     customer, created = Customer.objects.get_or_create(user=user)
+    customer.bank = bank
     customer.customerID = customer_id
     customer.dob = customer_data['CustomerDetails']['DateOfBirth']
     customer.gender = customer_data['CustomerDetails']['Gender']
