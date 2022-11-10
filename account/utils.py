@@ -18,8 +18,8 @@ from dateutil.relativedelta import relativedelta
 from bankone.api import cit_generate_transaction_ref_code, generate_random_ref_code, cit_get_acct_officer, \
     cit_create_account, \
     cit_get_details_by_customer_id, cit_transaction_history, cit_generate_statement, cit_get_customer_acct_officer, \
-    bank_flex, cit_to_cit_bank_transfer, cit_other_bank_transfer
-from .models import Customer, CustomerAccount, CustomerOTP, Transfer
+    bank_flex, cit_to_cit_bank_transfer, cit_other_bank_transfer, cit_get_account_by_account_no
+from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
 from cryptography.fernet import Fernet
 
@@ -451,7 +451,7 @@ def perform_bank_transfer(bank, request):
 
         # Check Daily Transfer Limit
         today = datetime.datetime.today()
-        today_trans = Transfer.objects.filter(customer=customer, status="success", created_on__day=today.day).aggregate(
+        today_trans = Transaction.objects.filter(customer=customer, status="success", created_on__day=today.day).aggregate(
             Sum("amount"))["amount__sum"] or 0
         current_limit = float(amount) + float(today_trans)
         if current_limit > customer.daily_limit:
@@ -467,7 +467,7 @@ def perform_bank_transfer(bank, request):
         # generate transaction reference using the format CYYMMDDCODES
         today = datetime.datetime.now()
         start_date, end_date = get_month_start_and_end_datetime(today)
-        month_transaction = Transfer.objects.filter(created_on__range=(start_date, end_date)).count()
+        month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date)).count()
         code = str(month_transaction + 1)
         ref_code = cit_generate_transaction_ref_code(code)
 
@@ -479,9 +479,9 @@ def perform_bank_transfer(bank, request):
                 description=narration
             )
             # Create Transaction instance
-            transfer = Transfer.objects.create(
+            transfer = Transaction.objects.create(
                 customer=customer, sender_acct_no=account_number, transfer_type="local_transfer",
-                beneficiary_type="cit_bank_transfer", beneficiary_name=beneficiary_name, bank_name=bank_name,
+                beneficiary_type="local_transfer", beneficiary_name=beneficiary_name, bank_name=bank_name,
                 beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code
             )
 
@@ -495,9 +495,9 @@ def perform_bank_transfer(bank, request):
                 nip_session_id=nip_session_id
             )
             # Create transfer
-            transfer = Transfer.objects.create(
+            transfer = Transaction.objects.create(
                 customer=customer, sender_acct_no=account_number, transfer_type="external_transfer",
-                beneficiary_type="cit_other_bank_transfer", beneficiary_name=beneficiary_name, bank_name=bank_name,
+                beneficiary_type="external_transfer", beneficiary_name=beneficiary_name, bank_name=bank_name,
                 beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code
             )
         else:
@@ -508,3 +508,33 @@ def perform_bank_transfer(bank, request):
             transfer.save()
 
     return True, transfer
+
+
+def perform_name_query(bank, request):
+    success = False
+    detail = "You have selected a wrong query type"
+
+    account_no = request.GET.get("account_no")
+    bank_code = request.GET.get("bank_code")
+    query_type = request.GET.get("query_type")  # same_bank or other_bank
+
+    if query_type == "same_bank":
+        if bank.short_name == "cit":
+            response = cit_get_account_by_account_no(account_no)
+        ...
+    if query_type == "other_bank":
+        if bank.short_name == "cit":
+            ...
+        ...
+
+    return success, detail
+
+
+
+
+
+
+
+
+
+

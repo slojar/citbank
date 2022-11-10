@@ -13,7 +13,8 @@ TRANSFER_TYPE_CHOICES = (
 )
 
 BENEFICIARY_TYPE_CHOICES = (
-    ('cit_bank_transfer', 'CIT Bank Transfer'), ('cit_other_bank_transfer', 'CIT Other Bank Transfer')
+    ('local_transfer', 'Local Transfer'), ('external_transfer', 'External Transfer'), ('airtime', 'Airtime'),
+    ('data', 'Data'), ('utility', 'Utility')
 )
 
 NOTIFICATION_TYPE_CHOICES = (
@@ -108,7 +109,7 @@ class CustomerOTP(models.Model):
         return f"{self.phone_number} - {self.otp}"
 
 
-class Transfer(models.Model):
+class Transaction(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, blank=True, null=True)
     sender_acct_no = models.CharField(max_length=200, blank=True, null=True)
     transfer_type = models.CharField(max_length=100, choices=TRANSFER_TYPE_CHOICES, default='transfer')
@@ -134,6 +135,7 @@ class Beneficiary(models.Model):
     beneficiary_bank = models.CharField(max_length=200, blank=True, null=True)
     beneficiary_acct_no = models.CharField(max_length=200, blank=True, null=True)
     beneficiary_number = models.CharField(max_length=200, blank=True, null=True)
+    biller_name = models.CharField(max_length=200, blank=True, null=True)
     created_on = models.DateTimeField(auto_now_add=True)
 
     class Meta:

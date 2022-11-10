@@ -23,11 +23,11 @@ from .utils import authenticate_user, generate_new_otp, \
     decrypt_text, encrypt_text, confirm_trans_pin, open_account_with_banks, get_account_balance, \
     get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
     get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, get_account_officer, \
-    get_bank_flex_balance, perform_bank_transfer
+    get_bank_flex_balance, perform_bank_transfer, perform_name_query
 
 from bankone.api import cit_get_account_by_account_no, send_otp_message, cit_create_new_customer, \
     generate_random_ref_code, cit_send_email
-from .models import CustomerAccount, Customer, CustomerOTP, Transfer, Beneficiary, Bank
+from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
 
 bankOneToken = settings.BANK_ONE_AUTH_TOKEN
 
@@ -423,7 +423,7 @@ class TransactionView(APIView, CustomPagination):
 
         if ref:
             try:
-                data = TransferSerializer(Transfer.objects.get(reference=ref)).data
+                data = TransferSerializer(Transaction.objects.get(reference=ref)).data
                 return Response(data)
             except Exception as err:
                 log_request(f"error-message: {err}")
@@ -442,7 +442,7 @@ class TransactionView(APIView, CustomPagination):
                                 status=status.HTTP_400_BAD_REQUEST)
             query = query & Q(created_on__range=[date_from, date_to])
 
-        queryset = Transfer.objects.filter(query).order_by('-id').distinct()
+        queryset = Transaction.objects.filter(query).order_by('-id').distinct()
         transaction = self.paginate_queryset(queryset, request)
         data = self.get_paginated_response(TransferSerializer(transaction, many=True).data).data
         return Response(data)
@@ -501,12 +501,12 @@ class BeneficiaryView(APIView, CustomPagination):
                 log_request(f"error-message: beneficiary type is not selected")
                 raise KeyError("Beneficiary type is required")
 
-            if beneficiary_type == "cit_bank_transfer":
+            if beneficiary_type == "local_transfer":
                 if not all([beneficiary_name, beneficiary_acct_no]):
                     log_request(f"error-message: beneficiary name and account number is required")
                     raise KeyError("Beneficiary Name and Account Number are required fields for Type CIT BANK TRANSFER")
 
-            if beneficiary_type == "other_bank_transfer":
+            if beneficiary_type == "external_transfer":
                 if not all([beneficiary_name, beneficiary_bank, beneficiary_acct_no]):
                     log_request(f"error-message: beneficiary name, bank, and account number is required")
                     raise KeyError("Beneficiary Name, Bank and Account Number are required for Type "
@@ -672,7 +672,7 @@ class CustomerDashboardAPIView(APIView):
             start_date = date_from
             end_date = date_to
 
-        transfer = Transfer.objects.filter(created_on__range=(start_date, end_date), customer__user=request.user)
+        transfer = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__user=request.user)
         airtime = Airtime.objects.filter(
             created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
         ).distinct()
@@ -824,3 +824,14 @@ class TransferAPIView(APIView):
             return Response({"detail": "Transfer successful", "data": data})
         except Exception as ex:
             return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class NameEnquiryAPIView(APIView):
+
+    def get(self, request, bank_id):
+
+        try:
+            bank = Bank.objects.get(id=bank_id)
+            perform_name_query(bank, request)
+        except Exception as err:
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)

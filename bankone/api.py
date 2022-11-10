@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 
-from account.models import CustomerAccount, CustomerOTP, Customer, Transfer
+from account.models import CustomerAccount, CustomerOTP, Customer, Transaction
 
 base_url = settings.BANK_ONE_BASE_URL
 base_url_3ps = settings.BANK_ONE_3PS_URL
@@ -257,7 +257,7 @@ def cit_other_bank_transfer(**kwargs):
     return response
 
 
-def cit_others_name_enquiry(account_no, bank_code):
+def cit_others_name_query(account_no, bank_code):
     from account.utils import log_request
     url = f'{base_url_3ps}/Transfer/NameEnquiry'
 
@@ -477,7 +477,7 @@ def cit_generate_transaction_ref_code(code):
     year = str(now.year)[2:]
 
     ref_code = f"C{year}{month}{day}{code}"
-    if Transfer.objects.filter(reference=ref_code).exists():
+    if Transaction.objects.filter(reference=ref_code).exists():
         x_code = str(uuid.uuid4().int)[:5]
         ref_code = f"C{year}{month}{day}{x_code}"
 

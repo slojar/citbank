@@ -1,4 +1,4 @@
-from .models import Customer, CustomerAccount, Transfer, Beneficiary, Bank
+from .models import Customer, CustomerAccount, Transaction, Beneficiary, Bank
 from rest_framework import serializers
 from .utils import decrypt_text
 
@@ -70,11 +70,11 @@ class TransferSerializer(serializers.ModelSerializer):
         return obj.customer.get_customer_detail()
 
     class Meta:
-        model = Transfer
+        model = Transaction
         exclude = []
 
 
 class BeneficiarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Beneficiary
-        exclude = ()
+        exclude = []
