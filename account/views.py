@@ -72,6 +72,7 @@ class RerouteView(APIView):
             return Response(response.json(), status=response.status_code)
         except Exception as err:
             log_request("An error has occurred", f"error: {err}")
+            return Response({"detail": "An error has occurred, please try again later"})
 
 
 class SignupView(APIView):
