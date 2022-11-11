@@ -20,29 +20,33 @@ from tm_saas.api import get_networks, get_data_plan, purchase_airtime, purchase_
 class GetNetworksAPIView(APIView):
 
     def get(self, request):
+        try:
+            data = None
+            network = request.GET.get("network")
+            customer = Customer.objects.get(user=request.user)
 
-        data = None
-        network = request.GET.get("network")
-
-        if network:
-            response = get_data_plan(str(network).lower())
-            if "data" in response:
-                data_plans = list()
-                for item in response["data"]:
-                    data = dict()
-                    data["plan_name"] = item["name"]
-                    data["plan_price"] = item["price"]
-                    data["plan_validity"] = item["validity"]
-                    data["plan_id"] = item["planId"]
-                    data_plans.append(data)
-
-                return Response({"data_plans": data_plans})
-
-        response = get_networks()
-        if "data" in response:
-            data = response["data"]
-
-        return Response({"networks": data})
+            if customer.bank.short_name == "cit":
+                if network:
+                    response = get_data_plan(str(network).lower())
+                    if "data" in response:
+                        data_plans = list()
+                        for item in response["data"]:
+                            data = dict()
+                            data["plan_name"] = item["name"]
+                            data["plan_price"] = item["price"]
+                            data["plan_validity"] = item["validity"]
+                            data["plan_id"] = item["planId"]
+                            data_plans.append(data)
+                        return Response({"data_plans": data_plans})
+                response = get_networks()
+                if "data" in response:
+                    data = response["data"]
+            else:
+                return Response({"detail": "No bank available for authenticated user"},
+                                status=status.HTTP_400_BAD_REQUEST)
+            return Response({"networks": data})
+        except Exception as ex:
+            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AirtimeDataPurchaseAPIView(APIView):
@@ -71,80 +75,88 @@ class AirtimeDataPurchaseAPIView(APIView):
 
         narration = f"{purchase_type} purchase for {phone_number}"
         code = str(uuid.uuid4().int)[:5]
-        ref_code = f"CIT-{code}"
         user = request.user
+        try:
+            customer = Customer.objects.get(user=user)
 
-        success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
+            if customer.bank.short_name == "cit":
+                ref_code = f"CIT-{code}"
+                success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
-        if success is False:
-            log_request(f"error-message: {response}")
-            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+                if success is False:
+                    log_request(f"error-message: {response}")
+                    return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
-        if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
-            new_success = False
-            detail = "An error occurred"
-            if purchase_type == "airtime":
-                response = purchase_airtime(network=network, phone_number=phone_number, amount=amount)
+                if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+                    new_success = False
+                    detail = "An error occurred"
+                    if purchase_type == "airtime":
+                        response = purchase_airtime(network=network, phone_number=phone_number, amount=amount)
 
-                if "error" in response:
-                    # LOG REVERSAL
-                    date_today = datetime.datetime.now().date()
-                    BillPaymentReversal.objects.create(transaction_reference=ref_code, transaction_date=str(date_today))
+                        if "error" in response:
+                            # LOG REVERSAL
+                            date_today = datetime.datetime.now().date()
+                            BillPaymentReversal.objects.create(transaction_reference=ref_code, transaction_date=str(date_today))
 
-                if "data" in response:
-                    new_success = True
-                    data = response["data"]
+                        if "data" in response:
+                            new_success = True
+                            data = response["data"]
 
-                    response_status = data["status"]
-                    trans_id = data["transactionId"]
-                    bill_id = data["billId"]
+                            response_status = data["status"]
+                            trans_id = data["transactionId"]
+                            bill_id = data["billId"]
 
-                    # CREATE AIRTIME INSTANCE
-                    Airtime.objects.create(
-                        account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
-                        status=response_status, transaction_id=trans_id, bill_id=bill_id, reference=ref_code
+                            # CREATE AIRTIME INSTANCE
+                            Airtime.objects.create(
+                                account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
+                                status=response_status, transaction_id=trans_id, bill_id=bill_id, reference=ref_code
+                            )
+
+                    if purchase_type == "data":
+                        plan_id = request.data.get("plan_id")
+                        if not plan_id:
+                            log_request(f"error-message: no plan selected")
+                            return Response({"detail": "Please select a plan to continue"}, status=status.HTTP_400_BAD_REQUEST)
+                        response = purchase_data(plan_id=plan_id, phone_number=phone_number, network=network, amount=amount)
+
+                        if "error" in response:
+                            # LOG REVERSAL
+                            date_today = datetime.datetime.now().date()
+                            BillPaymentReversal.objects.create(
+                                transaction_reference=ref_code, transaction_date=str(date_today), payment_type="data"
+                            )
+
+                        if "data" in response:
+                            new_success = True
+                            data = response["data"]
+
+                            response_status = data["status"]
+                            trans_id = data["transactionId"]
+                            bill_id = data["billId"]
+
+                            # CREATE DATA INSTANCE
+                            Data.objects.create(
+                                account_no=account_no, beneficiary=phone_number, network=network, amount=amount, reference=ref_code,
+                                status=response_status, transaction_id=trans_id, bill_id=bill_id, plan_id=plan_id
+                            )
+
+                    if new_success is False:
+                        log_request(f"error-message: {detail}")
+                        return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({"detail": f"{purchase_type} purchase for {phone_number} was successful"})
+
+                elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
+                    return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
+
+                else:
+                    return Response(
+                        {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
                     )
-
-            if purchase_type == "data":
-                plan_id = request.data.get("plan_id")
-                if not plan_id:
-                    log_request(f"error-message: no plan selected")
-                    return Response({"detail": "Please select a plan to continue"}, status=status.HTTP_400_BAD_REQUEST)
-                response = purchase_data(plan_id=plan_id, phone_number=phone_number, network=network, amount=amount)
-
-                if "error" in response:
-                    # LOG REVERSAL
-                    date_today = datetime.datetime.now().date()
-                    BillPaymentReversal.objects.create(
-                        transaction_reference=ref_code, transaction_date=str(date_today), payment_type="data"
-                    )
-
-                if "data" in response:
-                    new_success = True
-                    data = response["data"]
-
-                    response_status = data["status"]
-                    trans_id = data["transactionId"]
-                    bill_id = data["billId"]
-
-                    # CREATE DATA INSTANCE
-                    Data.objects.create(
-                        account_no=account_no, beneficiary=phone_number, network=network, amount=amount, reference=ref_code,
-                        status=response_status, transaction_id=trans_id, bill_id=bill_id, plan_id=plan_id
-                    )
-
-            if new_success is False:
-                log_request(f"error-message: {detail}")
-                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
-            return Response({"detail": f"{purchase_type} purchase for {phone_number} was successful"})
-
-        elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
-            return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
-
-        else:
-            return Response(
-                {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            else:
+                return Response({"detail": "No bank available for authenticated user"},
+                                status=status.HTTP_400_BAD_REQUEST)
+        except Exception as err:
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CableTVAPIView(APIView):
@@ -155,28 +167,35 @@ class CableTVAPIView(APIView):
         product_code = request.GET.get("product_code")
         data = ""
 
-        if service_name:
-            response = get_service_products(service_name, product_code)
-            if "error" in response:
-                detail = response["error"]
-                log_request(f"error-message: {detail}")
-                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
-            if "data" in response:
-                data = response["data"]
+        try:
+            customer = Customer.objects.get(user=request.user)
+            if customer.bank.short_name == "cit":
+                if service_name:
+                    response = get_service_products(service_name, product_code)
+                    if "error" in response:
+                        detail = response["error"]
+                        log_request(f"error-message: {detail}")
+                        return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+                    if "data" in response:
+                        data = response["data"]
+                else:
+                    if not service_type:
+                        log_request("error-message: service type is required")
+                        return Response({"detail": "service_type is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        else:
-            if not service_type:
-                log_request("error-message: service type is required")
-                return Response({"detail": "service_type is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-            response = get_services(service_type)
-            if "error" in response:
-                detail = response["error"]["message"]
-                log_request(f"error-message: {detail}")
-                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
-            if "data" in response:
-                data = response["data"]["billers"]
-        return Response({"detail": data})
+                    response = get_services(service_type)
+                    if "error" in response:
+                        detail = response["error"]["message"]
+                        log_request(f"error-message: {detail}")
+                        return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+                    if "data" in response:
+                        data = response["data"]["billers"]
+                return Response({"detail": data})
+            else:
+                return Response({"detail": "No bank available for authenticated user"},
+                                status=status.HTTP_400_BAD_REQUEST)
+        except Exception as ex:
+            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request):
 
@@ -204,61 +223,69 @@ class CableTVAPIView(APIView):
 
         code = str(uuid.uuid4().int)[:5]
         narration = f"{service_name} subscription for {smart_card_no}"
-        ref_code = f"CIT-{code}"
         user = request.user
 
-        amount = decimal.Decimal(amount) + decimal.Decimal(settings.SERVICE_CHARGE)
+        try:
+            customer = Customer.objects.get(user=user)
+            if customer.bank.short_name == "cit":
+                amount = decimal.Decimal(amount) + decimal.Decimal(settings.CIT_SERVICE_CHARGE)
+                ref_code = f"CIT-{code}"
+                success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
-        success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
+                if success is False:
+                    log_request(f"error-message: {response}")
+                    return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
-        if success is False:
-            log_request(f"error-message: {response}")
-            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+                if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
 
-        if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+                    # remove service charge from amount
+                    amount -= 100
 
-            # remove service charge from amount
-            amount -= 100
+                    response = cable_tv_sub(
+                        service_name=service_name, duration=duration, customer_number=phone_number,
+                        customer_name=customer_name, amount=amount, product_codes=product_codes, smart_card_no=smart_card_no
+                    )
 
-            response = cable_tv_sub(
-                service_name=service_name, duration=duration, customer_number=phone_number,
-                customer_name=customer_name, amount=amount, product_codes=product_codes, smart_card_no=smart_card_no
-            )
+                    if "error" in response:
+                        # LOG REVERSAL
+                        date_today = datetime.datetime.now().date()
+                        BillPaymentReversal.objects.create(
+                            transaction_reference=ref_code, transaction_date=str(date_today), payment_type="cableTv"
+                        )
 
-            if "error" in response:
-                # LOG REVERSAL
-                date_today = datetime.datetime.now().date()
-                BillPaymentReversal.objects.create(
-                    transaction_reference=ref_code, transaction_date=str(date_today), payment_type="cableTv"
-                )
+                        Response(
+                            {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
+                        )
 
-                Response(
-                    {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
-                )
+                    if "data" in response:
+                        data = response["data"]
 
-            if "data" in response:
-                data = response["data"]
+                        response_status = data["status"]
+                        trans_id = data["transactionId"]
 
-                response_status = data["status"]
-                trans_id = data["transactionId"]
+                        # CREATE CABLE TV INSTANCE
+                        CableTV.objects.create(
+                            service_name=service_name, account_no=account_no, smart_card_no=smart_card_no,
+                            customer_name=customer_name, phone_number=phone_number, product=str(product_codes), months=duration,
+                            amount=amount, status=response_status, transaction_id=trans_id, reference=ref_code
+                        )
 
-                # CREATE CABLE TV INSTANCE
-                CableTV.objects.create(
-                    service_name=service_name, account_no=account_no, smart_card_no=smart_card_no,
-                    customer_name=customer_name, phone_number=phone_number, product=str(product_codes), months=duration,
-                    amount=amount, status=response_status, transaction_id=trans_id, reference=ref_code
-                )
+                elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
+                    log_request(f"error-message: Insufficient balance")
+                    return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
 
-        elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
-            log_request(f"error-message: Insufficient balance")
-            return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    return Response(
+                        {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
+                    )
 
-        else:
-            return Response(
-                {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
-            )
+                return Response({"detail": f"{service_name} subscription for {smart_card_no} was successful"})
+            else:
+                return Response({"detail": "No bank available for authenticated user"},
+                                status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({"detail": f"{service_name} subscription for {smart_card_no} was successful"})
+        except Exception as ex:
+            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ValidateAPIView(APIView):
@@ -272,43 +299,64 @@ class ValidateAPIView(APIView):
 
         validate_type = request.data.get("validate_type")
 
-        if validate_type == "smart_card":
-            if not all([smart_card_no, service_name]):
-                return Response(
-                    {"detail": "smart_card_no and service_name are required"}, status=status.HTTP_400_BAD_REQUEST
-                )
+        try:
+            customer = Customer.objects.get(user=request.user)
+            if customer.bank.short_name == "cit":
 
-            # VALIDATE SMART CARD NUMBER
-            response = validate_scn(service_name, smart_card_no)
-        elif validate_type == "meter":
-            if not all([disco_type, meter_no]):
-                return Response(
-                    {"detail": "disco_type and meter_no are required"}, status=status.HTTP_400_BAD_REQUEST
-                )
+                if validate_type == "smart_card":
+                    if not all([smart_card_no, service_name]):
+                        return Response(
+                            {"detail": "smart_card_no and service_name are required"}, status=status.HTTP_400_BAD_REQUEST
+                        )
 
-            # VALIDATE METER NUMBER
-            response = validate_meter_no(disco_type, meter_no)
-        else:
-            return Response({"detail": "Invalid validate_type or not selected"}, status=status.HTTP_400_BAD_REQUEST)
+                    # VALIDATE SMART CARD NUMBER
+                    response = validate_scn(service_name, smart_card_no)
+                elif validate_type == "meter":
+                    if not all([disco_type, meter_no]):
+                        return Response(
+                            {"detail": "disco_type and meter_no are required"}, status=status.HTTP_400_BAD_REQUEST
+                        )
 
-        if "error" in response:
-            return Response({"detail": "Error validating smart card number"}, status=status.HTTP_400_BAD_REQUEST)
-        if "data" in response:
-            data = response["data"]
-        return Response({"detail": data})
+                    # VALIDATE METER NUMBER
+                    response = validate_meter_no(disco_type, meter_no)
+                else:
+                    return Response({"detail": "Invalid validate_type or not selected"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+                if "error" in response:
+                    return Response({"detail": "Error validating smart card number"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+                if "data" in response:
+                    data = response["data"]
+                return Response({"detail": data})
+            else:
+                return Response({"detail": "No bank available for authenticated user"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as ex:
+            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ElectricityAPIView(APIView):
 
     def get(self, request):
-        response = get_discos()
-        if not response["data"]:
-            return Response({"detail": "An error occurred while fetching data"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            customer = Customer.objects.get(user=request.user)
 
-        data = dict()
-        data["detail"] = response["data"]
+            if customer.bank.short_name == "cit":
+                response = get_discos()
+                if not response["data"]:
+                    return Response({"detail": "An error occurred while fetching data"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+                data = dict()
+                data["detail"] = response["data"]
 
-        return Response(data)
+                return Response(data)
+            else:
+                return Response({"detail": "No bank available for authenticated user"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as ex:
+            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request):
 
@@ -330,43 +378,52 @@ class ElectricityAPIView(APIView):
 
         narration = f"{disco_type} payment for meter: {meter_no}"
         code = str(uuid.uuid4().int)[:5]
-        ref_code = f"CIT-{code}"
         user = request.user
 
-        amount = decimal.Decimal(amount) + decimal.Decimal(settings.SERVICE_CHARGE)
+        try:
+            customer = Customer.objects.get(user=user)
+            if customer.bank.short_name == "cit":
+                ref_code = f"CIT-{code}"
+                amount = decimal.Decimal(amount) + decimal.Decimal(settings.CIT_SERVICE_CHARGE)
 
-        success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
+                success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
-        if success is False:
-            log_request(f"error-message: {response}")
-            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+                if success is False:
+                    log_request(f"error-message: {response}")
+                    return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
-        if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+                if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
 
-            # remove service charge from amount
-            amount -= 100
+                    # remove service charge from amount
+                    amount -= 100
 
-            success, detail, token = vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref_code)
-            if success is False:
-                # LOG REVERSAL
-                date_today = datetime.datetime.now().date()
-                BillPaymentReversal.objects.create(
-                    transaction_reference=ref_code, transaction_date=str(date_today), payment_type="electricity"
-                )
-                return Response(
-                    {"detail": "An error while vending electricity, please try again later"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                    success, detail, token = vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref_code)
+                    if success is False:
+                        # LOG REVERSAL
+                        date_today = datetime.datetime.now().date()
+                        BillPaymentReversal.objects.create(
+                            transaction_reference=ref_code, transaction_date=str(date_today), payment_type="electricity"
+                        )
+                        return Response(
+                            {"detail": "An error while vending electricity, please try again later"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
 
-        elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
-            return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
+                elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
+                    return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
 
-        else:
-            return Response(
-                {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
-            )
+                else:
+                    return Response(
+                        {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
+                    )
 
-        return Response({"detail": f"{disco_type} payment for meter: {meter_no} was successful", "credit_token": token})
+                return Response({"detail": f"{disco_type} payment for meter: {meter_no} was successful",
+                                 "credit_token": token})
+            else:
+                return Response({"detail": "No bank available for authenticated user"},
+                                status=status.HTTP_400_BAD_REQUEST)
+        except Exception as ex:
+            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class RetryElectricityCronView(APIView):

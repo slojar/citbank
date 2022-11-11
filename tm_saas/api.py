@@ -86,7 +86,7 @@ def validate_scn(service_name, scn):
 
 
 def cable_tv_sub(**kwargs):
-    url = f"{baseUrl}/{kwargs.get('service_name')}/validate"
+    url = f"{baseUrl}/{kwargs.get('service_name')}"
 
     payload = {
                 "provider": "cdl",
