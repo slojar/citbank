@@ -1,3 +1,4 @@
+from bankone.api import cit_get_banks
 from .models import Customer, CustomerAccount, Transaction, Beneficiary, Bank
 from rest_framework import serializers
 from .utils import decrypt_text
@@ -5,6 +6,7 @@ from .utils import decrypt_text
 
 class BankSerializer(serializers.ModelSerializer):
     logo = serializers.SerializerMethodField()
+    nip_banks = serializers.SerializerMethodField()
 
     def get_logo(self, obj):
         if obj.logo:
@@ -13,6 +15,17 @@ class BankSerializer(serializers.ModelSerializer):
                 image = request.build_absolute_uri(obj.logo.url)
                 return image
             return obj.logo.url
+
+    def get_nip_banks(self, obj):
+        result = list()
+        if obj.short_name == "cit":
+            response = cit_get_banks()
+            for res in response:
+                data = dict()
+                data["bank_name"] = res["Name"]
+                data["bank_code"] = res["Code"]
+                result.append(data)
+        return result
 
     class Meta:
         model = Bank

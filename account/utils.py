@@ -18,7 +18,7 @@ from dateutil.relativedelta import relativedelta
 from bankone.api import cit_generate_transaction_ref_code, generate_random_ref_code, cit_get_acct_officer, \
     cit_create_account, \
     cit_get_details_by_customer_id, cit_transaction_history, cit_generate_statement, cit_get_customer_acct_officer, \
-    bank_flex, cit_to_cit_bank_transfer, cit_other_bank_transfer, cit_get_account_by_account_no
+    bank_flex, cit_to_cit_bank_transfer, cit_other_bank_transfer, cit_get_account_by_account_no, cit_others_name_query
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
 from cryptography.fernet import Fernet
@@ -190,17 +190,19 @@ def get_account_balance(customer, request):
         accounts = response["Accounts"]
         customer_account = list()
         for account in accounts:
+            account_detail = dict()
             if account["NUBAN"]:
-                try:
-                    account_detail = dict()
-                    account_detail["account_no"] = account["NUBAN"]
-                    account_detail["ledger_balance"] = decimal.Decimal(account["ledgerBalance"]) / 100
-                    account_detail["withdrawable_balance"] = decimal.Decimal(account["withdrawableAmount"]) / 100
-                    account_detail["kyc_level"] = account["kycLevel"]
-                    account_detail["available_balance"] = decimal.Decimal(account["availableBalance"]) / 100
-                    customer_account.append(account_detail)
-                except decimal.InvalidOperation:
-                    ...
+                ledger = str(account["ledgerBalance"]).replace(",", "")
+                withdraw_able = str(account["withdrawableAmount"]).replace(",", "")
+                available = str(account["availableBalance"]).replace(",", "")
+
+                account_detail["account_no"] = account["NUBAN"]
+                account_detail["ledger_balance"] = decimal.Decimal(ledger)
+                account_detail["withdrawable_balance"] = decimal.Decimal(withdraw_able)
+                account_detail["available_balance"] = decimal.Decimal(available)
+                account_detail["kyc_level"] = account["kycLevel"]
+                customer_account.append(account_detail)
+        print(customer_account)
         data["account_balances"] = customer_account
 
     data["customer"] = CustomerSerializer(customer, context={"request": request}).data
@@ -421,11 +423,8 @@ def perform_bank_transfer(bank, request):
     # Needed payloads for other bank transfer
     beneficiary_acct_type = request.data.get("beneficiary_acct_type")  # savings, current, etc
     bank_code = request.data.get("beneficiary_bank_code")
-    beneficiary_phone_no = request.data.get("beneficiary_phone_no")
-    beneficiary_bvn = request.data.get("beneficiary_bvn")
-    beneficiary_kyc = request.data.get("beneficiary_kyc")
     nip_session_id = request.data.get("nip_session_id")
-    bank_name = request.data.get('bank_name')
+    bank_name = request.data.get('beneficiary_bank_name')
 
     success, message = confirm_trans_pin(request)
     if success is False:
@@ -454,8 +453,9 @@ def perform_bank_transfer(bank, request):
 
         # Check Daily Transfer Limit
         today = datetime.datetime.today()
-        today_trans = Transaction.objects.filter(customer=customer, status="success", created_on__day=today.day).aggregate(
-            Sum("amount"))["amount__sum"] or 0
+        today_trans = \
+            Transaction.objects.filter(customer=customer, status="success", created_on__day=today.day).aggregate(
+                Sum("amount"))["amount__sum"] or 0
         current_limit = float(amount) + float(today_trans)
         if current_limit > customer.daily_limit:
             return False, f"Your current daily transfer limit is NGN{customer.daily_limit}, please contact the bank"
@@ -464,6 +464,20 @@ def perform_bank_transfer(bank, request):
         result = check_account_status(customer)
         if result is False:
             return False, "Your account is locked, please contact the bank to unlock"
+
+        # Compare amount with customer balance
+        balance = 0
+        account = cit_get_details_by_customer_id(customer.customerID).json()
+        for acct in account["Accounts"]:
+            if acct["NUBAN"] == account_number:
+                withdraw_able = str(acct["withdrawableAmount"]).replace(",", "")
+                balance = decimal.Decimal(withdraw_able)
+
+        if balance <= 0:
+            return False, "Insufficient balance"
+
+        if decimal.Decimal(amount) > balance:
+            return False, "Amount to transfer cannot be greater than current balance"
 
         # Narration max is 100 char, Reference max is 12 char, amount should be in kobo (i.e multiply by 100)
         narration = description[:100]
@@ -493,8 +507,8 @@ def perform_bank_transfer(bank, request):
             response = cit_other_bank_transfer(
                 amount=amount, bank_acct_no=app_zone_acct, sender_name=sender_name, sender_acct_no=account_number,
                 receiver_acct_no=beneficiary_acct, receiver_acct_type=beneficiary_acct_type,
-                receiver_bank_code=bank_code, receiver_phone_no=beneficiary_phone_no, receiver_name=beneficiary_name,
-                receiver_bvn=beneficiary_bvn, receiver_kyc=beneficiary_kyc, description=narration, trans_ref=ref_code,
+                receiver_bank_code=bank_code, receiver_name=beneficiary_name,
+                description=narration, trans_ref=ref_code,
                 nip_session_id=nip_session_id
             )
             # Create transfer
@@ -506,6 +520,9 @@ def perform_bank_transfer(bank, request):
         else:
             return False, "Invalid transfer type selected"
 
+        if response["IsSuccessful"] is True and response["ResponseCode"] != "00":
+            return False, str(response["ResponseMessage"])
+
         if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
             transfer.status = "success"
             transfer.save()
@@ -514,30 +531,41 @@ def perform_bank_transfer(bank, request):
 
 
 def perform_name_query(bank, request):
-    success = False
-    detail = "You have selected a wrong query type"
 
     account_no = request.GET.get("account_no")
     bank_code = request.GET.get("bank_code")
     query_type = request.GET.get("query_type")  # same_bank or other_bank
 
+    if not account_no:
+        return False, "Account number is required"
+
+    data = dict()
+    name = nip_session_id = ""
+
     if query_type == "same_bank":
         if bank.short_name == "cit":
-            response = cit_get_account_by_account_no(account_no)
-        ...
-    if query_type == "other_bank":
+            response = cit_get_account_by_account_no(account_no).json()
+            if "CustomerDetails" in response:
+                customer_detail = response["CustomerDetails"]
+                name = customer_detail["Name"]
+            else:
+                return False, "Could not retrieve account information at the moment"
+
+    elif query_type == "other_bank":
+
+        if not all([account_no, bank_code]):
+            return False, "Account number and bank code are required"
+
         if bank.short_name == "cit":
-            ...
-        ...
+            response = cit_others_name_query(account_no, bank_code)
+            if response["IsSuccessful"] is True:
+                name = response["Name"]
+                nip_session_id = response["SessionID"]
 
-    return success, detail
+    else:
+        return False, "You have selected a wrong query type"
 
+    data["name"] = name
+    data["nip_session_id"] = nip_session_id
 
-
-
-
-
-
-
-
-
+    return True, data

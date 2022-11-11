@@ -815,15 +815,15 @@ class BankFlexAPIView(APIView):
 class TransferAPIView(APIView):
 
     def post(self, request, bank_id):
-        try:
-            bank = Bank.objects.get(id=bank_id)
-            success, detail = perform_bank_transfer(bank, request)
-            if success is False:
-                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
-            data = TransferSerializer(detail).data
-            return Response({"detail": "Transfer successful", "data": data})
-        except Exception as ex:
-            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+        # try:
+        bank = Bank.objects.get(id=bank_id)
+        success, detail = perform_bank_transfer(bank, request)
+        if success is False:
+            return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+        data = TransferSerializer(detail).data
+        return Response({"detail": "Transfer successful", "data": data})
+        # except Exception as ex:
+        #     return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class NameEnquiryAPIView(APIView):
@@ -832,6 +832,9 @@ class NameEnquiryAPIView(APIView):
 
         try:
             bank = Bank.objects.get(id=bank_id)
-            perform_name_query(bank, request)
+            success, detail = perform_name_query(bank, request)
+            if success is False:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(detail)
         except Exception as err:
             return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)

@@ -241,10 +241,10 @@ def cit_other_bank_transfer(**kwargs):
             "ReceiverAccountNumber": kwargs.get("receiver_acct_no"),
             "ReceiverAccountType": kwargs.get("receiver_acct_type"),
             "ReceiverBankCode": kwargs.get("receiver_bank_code"),
-            "ReceiverPhoneNumber": kwargs.get("receiver_phone_no"),
+            "ReceiverPhoneNumber": "",
             "ReceiverName": kwargs.get("receiver_name"),
-            "ReceiverBVN": kwargs.get("receiver_bvn"),
-            "ReceiverKYC": kwargs.get("receiver_kyc"),
+            "ReceiverBVN": "",
+            "ReceiverKYC": "",
             "Narration": kwargs.get("description"),
             "TransactionReference": kwargs.get("trans_ref"),
             "NIPSessionID": kwargs.get("nip_session_id"),  # this is from NameEnquiry ep
@@ -275,8 +275,8 @@ def cit_get_banks():
     from account.utils import log_request
     url = f'{base_url_3ps}/BillsPayment/GetCommercialBanks/{auth_token}'
 
-    response = requests.request('GET', url=url)
-    log_request(url, response.json())
+    response = requests.request('GET', url=url).json()
+    log_request(url, response)
     return response
 
 
@@ -551,8 +551,8 @@ def cit_to_cit_bank_transfer(**kwargs):
     payload['RetrievalReference'] = kwargs.get("trans_ref")
     payload['Narration'] = kwargs.get("description")
 
-    response = requests.request('POST', url=url, data=payload)
-    log_request(url, payload, response.json())
+    response = requests.request('POST', url=url, data=payload).json()
+    log_request(url, payload, response)
     return response
 
 
