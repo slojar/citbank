@@ -18,7 +18,8 @@ from dateutil.relativedelta import relativedelta
 from bankone.api import cit_generate_transaction_ref_code, generate_random_ref_code, cit_get_acct_officer, \
     cit_create_account, \
     cit_get_details_by_customer_id, cit_transaction_history, cit_generate_statement, cit_get_customer_acct_officer, \
-    bank_flex, cit_to_cit_bank_transfer, cit_other_bank_transfer, cit_get_account_by_account_no, cit_others_name_query
+    bank_flex, cit_to_cit_bank_transfer, cit_other_bank_transfer, cit_get_account_by_account_no, cit_others_name_query, \
+    cit_get_customer_cards, cit_freeze_or_unfreeze_card
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
 from cryptography.fernet import Fernet
@@ -569,3 +570,66 @@ def perform_name_query(bank, request):
     data["nip_session_id"] = nip_session_id
 
     return True, data
+
+
+def retrieve_customer_card(customer, account_no):
+    # function is expected to return card number, expiry date, name on card, and/or serial number (optional)
+    # card_no = expiry_date = serial_no = name = ""
+
+    if not account_no:
+        return False, "Account number is required"
+
+    if not CustomerAccount.objects.filter(account_no=account_no, customer=customer).exists():
+        return False, "Account number is not valid for authenticated user"
+
+    result = list()
+
+    if customer.bank.short_name == "cit":
+        response = cit_get_customer_cards(account_no)
+        if response["isSuccessful"] is True:
+            cards = response["Cards"]
+            data = dict()
+            for card in cards:
+                data["card_no"] = card["CardPAN"]
+                data["expiry_date"] = card["ExpiryDate"]
+                data["serial_no"] = card["SerialNo"]
+                data["name"] = card["NameOnCard"]
+                result.append(data)
+
+    return True, result
+
+
+def block_or_unblock_card(request):
+    account_no = request.data.get("account_no")
+    reason = request.data.get("reason")
+    serial_no = request.data.get("serial_no")
+    request_action = request.data.get("action")
+
+    customer = Customer.objects.get(user=request.user)
+    if not CustomerAccount.objects.filter(account_no=account_no, customer=customer).exists():
+        return False, "Account number is not valid for authenticated user"
+
+    if customer.bank.short_name == "cit":
+        if not all([serial_no, account_no]):
+            return False, "Required: card serial number and account number"
+        if request_action == "block":
+            action = "freeze"
+        elif request_action == "unblock":
+            action = "unfreeze"
+        else:
+            return False, "Invalid action selected. Expected 'block' or 'unblock'"
+
+        response = cit_freeze_or_unfreeze_card(serial_no, reason, account_no, action)
+        if response["IsSuccessful"] is False:
+            return False, f"Error occurred while {request_action}ing card. Please try again later or contact the bank."
+
+    else:
+        return False, "Customer bank not registered. Please try again later or contact the bank."
+
+    return True, f"Card {request_action}ed successfully"
+
+
+
+
+
+

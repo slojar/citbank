@@ -280,13 +280,13 @@ def cit_get_banks():
     return response
 
 
-def cit_customer_cards(customer_id):
+def cit_get_customer_cards(account_no):
     from account.utils import log_request
     url = f'{base_url_3ps}/Cards/RetrieveCustomerCards'
 
     payload = dict()
     payload['Token'] = auth_token
-    payload['CustomerID'] = customer_id
+    payload['AccountNo'] = account_no
 
     response = requests.request('POST', url=url, data=payload).json()
     log_request(url, payload, response)

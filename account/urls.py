@@ -43,6 +43,8 @@ urlpatterns = [
 
     path('transfer/<int:bank_id>/', views.TransferAPIView.as_view(), name="transfer"),
     path('name-enquiry/<int:bank_id>/', views.NameEnquiryAPIView.as_view(), name="name-enquiry"),
+
+    path('card/', views.CardOperationAPIView.as_view(), name="cards"),
 ]
 
 

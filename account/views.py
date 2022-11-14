@@ -23,7 +23,7 @@ from .utils import authenticate_user, generate_new_otp, \
     decrypt_text, encrypt_text, confirm_trans_pin, open_account_with_banks, get_account_balance, \
     get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
     get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, get_account_officer, \
-    get_bank_flex_balance, perform_bank_transfer, perform_name_query
+    get_bank_flex_balance, perform_bank_transfer, perform_name_query, retrieve_customer_card, block_or_unblock_card
 
 from bankone.api import cit_get_account_by_account_no, send_otp_message, cit_create_new_customer, \
     generate_random_ref_code, cit_send_email
@@ -838,3 +838,31 @@ class NameEnquiryAPIView(APIView):
             return Response(detail)
         except Exception as err:
             return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CardOperationAPIView(APIView):
+
+    def get(self, request):
+        account_no = request.GET.get("account_no")
+
+        try:
+            customer = Customer.objects.get(user=request.user)
+            success, detail = retrieve_customer_card(customer, account_no)
+            if success is False:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": detail})
+        except Exception as ex:
+            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request):
+        try:
+            success, detail = block_or_unblock_card(request)
+            if success is False:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": detail})
+        except Exception as err:
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
