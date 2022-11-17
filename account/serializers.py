@@ -33,6 +33,11 @@ class BankSerializer(serializers.ModelSerializer):
 
 
 class CustomerAccountSerializer(serializers.ModelSerializer):
+    customer_name = serializers.SerializerMethodField()
+
+    def get_customer_name(self, obj):
+        return obj.customer.get_full_name()
+
     class Meta:
         model = CustomerAccount
         exclude = []
