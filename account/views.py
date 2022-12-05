@@ -9,6 +9,7 @@ from django.db.models import Q, Sum
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -23,7 +24,8 @@ from .utils import authenticate_user, generate_new_otp, \
     decrypt_text, encrypt_text, confirm_trans_pin, open_account_with_banks, get_account_balance, \
     get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
     get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, get_account_officer, \
-    get_bank_flex_balance, perform_bank_transfer, perform_name_query, retrieve_customer_card, block_or_unblock_card
+    get_bank_flex_balance, perform_bank_transfer, perform_name_query, retrieve_customer_card, block_or_unblock_card, \
+    perform_bvn_validation
 
 from bankone.api import cit_get_account_by_account_no, send_otp_message, cit_create_new_customer, \
     generate_random_ref_code, cit_send_email
@@ -863,6 +865,22 @@ class CardOperationAPIView(APIView):
         except Exception as err:
             return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
+
+class ValidateBVNAPIView(APIView):
+    permission_classes = []
+
+    def post(self, request, bank_id):
+        bvn = request.data.get("bvn")
+
+        if not bvn:
+            return Response({"detail": "BVN is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        bank = get_object_or_404(Bank, id=bank_id)
+
+        success, response = perform_bvn_validation(bank, bvn)
+        if success is False:
+            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": response})
 
 
 

@@ -19,7 +19,7 @@ from bankone.api import cit_generate_transaction_ref_code, generate_random_ref_c
     cit_create_account, \
     cit_get_details_by_customer_id, cit_transaction_history, cit_generate_statement, cit_get_customer_acct_officer, \
     bank_flex, cit_to_cit_bank_transfer, cit_other_bank_transfer, cit_get_account_by_account_no, cit_others_name_query, \
-    cit_get_customer_cards, cit_freeze_or_unfreeze_card
+    cit_get_customer_cards, cit_freeze_or_unfreeze_card, cit_get_bvn_detail
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
 from cryptography.fernet import Fernet
@@ -627,6 +627,21 @@ def block_or_unblock_card(request):
         return False, "Customer bank not registered. Please try again later or contact the bank."
 
     return True, f"Card {request_action}ed successfully"
+
+
+def perform_bvn_validation(bank, bvn):
+    success, detail = False, "Error occurred while retrieving BVN information"
+    if bank.short_name == "cit":
+        response = cit_get_bvn_detail(bvn)
+        if "RequestStatus" in response:
+            if response["RequestStatus"] is True and response["isBvnValid"] is True:
+                success, detail = True, response["bvnDetails"]
+            else:
+                success, detail = False, response["ResponseMessage"]
+
+    return success, detail
+
+
 
 
 

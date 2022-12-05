@@ -556,6 +556,19 @@ def cit_to_cit_bank_transfer(**kwargs):
     return response
 
 
+def cit_get_bvn_detail(bvn):
+    from account.utils import log_request
+    url = f"{base_url_3ps}/Account/BVN/GetBVNDetails"
+
+    payload = dict()
+    payload['BVN'] = bvn
+    payload['token'] = auth_token
+
+    response = requests.request('POST', url=url, data=payload).json()
+    log_request(url, payload, response)
+    return response
+
+
 
 
 
