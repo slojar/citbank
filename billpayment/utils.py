@@ -93,7 +93,7 @@ def vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref
             "customerAddress": response["data"]["customerAddress"],
             "meterNumber": meter_no,
             "customerName": response["data"]["customerName"],
-            "customerDistrict": response["data"]["customerDistrict"],
+            # "customerDistrict": response["data"]["customerDistrict"],
             "amount": amount
         }
 
