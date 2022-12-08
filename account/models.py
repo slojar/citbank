@@ -52,7 +52,7 @@ class Bank(models.Model):
 
 class Customer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    bank = models.ForeignKey(Bank, on_delete=models.CASCADE, null=True, blank=True)
+    bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True, blank=True)
     customerID = models.CharField(max_length=200, null=True, blank=True)
     other_name = models.CharField(max_length=100, blank=True, null=True)
     gender = models.CharField(max_length=20, blank=True, null=True)
@@ -112,7 +112,7 @@ class CustomerOTP(models.Model):
 class Transaction(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, blank=True, null=True)
     sender_acct_no = models.CharField(max_length=200, blank=True, null=True)
-    transfer_type = models.CharField(max_length=100, choices=TRANSFER_TYPE_CHOICES, default='transfer')
+    transfer_type = models.CharField(max_length=100, choices=TRANSFER_TYPE_CHOICES, default='local_transfer')
     beneficiary_type = models.CharField(max_length=100, blank=True, null=True, choices=BENEFICIARY_TYPE_CHOICES)
     beneficiary_name = models.CharField(max_length=100, blank=True, null=True)
     bank_name = models.CharField(max_length=200, blank=True, null=True)

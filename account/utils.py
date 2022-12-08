@@ -19,7 +19,7 @@ from bankone.api import cit_generate_transaction_ref_code, generate_random_ref_c
     cit_create_account, \
     cit_get_details_by_customer_id, cit_transaction_history, cit_generate_statement, cit_get_customer_acct_officer, \
     bank_flex, cit_to_cit_bank_transfer, cit_other_bank_transfer, cit_get_account_by_account_no, cit_others_name_query, \
-    cit_get_customer_cards, cit_freeze_or_unfreeze_card, cit_get_bvn_detail
+    cit_get_customer_cards, cit_freeze_or_unfreeze_card, cit_get_bvn_detail, cit_get_fixed_deposit
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction
 
 from cryptography.fernet import Fernet
@@ -431,8 +431,8 @@ def perform_bank_transfer(bank, request):
     if success is False:
         return False, message
 
-    if not all([account_number, amount, description, beneficiary_acct, beneficiary_name]):
-        return False, "Required fields are account_number, beneficiary account details, amount and narration"
+    if not all([account_number, amount, beneficiary_acct, beneficiary_name]):
+        return False, "Required fields are account_number, beneficiary account details, and amount"
 
     # check if account_number is valid
     if not CustomerAccount.objects.filter(account_no=account_number, customer__user=request.user).exists():
@@ -481,7 +481,9 @@ def perform_bank_transfer(bank, request):
             return False, "Amount to transfer cannot be greater than current balance"
 
         # Narration max is 100 char, Reference max is 12 char, amount should be in kobo (i.e multiply by 100)
-        narration = description[:100]
+        narration = ""
+        if description:
+            narration = description[:100]
         # generate transaction reference using the format CYYMMDDCODES
         today = datetime.datetime.now()
         start_date, end_date = get_month_start_and_end_datetime(today)
@@ -638,6 +640,32 @@ def perform_bvn_validation(bank, bvn):
                 success, detail = True, response["bvnDetails"]
             else:
                 success, detail = False, response["ResponseMessage"]
+
+    return success, detail
+
+
+def get_fix_deposit_accounts(bank, request):
+    phone_no = request.GET.get("phone_no")
+
+    success = False
+    detail = "Error while retrieving fixed account"
+
+    if bank.short_name == "cit":
+        response = cit_get_fixed_deposit(phone_no)
+        if response.status_code == 404:
+            detail = response.json()
+        if response.status_code == 200:
+            result = response.json()
+            detail = list()
+            for item in result:
+                data = dict()
+                data["amount"] = item["Amount"]
+                data["interest"] = item["interestRate"]
+                data["maturity_date"] = item["MaturationDate"]
+                data["status"] = item["AccountStatus"]
+                data["tenure"] = item["TenureInDays"]
+                detail.append(data)
+            success = True
 
     return success, detail
 

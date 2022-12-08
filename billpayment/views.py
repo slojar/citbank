@@ -96,7 +96,7 @@ class AirtimeDataPurchaseAPIView(APIView):
                         if "error" in response:
                             # LOG REVERSAL
                             date_today = datetime.datetime.now().date()
-                            BillPaymentReversal.objects.create(transaction_reference=ref_code, transaction_date=str(date_today))
+                            BillPaymentReversal.objects.create(transaction_reference=ref_code, transaction_date=str(date_today), bank=customer.bank)
 
                         if "data" in response:
                             new_success = True
@@ -109,7 +109,8 @@ class AirtimeDataPurchaseAPIView(APIView):
                             # CREATE AIRTIME INSTANCE
                             Airtime.objects.create(
                                 account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
-                                status=response_status, transaction_id=trans_id, bill_id=bill_id, reference=ref_code
+                                status=response_status, transaction_id=trans_id, bill_id=bill_id, reference=ref_code,
+                                bank=customer.bank
                             )
 
                     if purchase_type == "data":
@@ -117,13 +118,16 @@ class AirtimeDataPurchaseAPIView(APIView):
                         if not plan_id:
                             log_request(f"error-message: no plan selected")
                             return Response({"detail": "Please select a plan to continue"}, status=status.HTTP_400_BAD_REQUEST)
-                        response = purchase_data(plan_id=plan_id, phone_number=phone_number, network=network, amount=amount)
+                        response = purchase_data(
+                            plan_id=plan_id, phone_number=phone_number, network=network, amount=amount
+                        )
 
                         if "error" in response:
                             # LOG REVERSAL
                             date_today = datetime.datetime.now().date()
                             BillPaymentReversal.objects.create(
-                                transaction_reference=ref_code, transaction_date=str(date_today), payment_type="data"
+                                transaction_reference=ref_code, transaction_date=str(date_today), payment_type="data",
+                                bank=customer.bank
                             )
 
                         if "data" in response:
@@ -136,8 +140,9 @@ class AirtimeDataPurchaseAPIView(APIView):
 
                             # CREATE DATA INSTANCE
                             Data.objects.create(
-                                account_no=account_no, beneficiary=phone_number, network=network, amount=amount, reference=ref_code,
-                                status=response_status, transaction_id=trans_id, bill_id=bill_id, plan_id=plan_id
+                                account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
+                                reference=ref_code, status=response_status, transaction_id=trans_id, bill_id=bill_id,
+                                plan_id=plan_id, bank=customer.bank
                             )
 
                     if new_success is False:
@@ -250,7 +255,8 @@ class CableTVAPIView(APIView):
                         # LOG REVERSAL
                         date_today = datetime.datetime.now().date()
                         BillPaymentReversal.objects.create(
-                            transaction_reference=ref_code, transaction_date=str(date_today), payment_type="cableTv"
+                            transaction_reference=ref_code, transaction_date=str(date_today), payment_type="cableTv",
+                            bank=customer.bank
                         )
 
                         Response(
@@ -266,8 +272,9 @@ class CableTVAPIView(APIView):
                         # CREATE CABLE TV INSTANCE
                         CableTV.objects.create(
                             service_name=service_name, account_no=account_no, smart_card_no=smart_card_no,
-                            customer_name=customer_name, phone_number=phone_number, product=str(product_codes), months=duration,
-                            amount=amount, status=response_status, transaction_id=trans_id, reference=ref_code
+                            customer_name=customer_name, phone_number=phone_number, product=str(product_codes),
+                            months=duration, amount=amount, status=response_status, transaction_id=trans_id,
+                            reference=ref_code, bank=customer.bank
                         )
 
                 elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
@@ -397,12 +404,13 @@ class ElectricityAPIView(APIView):
                     # remove service charge from amount
                     amount -= 100
 
-                    success, detail, token = vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref_code)
+                    success, detail, token = vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_number, ref_code)
                     if success is False:
                         # LOG REVERSAL
                         date_today = datetime.datetime.now().date()
                         BillPaymentReversal.objects.create(
-                            transaction_reference=ref_code, transaction_date=str(date_today), payment_type="electricity"
+                            transaction_reference=ref_code, transaction_date=str(date_today),
+                            payment_type="electricity", bank=customer.bank
                         )
                         return Response(
                             {"detail": "An error while vending electricity, please try again later"},

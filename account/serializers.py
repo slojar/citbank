@@ -78,7 +78,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        exclude = ['transaction_pin', 'nin', 'bvn']
+        exclude = ['transaction_pin', 'nin', 'bvn', 'user']
 
 
 class TransferSerializer(serializers.ModelSerializer):

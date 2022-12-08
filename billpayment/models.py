@@ -1,11 +1,14 @@
 from django.db import models
 
+from account.models import Bank
+
 REVERSAL_STATUS = (
     ("completed", "Completed"), ("pending", "Pending")
 )
 
 
 class Airtime(models.Model):
+    bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True, blank=True)
     account_no = models.CharField(max_length=10)
     beneficiary = models.CharField(max_length=13)
     network = models.CharField(max_length=20)
@@ -21,6 +24,7 @@ class Airtime(models.Model):
 
 
 class Data(models.Model):
+    bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True, blank=True)
     plan_id = models.CharField(max_length=100)
     account_no = models.CharField(max_length=10)
     beneficiary = models.CharField(max_length=13)
@@ -37,6 +41,7 @@ class Data(models.Model):
 
 
 class CableTV(models.Model):
+    bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True, blank=True)
     service_name = models.CharField(max_length=100)
     account_no = models.CharField(max_length=10)
     smart_card_no = models.CharField(max_length=100)
@@ -55,6 +60,7 @@ class CableTV(models.Model):
 
 
 class Electricity(models.Model):
+    bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True, blank=True)
     account_no = models.CharField(max_length=10)
     disco_type = models.CharField(max_length=50)
     meter_number = models.CharField(max_length=100)
@@ -73,6 +79,7 @@ class Electricity(models.Model):
 
 
 class BillPaymentReversal(models.Model):
+    bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True, blank=True)
     transaction_date = models.CharField(max_length=50)
     transaction_reference = models.CharField(max_length=50)
     payment_type = models.CharField(max_length=50, default="airtime")

@@ -25,7 +25,7 @@ from .utils import authenticate_user, generate_new_otp, \
     get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
     get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, get_account_officer, \
     get_bank_flex_balance, perform_bank_transfer, perform_name_query, retrieve_customer_card, block_or_unblock_card, \
-    perform_bvn_validation
+    perform_bvn_validation, get_fix_deposit_accounts
 
 from bankone.api import cit_get_account_by_account_no, send_otp_message, cit_create_new_customer, \
     generate_random_ref_code, cit_send_email
@@ -506,7 +506,7 @@ class BeneficiaryView(APIView, CustomPagination):
             if beneficiary_type == "local_transfer":
                 if not all([beneficiary_name, beneficiary_acct_no]):
                     log_request(f"error-message: beneficiary name and account number is required")
-                    raise KeyError("Beneficiary Name and Account Number are required fields for Type CIT BANK TRANSFER")
+                    raise KeyError("Beneficiary Name and Account Number are required fields for Type SAME BANK TRANSFER")
 
             if beneficiary_type == "external_transfer":
                 if not all([beneficiary_name, beneficiary_bank, beneficiary_acct_no]):
@@ -883,4 +883,12 @@ class ValidateBVNAPIView(APIView):
         return Response({"detail": response})
 
 
+class FixDepositAPIView(APIView):
+
+    def get(self, request, bank_id):
+        bank = get_object_or_404(Bank, id=bank_id)
+        success, response = get_fix_deposit_accounts(bank, request)
+        if success is False:
+            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(response)
 

@@ -144,6 +144,13 @@ def cit_create_account(**kwargs):
     }
 
     response = requests.request('POST', url, data=payload).json()
+    # sample_response = {'IsSuccessful': True, 'CustomerIDInString': None, 'Message': {'AccountNumber': '1100329130',
+    # 'BankoneAccountNumber': '01290031020032913', 'CustomerID': '032913', 'FullName': 'OBADEMI ISAAC',
+    # 'CreationMessage': None, 'Id': 236349}, 'TransactionTrackingRef': None, 'Page': None}
+
+    # failed_response = {'IsSuccessful': False, 'CustomerIDInString': None, 'Message': {'AccountNumber': None,
+    # 'BankoneAccountNumber': None, 'CustomerID': None, 'FullName': None, 'CreationMessage': 'Invalid Email
+    # Address.', 'Id': 0}, 'TransactionTrackingRef': None, 'Page': None}
 
     log_request(url, payload, response)
     return response
@@ -567,6 +574,21 @@ def cit_get_bvn_detail(bvn):
     response = requests.request('POST', url=url, data=payload).json()
     log_request(url, payload, response)
     return response
+
+
+def cit_get_fixed_deposit(phone_no):
+    from account.utils import log_request
+    url = f"{base_url}/FixedDeposit/GetFixedDepositAccountByPhoneNumber/{version}"
+
+    payload = dict()
+    payload['phoneNumber'] = phone_no
+    payload['authtoken'] = auth_token
+
+    response = requests.request('GET', url=url, params=payload)
+    print(response.status_code)
+    log_request(url, payload, response)
+    return response
+
 
 
 

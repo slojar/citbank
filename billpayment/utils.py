@@ -40,7 +40,7 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
     return True, response
 
 
-def vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref_code):
+def vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_number, ref_code):
     token = ""
     response = validate_meter_no(disco_type, meter_no)
     if "error" in response:
@@ -93,7 +93,7 @@ def vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref
             "customerAddress": response["data"]["customerAddress"],
             "meterNumber": meter_no,
             "customerName": response["data"]["customerName"],
-            "customerDistrict": response["data"]["customerDistrict"],
+            # "customerDistrict": response["data"]["customerDistrict"],
             "amount": amount
         }
 
@@ -140,7 +140,8 @@ def vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref
     # Create Electricity Instance
     elect = Electricity.objects.create(
         account_no=account_no, disco_type=disco_type, meter_number=meter_no, amount=amount, phone_number=phone_number,
-        status=status, transaction_id=transaction_id, bill_id=bill_id, token=token, reference=ref_code
+        status=status, transaction_id=transaction_id, bill_id=bill_id, token=token, reference=ref_code,
+        bank=customer.bank
     )
 
     if not token == "":
