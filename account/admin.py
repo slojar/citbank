@@ -12,10 +12,15 @@ class CustomerAdmin(admin.ModelAdmin):
     inlines = [CustomerAccountTabularAdmin]
 
 
+class TransactionAdmin(admin.ModelAdmin):
+    list_display = ['customer', 'transaction_type']
+    list_filter = ['transaction_type', 'status', 'created_on']
+
+
 admin.site.register(Customer, CustomerAdmin)
+admin.site.register(Transaction, TransactionAdmin)
 
 admin.site.register(CustomerOTP)
-admin.site.register(Transaction)
 admin.site.register(Beneficiary)
 
 
