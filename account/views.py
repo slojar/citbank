@@ -180,6 +180,11 @@ class ChangePasswordView(APIView):
             new_password = request.data.get('new_password', '')
             confirm_password = request.data.get('confirm_password', '')
 
+            # Remove white spaces
+            old_password = str(old_password).replace(" ", "")
+            new_password = str(new_password).replace(" ", "")
+            confirm_password = str(confirm_password).replace(" ", "")
+
             # Check if old password matches the present password
             old_user_password = request.user.check_password(old_password)
 
@@ -255,6 +260,10 @@ class ForgotPasswordView(APIView):
         confirm_password = request.data.get('confirm_password', '')
         phone_number = request.data.get('phone_number', '')
         fields = [otp, new_password, confirm_password, phone_number]
+
+        # Remove white spaces
+        new_password = str(new_password).replace(" ", "")
+        confirm_password = str(confirm_password).replace(" ", "")
 
         # Check if all fields are empty
         if not all(fields):
