@@ -180,6 +180,11 @@ class ChangePasswordView(APIView):
             new_password = request.data.get('new_password', '')
             confirm_password = request.data.get('confirm_password', '')
 
+            # Remove white spaces
+            old_password = str(old_password).replace(" ", "")
+            new_password = str(new_password).replace(" ", "")
+            confirm_password = str(confirm_password).replace(" ", "")
+
             # Check if old password matches the present password
             old_user_password = request.user.check_password(old_password)
 
@@ -260,6 +265,11 @@ class ForgotPasswordView(APIView):
         if not all(fields):
             return Response({"detail": "Requires OTP, New Password, Confirm Password and Phone number Fields"},
                             status=status.HTTP_400_BAD_REQUEST)
+
+        # Remove white spaces
+        new_password = str(new_password).replace(" ", "")
+        confirm_password = str(confirm_password).replace(" ", "")
+
         try:
             # user = User.objects.get(email=email)
             customer = Customer.objects.get(phone_number=phone_number)
