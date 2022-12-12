@@ -27,7 +27,7 @@ class GetNetworksAPIView(APIView):
 
             if customer.bank.short_name == "cit":
                 if network:
-                    response = get_data_plan(str(network).lower())
+                    response = get_data_plan(str(network).lower(), customer.bank)
                     if "data" in response:
                         data_plans = list()
                         for item in response["data"]:
@@ -38,7 +38,7 @@ class GetNetworksAPIView(APIView):
                             data["plan_id"] = item["planId"]
                             data_plans.append(data)
                         return Response({"data_plans": data_plans})
-                response = get_networks()
+                response = get_networks(customer.bank)
                 if "data" in response:
                     data = response["data"]
             else:
@@ -91,7 +91,9 @@ class AirtimeDataPurchaseAPIView(APIView):
                     new_success = False
                     detail = "An error occurred"
                     if purchase_type == "airtime":
-                        response = purchase_airtime(network=network, phone_number=phone_number, amount=amount)
+                        response = purchase_airtime(
+                            bank=customer.bank, network=network, phone_number=phone_number, amount=amount
+                        )
 
                         if "error" in response:
                             # LOG REVERSAL
@@ -119,7 +121,8 @@ class AirtimeDataPurchaseAPIView(APIView):
                             log_request(f"error-message: no plan selected")
                             return Response({"detail": "Please select a plan to continue"}, status=status.HTTP_400_BAD_REQUEST)
                         response = purchase_data(
-                            plan_id=plan_id, phone_number=phone_number, network=network, amount=amount
+                            bank=customer.bank, plan_id=plan_id, phone_number=phone_number, network=network,
+                            amount=amount
                         )
 
                         if "error" in response:
@@ -176,7 +179,7 @@ class CableTVAPIView(APIView):
             customer = Customer.objects.get(user=request.user)
             if customer.bank.short_name == "cit":
                 if service_name:
-                    response = get_service_products(service_name, product_code)
+                    response = get_service_products(customer.bank, service_name, product_code)
                     if "error" in response:
                         detail = response["error"]
                         log_request(f"error-message: {detail}")
@@ -188,7 +191,7 @@ class CableTVAPIView(APIView):
                         log_request("error-message: service type is required")
                         return Response({"detail": "service_type is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-                    response = get_services(service_type)
+                    response = get_services(service_type, customer.bank)
                     if "error" in response:
                         detail = response["error"]["message"]
                         log_request(f"error-message: {detail}")
@@ -247,8 +250,9 @@ class CableTVAPIView(APIView):
                     amount -= 100
 
                     response = cable_tv_sub(
-                        service_name=service_name, duration=duration, customer_number=phone_number,
-                        customer_name=customer_name, amount=amount, product_codes=product_codes, smart_card_no=smart_card_no
+                        bank=customer.bank, service_name=service_name, duration=duration, customer_number=phone_number,
+                        customer_name=customer_name, amount=amount, product_codes=product_codes,
+                        smart_card_no=smart_card_no
                     )
 
                     if "error" in response:
@@ -317,7 +321,7 @@ class ValidateAPIView(APIView):
                         )
 
                     # VALIDATE SMART CARD NUMBER
-                    response = validate_scn(service_name, smart_card_no)
+                    response = validate_scn(customer.bank, service_name, smart_card_no)
                 elif validate_type == "meter":
                     if not all([disco_type, meter_no]):
                         return Response(
@@ -325,7 +329,7 @@ class ValidateAPIView(APIView):
                         )
 
                     # VALIDATE METER NUMBER
-                    response = validate_meter_no(disco_type, meter_no)
+                    response = validate_meter_no(customer.bank, disco_type, meter_no)
                 else:
                     return Response({"detail": "Invalid validate_type or not selected"},
                                     status=status.HTTP_400_BAD_REQUEST)
@@ -350,7 +354,7 @@ class ElectricityAPIView(APIView):
             customer = Customer.objects.get(user=request.user)
 
             if customer.bank.short_name == "cit":
-                response = get_discos()
+                response = get_discos(customer.bank)
                 if not response["data"]:
                     return Response({"detail": "An error occurred while fetching data"},
                                     status=status.HTTP_400_BAD_REQUEST)

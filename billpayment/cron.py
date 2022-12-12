@@ -15,7 +15,8 @@ def retry_eko_elect_cron():
     # PERFORM VEND RETRY
     for query in queryset:
         trans_id = query.transaction_id
-        response = retry_electricity(trans_id)
+        bank = query.bank
+        response = retry_electricity(bank, trans_id)
         if response["data"]:
             if response["data"]["status"]:
                 if response["data"]["status"] == "ACCEPTED":

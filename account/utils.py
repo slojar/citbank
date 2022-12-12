@@ -596,6 +596,8 @@ def retrieve_customer_card(customer, account_no):
                 data["expiry_date"] = card["ExpiryDate"]
                 data["serial_no"] = card["SerialNo"]
                 data["name"] = card["NameOnCard"]
+                data["status"] = card["Status"]
+                data["account_no"] = card["AccountNumber"]
                 result.append(data)
 
     return True, result
@@ -664,6 +666,7 @@ def get_fix_deposit_accounts(bank, request):
                 data["maturity_date"] = item["MaturationDate"]
                 data["status"] = item["AccountStatus"]
                 data["tenure"] = item["TenureInDays"]
+                data["commencement_date"] = item["InterestAccrualCommencementDate"]
                 detail.append(data)
             success = True
 

@@ -44,6 +44,7 @@ class Bank(models.Model):
     address = models.TextField()
     logo = models.ImageField(upload_to="bank-logo")
     active = models.BooleanField(default=False)
+    tm_service_id = models.TextField(blank=True, null=True)
     # provide = models.ForeignKey(Provider, on_delete=models.SET_NULL, blank=True, null=True)
 
     def __str__(self):

@@ -42,7 +42,7 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
 
 def vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_number, ref_code):
     token = ""
-    response = validate_meter_no(disco_type, meter_no)
+    response = validate_meter_no(customer.bank, disco_type, meter_no)
     if "error" in response:
         return False, "An error occurred while trying to vend electricity", token
 
@@ -119,7 +119,7 @@ def vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_n
     else:
         return False, "disco type is not valid", token
 
-    response = electricity(data)
+    response = electricity(customer.bank, data)
     if "error" in response:
         return False, response["error"], token
 
