@@ -77,6 +77,8 @@ class Customer(models.Model):
         data["email"] = self.user.email
         data["username"] = self.user.username
         data["gender"] = self.gender
+        data["dob"] = self.dob
+        data["phone_no"] = self.phone_number
         data["customer_id"] = self.customerID
         data["staff"] = self.user.is_staff
         return data
