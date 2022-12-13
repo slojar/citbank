@@ -33,10 +33,16 @@ class Homepage(views.APIView):
         airtime_count = Airtime.objects.filter(bank_id=bank).count()
         data_count = Data.objects.filter(bank_id=bank).count()
         cable_tv_count = CableTV.objects.filter(bank_id=bank).count()
+        transfer_count = Transaction.objects.filter(customer__bank_id=bank).count()
 
-        airtime_purchase_total = Airtime.objects.filter(status__iexact="success", bank_id=bank).aggregate(Sum("amount"))["amount__sum"] or 0
-        data_purchase_total = Data.objects.filter(status__iexact="success", bank_id=bank).aggregate(Sum("amount"))["amount__sum"] or 0
-        cable_tv_purchase_total = CableTV.objects.filter(status__iexact="success", bank_id=bank).aggregate(Sum("amount"))["amount__sum"] or 0
+        airtime_purchase_total = Airtime.objects.filter(
+            status__iexact="success", bank_id=bank).aggregate(Sum("amount"))["amount__sum"] or 0
+        data_purchase_total = Data.objects.filter(
+            status__iexact="success", bank_id=bank).aggregate(Sum("amount"))["amount__sum"] or 0
+        cable_tv_purchase_total = CableTV.objects.filter(
+            status__iexact="success", bank_id=bank).aggregate(Sum("amount"))["amount__sum"] or 0
+        transfer_total = Transaction.objects.filter(
+            customer__bank_id=bank, status="success").aggregate(Sum("amount"))["amount__sum"] or 0
 
         data["recent_customer"] = recent
         data["total_customer_count"] = total_customer
@@ -51,6 +57,8 @@ class Homepage(views.APIView):
 
         data["total_bill_payment_amount"] = airtime_purchase_total + data_purchase_total + cable_tv_purchase_total
         data["total_bill_payment_count"] = airtime_count + data_count + cable_tv_count
+        data["total_transaction_count"] = airtime_count + data_count + cable_tv_count + transfer_count
+        data["total_transaction_amount"] = airtime_purchase_total + data_purchase_total + cable_tv_purchase_total + transfer_total
 
         return Response(data)
 
@@ -70,9 +78,9 @@ class AdminCustomerAPIView(views.APIView, CustomPagination):
             query = Q(bank_id=bank_id)
             if search:
                 query &= Q(user__first_name__icontains=search) | Q(user__last_name__icontains=search) | \
-                        Q(user__email__icontains=search) | Q(customerID__exact=search) | \
-                        Q(user__username__icontains=search) | Q(customeraccount__account_no__exact=search) | \
-                        Q(phone_number__exact=search)
+                         Q(user__email__icontains=search) | Q(customerID__exact=search) | \
+                         Q(user__username__icontains=search) | Q(customeraccount__account_no__exact=search) | \
+                         Q(phone_number__exact=search)
 
                 customers = Customer.objects.filter(query).order_by('-created_on').distinct()
             elif account_status:
@@ -158,7 +166,7 @@ class AdminBillPaymentAPIView(views.APIView, CustomPagination):
         if bill_type == "airtime":
             if search:
                 query &= Q(account_no__iexact=search) | Q(beneficiary__iexact=search) | Q(network__iexact=search) | \
-                        Q(transaction_id__iexact=search)
+                         Q(transaction_id__iexact=search)
                 queryset = Airtime.objects.filter(query).distinct().order_by('-created_on')
             else:
                 queryset = Airtime.objects.filter(bank_id=bank_id).order_by('-created_on')
@@ -168,7 +176,7 @@ class AdminBillPaymentAPIView(views.APIView, CustomPagination):
         elif bill_type == "data":
             if search:
                 query &= Q(account_no__iexact=search) | Q(beneficiary__iexact=search) | Q(network__iexact=search) | \
-                        Q(transaction_id__iexact=search) | Q(plan_id__iexact=search)
+                         Q(transaction_id__iexact=search) | Q(plan_id__iexact=search)
                 queryset = Data.objects.filter(query).distinct().order_by('-created_on')
             else:
                 queryset = Data.objects.filter(bank_id=bank_id).order_by('-created_on')
@@ -204,7 +212,3 @@ class AdminBillPaymentAPIView(views.APIView, CustomPagination):
         data["detail"] = detail
 
         return Response(data)
-
-
-
-
