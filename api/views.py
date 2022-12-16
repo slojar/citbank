@@ -1,13 +1,13 @@
-from django.contrib.auth.models import User
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status, views
 
-from account.models import Customer, Transaction
-from account.serializers import CustomerSerializer, TransferSerializer
+from account.models import Customer, Transaction, AccountRequest
+from account.serializers import CustomerSerializer, TransferSerializer, AccountRequestSerializer
 from account.paginations import CustomPagination
+from account.utils import review_account_request
 from billpayment.models import Airtime, CableTV, Data, Electricity
 from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
 
@@ -22,13 +22,14 @@ class Homepage(views.APIView):
             return Response({"detail": "Bank ID is required"}, status=status.HTTP_400_BAD_REQUEST)
         data = dict()
 
-        recent_customers = Customer.objects.filter(bank_id=bank).order_by("-created_on")[:10]
+        # recent_customers = Customer.objects.filter(bank_id=bank).order_by("-created_on")[:10]
+        recent_customers = AccountRequest.objects.filter(bank_id=bank, status="pending").order_by("-created_on")[:10]
         total_customer = Customer.objects.filter(bank_id=bank).count()
         total_active_customer = Customer.objects.filter(bank_id=bank, active=True).count()
         total_inactive_customer = Customer.objects.filter(bank_id=bank, active=False).count()
         recent = list()
-        for customer in recent_customers:
-            recent.append(customer.get_customer_detail())
+        for item in recent_customers:
+            recent.append(item.get_request_detail())
 
         airtime_count = Airtime.objects.filter(bank_id=bank).count()
         data_count = Data.objects.filter(bank_id=bank).count()
@@ -212,3 +213,58 @@ class AdminBillPaymentAPIView(views.APIView, CustomPagination):
         data["detail"] = detail
 
         return Response(data)
+
+
+class AdminAccountRequestAPIView(views.APIView, CustomPagination):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, bank_id, pk=None):
+        if pk:
+            acct_req = get_object_or_404(AccountRequest, bank_id=bank_id, id=pk)
+            result = AccountRequestSerializer(acct_req, context={"request": request}).data
+        else:
+            req_status = request.GET.get("status")
+            if req_status:
+                queryset = AccountRequest.objects.filter(bank_id=bank_id, status=req_status).order_by("-created_on")
+            else:
+                queryset = AccountRequest.objects.filter(bank_id=bank_id).order_by("-created_on")
+
+            req = self.paginate_queryset(queryset, request)
+            serializer = AccountRequestSerializer(req, many=True, context={"request": request}).data
+            result = self.get_paginated_response(serializer).data
+        return Response(result)
+
+    def put(self, request, bank_id, pk):
+        req_status = request.data.get("status")
+        reason = request.data.get("rejection_reason")
+
+        acct_req = get_object_or_404(AccountRequest, bank_id=bank_id, id=pk)
+
+        if not (req_status == "approved" or req_status == "declined"):
+            return Response({"detail": f"{req_status} is not a valid status"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if req_status == "declined":
+            if not reason:
+                return Response({"detail": "Kindly fill why you are rejecting this application"},
+                                status=status.HTTP_400_BAD_REQUEST)
+            acct_req.rejection_reason = reason
+            acct_req.rejected_by = request.user
+            # Send rejection email to the customer
+
+        if req_status == "approved":
+            acct_req.approved_by = request.user
+            success, detail = review_account_request(acct_req)
+            if success is False:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+
+        acct_req.status = req_status
+        acct_req.save()
+        return Response({
+            "detail": "Request Submitted", "data": AccountRequestSerializer(acct_req, context={"request": request}).data
+        })
+
+
+
+
+
+

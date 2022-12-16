@@ -1,5 +1,5 @@
 from bankone.api import cit_get_banks
-from .models import Customer, CustomerAccount, Transaction, Beneficiary, Bank
+from .models import Customer, CustomerAccount, Transaction, Beneficiary, Bank, AccountRequest
 from rest_framework import serializers
 from .utils import decrypt_text
 
@@ -96,3 +96,12 @@ class BeneficiarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Beneficiary
         exclude = []
+
+
+class AccountRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AccountRequest
+        exclude = []
+
+
+

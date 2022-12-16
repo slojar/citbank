@@ -634,7 +634,7 @@ class OpenAccountAPIView(APIView):
         try:
             bank_id = request.data.get("bank_id")
             if not bank_id:
-                return Response({"detail": "bank_id is required"})
+                return Response({"detail": "bank_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
             bank = Bank.objects.get(id=bank_id)
 

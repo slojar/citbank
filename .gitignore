@@ -20,6 +20,7 @@ citbank.log
 
 # Project image and file folders
 profile_picture/
+account-opening/
 cit_venv/
 cit_venv
 .env.sample

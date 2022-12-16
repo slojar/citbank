@@ -20,7 +20,7 @@ from bankone.api import cit_generate_transaction_ref_code, generate_random_ref_c
     cit_get_details_by_customer_id, cit_transaction_history, cit_generate_statement, cit_get_customer_acct_officer, \
     bank_flex, cit_to_cit_bank_transfer, cit_other_bank_transfer, cit_get_account_by_account_no, cit_others_name_query, \
     cit_get_customer_cards, cit_freeze_or_unfreeze_card, cit_get_bvn_detail, cit_get_fixed_deposit
-from .models import Customer, CustomerAccount, CustomerOTP, Transaction
+from .models import Customer, CustomerAccount, CustomerOTP, Transaction, AccountRequest
 
 from cryptography.fernet import Fernet
 
@@ -147,38 +147,37 @@ def open_account_with_banks(bank, request):
         address = data.get("address")
         signature = data.get("signature_image")
         image = data.get("image")
+        utility = data.get("utility")
+        valid_id = data.get("valid_id")
 
         if not all([bvn, phone, f_name, l_name, o_name, gender, dob, nin, email, address]):
             return False, "All fields are required to open account with bank"
-        if not all([image, signature]):
-            return False, "Please upload your signature and image/picture"
+        if not all([image, signature, utility, valid_id]):
+            return False, "Please upload your utility bill, validID, signature and image/picture"
+        if not (gender == "male" or gender == "female"):
+            return False, "Gender can only be male or female"
 
         # REFORMAT PHONE NUMBER
         phone_no = format_phone_number(phone)
 
-        # GENERATE TRANSACTION REF
-        tran_code = generate_random_ref_code()
+        # Create Account Opening Request
+        acct, _ = AccountRequest.objects.get_or_create(bank=bank, bvn=bvn, email=email)
+        acct.bvn = bvn
+        acct.phone_no = phone_no
+        acct.first_name = f_name
+        acct.last_name = l_name
+        acct.other_name = o_name
+        acct.gender = gender
+        acct.dob = dob
+        acct.nin = nin
+        acct.address = address
+        acct.signature = signature
+        acct.image = image
+        acct.utility = utility
+        acct.valid_id = valid_id
+        acct.save()
 
-        # GET RANDOM ACCOUNT OFFICER
-        officers = cit_get_acct_officer()
-        acct_officer = random.choice(officers)
-        officer_code = acct_officer["Code"]
-
-        # CONVERT IMAGES TO STRING
-        signature_str = base64.b64encode(signature.read())
-        image_str = base64.b64encode(image.read())
-
-        # OPEN ACCOUNT FOR CUSTOMER
-        response = cit_create_account(
-            bvnNumber=bvn, phoneNumber=phone_no, firstName=f_name, otherName=o_name, lastName=l_name, gender=gender,
-            dob=dob, nin=nin, email=email, address=address, transRef=tran_code, officerCode=officer_code,
-            signatureString=signature_str, imageString=image_str
-        )
-
-        if response["IsSuccessful"] is False:
-            return False, response["Message"]["CreationMessage"]
-
-    return True, "Account opening was successful"
+    return True, "Your request is submitted for review. You will get a response soon"
 
 
 def get_account_balance(customer, request):
@@ -672,6 +671,33 @@ def get_fix_deposit_accounts(bank, request):
 
     return success, detail
 
+
+def review_account_request(acct_req):
+    if acct_req.bank.short_name == "cit":
+
+        # GENERATE TRANSACTION REF
+        tran_code = generate_random_ref_code()
+
+        # GET RANDOM ACCOUNT OFFICER
+        officers = cit_get_acct_officer()
+        acct_officer = random.choice(officers)
+        officer_code = acct_officer["Code"]
+
+        # CONVERT IMAGES TO STRING
+        signature_str = base64.b64encode(acct_req.signature.read())
+        image_str = base64.b64encode(acct_req.image.read())
+
+        # OPEN ACCOUNT FOR CUSTOMER
+        response = cit_create_account(
+            bvnNumber=acct_req.bvn, phoneNumber=acct_req.phone_no, firstName=acct_req.first_name,
+            otherName=acct_req.other_name, lastName=acct_req.last_name, gender=acct_req.gender, dob=acct_req.dob,
+            nin=acct_req.nin, email=acct_req.email, address=acct_req.address, transRef=tran_code,
+            officerCode=officer_code, signatureString=signature_str, imageString=image_str
+        )
+
+        if response["IsSuccessful"] is False:
+            return False, response["Message"]["CreationMessage"]
+        return True, "Request submitted for account opening"
 
 
 

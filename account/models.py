@@ -22,6 +22,13 @@ NOTIFICATION_TYPE_CHOICES = (
     ('account_manager_rating', 'Account Manager Rating')
 )
 
+GENDER_TYPE_CHOICES = (
+    ('male', 'Male'), ('female', 'Female')
+)
+
+APPROVAL_STATUS_CHOICES = (
+    ('approved', 'Approved'), ('declined', 'Declined'), ('pending', 'Pending')
+)
 
 # class Provider(models.Model):
 #     name = models.CharField(max_length=100)
@@ -147,6 +154,46 @@ class Beneficiary(models.Model):
 
     def __str__(self):
         return f"{self.customer}: {self.created_on}"
+
+
+class AccountRequest(models.Model):
+    bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, blank=True, null=True)
+    bvn = models.CharField(max_length=50)
+    phone_no = models.CharField(max_length=50)
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    other_name = models.CharField(max_length=100)
+    gender = models.CharField(max_length=50, choices=GENDER_TYPE_CHOICES, default="male")
+    dob = models.CharField(max_length=50)
+    nin = models.CharField(max_length=50)
+    email = models.EmailField()
+    address = models.CharField(max_length=250)
+    signature = models.ImageField(upload_to='account-opening')
+    image = models.ImageField(upload_to='account-opening')
+    utility = models.ImageField(upload_to='account-opening')
+    valid_id = models.ImageField(upload_to='account-opening')
+    status = models.CharField(max_length=50, choices=APPROVAL_STATUS_CHOICES, default="pending")
+    rejection_reason = models.TextField(blank=True, null=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_by")
+    rejected_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="rejected_by")
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.bvn}: {self.first_name} - {self.last_name}"
+
+    def get_request_detail(self):
+        data = dict()
+        data["id"] = self.id
+        data["first_name"] = self.first_name
+        data["other_name"] = self.other_name
+        data["last_name"] = self.last_name
+        data["email"] = self.email
+        data["gender"] = self.gender
+        data["dob"] = self.dob
+        data["phone_no"] = self.phone_no
+        data["status"] = self.status
+        return data
 
 
 

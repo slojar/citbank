@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Customer, CustomerAccount, CustomerOTP, Transaction, Beneficiary, Bank
+from .models import Customer, CustomerAccount, CustomerOTP, Transaction, Beneficiary, Bank, AccountRequest
 
 
 class CustomerAccountTabularAdmin(admin.TabularInline):
@@ -18,5 +18,6 @@ admin.site.register(CustomerOTP)
 admin.site.register(Transaction)
 admin.site.register(Beneficiary)
 admin.site.register(Bank)
+admin.site.register(AccountRequest)
 
 
