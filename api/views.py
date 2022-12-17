@@ -1,3 +1,5 @@
+from threading import Thread
+
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAdminUser
@@ -7,7 +9,8 @@ from rest_framework import status, views
 from account.models import Customer, Transaction, AccountRequest
 from account.serializers import CustomerSerializer, TransferSerializer, AccountRequestSerializer
 from account.paginations import CustomPagination
-from account.utils import review_account_request
+from account.utils import review_account_request, log_request
+from bankone.api import send_otp_message
 from billpayment.models import Airtime, CableTV, Data, Electricity
 from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
 
@@ -250,6 +253,13 @@ class AdminAccountRequestAPIView(views.APIView, CustomPagination):
             acct_req.rejection_reason = reason
             acct_req.rejected_by = request.user
             # Send rejection email to the customer
+            content = f"Dear {acct_req.first_name}, \nYour account opening is declined, " \
+                      f"a customer service agent will contact you soon."
+            subject = f"{acct_req.bank.name}: Account Creation Rejected"
+            Thread(
+                target=send_otp_message,
+                args=[acct_req.phone_no, content, subject, 1234567890, acct_req.email, acct_req.bank]
+            ).start()
 
         if req_status == "approved":
             acct_req.approved_by = request.user
