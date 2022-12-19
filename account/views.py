@@ -1,34 +1,44 @@
+import datetime
+import decimal
 import json
 import uuid
 import requests
 from threading import Thread
 
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, generics
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
+from billpayment.models import Airtime, Data, CableTV, Electricity
 from .paginations import CustomPagination
-from .serializers import CustomerSerializer, TransactionSerializer, BeneficiarySerializer
-from .utils import create_new_customer, authenticate_user, generate_new_otp, \
-    send_otp_message, decrypt_text, encrypt_text, create_transaction, confirm_trans_pin
+from .serializers import CustomerSerializer, TransferSerializer, BeneficiarySerializer, BankSerializer
+from .utils import authenticate_user, generate_new_otp, \
+    decrypt_text, encrypt_text, confirm_trans_pin, open_account_with_banks, get_account_balance, \
+    get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
+    get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, get_account_officer, \
+    get_bank_flex_balance, perform_bank_transfer, perform_name_query, retrieve_customer_card, block_or_unblock_card, \
+    perform_bvn_validation, get_fix_deposit_accounts
 
-from bankone.api import get_account_by_account_no, send_enquiry_email, log_request
-from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary
+from bankone.api import cit_get_account_by_account_no, send_otp_message, cit_create_new_customer, \
+    generate_random_ref_code, cit_send_email
+from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
 
 bankOneToken = settings.BANK_ONE_AUTH_TOKEN
 
 
 class HomepageView(APIView):
     permission_classes = []
+
     def get(self, request):
-        return HttpResponse("<h1>Welcome to CIT MFB User Management</h1>")
+        return HttpResponse("<h1>Welcome to BankPro</h1>")
 
 
 class RerouteView(APIView):
@@ -79,18 +89,28 @@ class SignupView(APIView):
     permission_classes = []
 
     def post(self, request):
-        account_no = request.data.get('account_no')
+        try:
+            account_no = request.data.get('account_no')
+            bank_id = request.data.get("bank_id")
 
-        if not account_no:
-            return Response({'detail': 'Please enter account number'}, status=status.HTTP_400_BAD_REQUEST)
+            if not account_no:
+                return Response({'detail': "Please enter account number"}, status=status.HTTP_400_BAD_REQUEST)
 
-        data = request.data
+            data = request.data
+            bank = Bank.objects.get(id=bank_id)
 
-        success, detail = create_new_customer(data, account_no)
-        if not success:
-            log_request(f"error-message: {detail}")
-            return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({'detail': detail})
+            if bank.active is False:
+                return Response({'detail': "Error, bank is inactive"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if bank.short_name == "cit":
+                success, detail = cit_create_new_customer(data, account_no, bank)
+                if not success:
+                    log_request(f"error-message: {detail}")
+                    return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'detail': detail})
+        except Exception as ex:
+            log_request(f"error-message: {ex}")
+            return Response({'detail': "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginView(APIView):
@@ -104,7 +124,7 @@ class LoginView(APIView):
             except Exception as ex:
                 log_request(f"error-message: {ex}")
                 return Response({"detail": "An error occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
-            data = CustomerSerializer(customer).data
+            data = get_account_balance(customer, request)
             return Response({
                 "detail": detail, "access_token": str(AccessToken.for_user(request.user)),
                 "refresh_token": str(RefreshToken.for_user(request.user)), 'data': data})
@@ -116,45 +136,58 @@ class SignupOtpView(APIView):
     permission_classes = []
 
     def post(self, request):
-        account_no = request.data.get('account_no')
+        try:
+            account_no = request.data.get('account_no')
+            bank_id = request.data.get('bank_id')
 
-        if not account_no:
-            log_request("detail: Account number is required")
-            return Response({'detail': 'Account number is required'}, status=status.HTTP_400_BAD_REQUEST)
+            if not account_no:
+                log_request("detail: Account number is required")
+                return Response({'detail': 'Account number is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if CustomerAccount.objects.filter(account_no=account_no).exists():
-            log_request("detail: Account already registered")
-            return Response({'detail': 'Account already registered'}, status=status.HTTP_400_BAD_REQUEST)
+            if CustomerAccount.objects.filter(account_no=account_no).exists():
+                log_request("detail: Account already registered")
+                return Response({'detail': 'Account already registered'}, status=status.HTTP_400_BAD_REQUEST)
 
-        response = get_account_by_account_no(account_no)
-        if response.status_code != 200:
-            for response in response.json():
-                detail = response['error-Message']
+            bank = Bank.objects.get(id=bank_id)
+            phone_number = content = subject = email = None
+
+            if bank.active is False:
+                return Response({'detail': "Error, bank is inactive"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # GET CUSTOMER PHONE NUMBER AND EMAIL
+            if bank.short_name == "cit":
+                response = cit_get_account_by_account_no(account_no)
+                if response.status_code != 200:
+                    for response in response.json():
+                        detail = response['error-Message']
+                        log_request(f"error-message: {detail}")
+                        return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+
+                customer_data = response.json()
+                phone_number = customer_data['CustomerDetails']['PhoneNumber']
+                email = customer_data['CustomerDetails']['Email']
+                name = str(customer_data['CustomerDetails']['Name']).split()[0]
+
+                otp = generate_new_otp(phone_number)
+                content = f"Dear {name}, \nKindly use this OTP: {otp} to complete " \
+                          f"your registration on CIT Mobile App."
+                subject = "CIT Mobile Registration"
+            # SEND OTP TO USER
+            success, detail = send_otp_message(phone_number, content, subject, account_no, email, bank)
+            if success is False:
                 log_request(f"error-message: {detail}")
                 return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
-
-        customer_data = response.json()
-        phone_number = customer_data['CustomerDetails']['PhoneNumber']
-        email = customer_data['CustomerDetails']['Email']
-        name = str(customer_data['CustomerDetails']['Name']).split()[0]
-
-        otp = generate_new_otp(phone_number)
-        content = f"Dear {name}, \nKindly use this OTP: {otp} to complete " \
-                  f"your registration on CIT Mobile App."
-        subject = "CIT Mobile Registration"
-        success, detail = send_otp_message(phone_number, content, subject, account_no, email)
-        if success is False:
-            log_request(f"error-message: {detail}")
-            return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({'detail': detail})
+            return Response({"detail": "OPT sent to email and phone number"})
+        except Exception as err:
+            return Response({'detail': "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CustomerProfileView(APIView):
-    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        query = CustomerSerializer(Customer.objects.get(user=request.user), context={'request': request}).data
-        return Response(query)
+        customer = Customer.objects.get(user=request.user)
+        data = get_account_balance(customer, request)
+        return Response(data)
 
     def put(self, request):
         profile_picture = request.data.get('profile_picture')
@@ -199,7 +232,8 @@ class ChangePasswordView(APIView):
             # Check if old and new password are the same.
             if old_password == new_password:
                 log_request("detail: previously used passwords not allowed")
-                return Response({"detail": "previously used passwords are not allowed"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"detail": "previously used passwords are not allowed"},
+                                status=status.HTTP_400_BAD_REQUEST)
 
             # Check if new and confirm password are not the same
             if new_password != confirm_password:
@@ -233,15 +267,18 @@ class ResetOTPView(APIView):
         try:
             customer = Customer.objects.get(phone_number=phone_number)
             customer_acct = CustomerAccount.objects.filter(customer=customer).first()
+            bank = customer.bank
             # user_phone_number = customer.phone_number
             # if user_phone_number is not None:
             otp = generate_new_otp(phone_number)
             first_name = customer.user.first_name
             account_no = customer_acct.account_no
-            content = f"Dear {first_name},\nKindly use this OTP: {otp} to reset your {reset_type} on CIT Mobile App."
-            subject = f"Reset {reset_type} on CIT Mobile"
             email = customer.user.email
-            success, detail = send_otp_message(phone_number, content, subject, account_no, email)
+            content = subject = ""
+            if bank.short_name == "cit":
+                content = f"Dear {first_name},\nKindly use this OTP: {otp} to reset your {reset_type} on CIT Mobile App."
+                subject = f"Reset {reset_type} on CIT Mobile"
+            success, detail = send_otp_message(phone_number, content, subject, account_no, email, bank)
             if success is False:
                 log_request(f"error-message: {detail}")
                 return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
@@ -290,10 +327,10 @@ class ForgotPasswordView(APIView):
 
             user.set_password(new_password)
             user.save()
-            # CustomerOTP.objects.filter(phone_number=phone_number).update(otp=str(uuid.uuid4().int)[:6])
-            new_otp = CustomerOTP.objects.get(phone_number=phone_number)
-            new_otp.otp = str(uuid.uuid4().int)[:6]
-            new_otp.save()
+            CustomerOTP.objects.filter(phone_number=phone_number).update(otp=str(uuid.uuid4().int)[:6])
+            # new_otp = CustomerOTP.objects.get(phone_number=phone_number)
+            # new_otp.otp = str(uuid.uuid4().int)[:6]
+            # new_otp.save()
             return Response({"detail": "Successfully changed Password, Login with your new password."})
 
         except (Exception,) as err:
@@ -354,7 +391,7 @@ class ResetTransactionPinView(APIView):
         confirm_new_pin = request.data.get('confirm_new_pin')
 
         if not (token and new_pin and confirm_new_pin):
-            log_request(f"error-message: {detail}")
+            log_request(f"error-message: You may have missed the PIN or OTP input")
             return Response({'detail': 'You may have missed the PIN or OTP input, please check'},
                             status=status.HTTP_400_BAD_REQUEST)
 
@@ -399,7 +436,7 @@ class TransactionView(APIView, CustomPagination):
 
         if ref:
             try:
-                data = TransactionSerializer(Transaction.objects.get(reference=ref)).data
+                data = TransferSerializer(Transaction.objects.get(reference=ref)).data
                 return Response(data)
             except Exception as err:
                 log_request(f"error-message: {err}")
@@ -420,38 +457,8 @@ class TransactionView(APIView, CustomPagination):
 
         queryset = Transaction.objects.filter(query).order_by('-id').distinct()
         transaction = self.paginate_queryset(queryset, request)
-        data = self.get_paginated_response(TransactionSerializer(transaction, many=True).data).data
+        data = self.get_paginated_response(TransferSerializer(transaction, many=True).data).data
         return Response(data)
-
-    def post(self, request):
-
-        success, response = confirm_trans_pin(request)
-
-        if success is False:
-            log_request(f"error-message: {response}")
-            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
-
-        success, response = create_transaction(request)
-        if success is False:
-            log_request(f"error-message: {response}")
-            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response({"detail": "Successfully created a transaction", "reference_code": str(response)})
-
-    def put(self, request, ref):
-        trans_status = request.data.get('status')
-        if not trans_status:
-            log_request(f"error-message: status is required")
-            return Response({"detail": "status is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            transaction = Transaction.objects.get(reference=ref)
-            transaction.status = trans_status
-            transaction.save()
-            return Response({"detail": "Successfully updated transaction"})
-        except Exception as err:
-            log_request(f"error-message: {err}")
-            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class BeneficiaryView(APIView, CustomPagination):
@@ -507,12 +514,12 @@ class BeneficiaryView(APIView, CustomPagination):
                 log_request(f"error-message: beneficiary type is not selected")
                 raise KeyError("Beneficiary type is required")
 
-            if beneficiary_type == "cit_bank_transfer":
+            if beneficiary_type == "local_transfer":
                 if not all([beneficiary_name, beneficiary_acct_no]):
                     log_request(f"error-message: beneficiary name and account number is required")
-                    raise KeyError("Beneficiary Name and Account Number are required fields for Type CIT BANK TRANSFER")
+                    raise KeyError("Beneficiary Name and Account Number are required fields for Type SAME BANK TRANSFER")
 
-            if beneficiary_type == "other_bank_transfer":
+            if beneficiary_type == "external_transfer":
                 if not all([beneficiary_name, beneficiary_bank, beneficiary_acct_no]):
                     log_request(f"error-message: beneficiary name, bank, and account number is required")
                     raise KeyError("Beneficiary Name, Bank and Account Number are required for Type "
@@ -602,7 +609,7 @@ class FeedbackView(APIView):
         else:
             subject, receiver = f"ENQUIRY FROM {name}", enquiry_email
 
-        Thread(target=send_enquiry_email, args=[request.user.email, receiver, subject, message])
+        Thread(target=cit_send_email, args=[request.user.email, receiver, subject, message])
 
         return Response({"detail": "Message sent successfully"})
 
@@ -611,11 +618,288 @@ class GenerateRandomCode(APIView):
     permission_classes = []
 
     def get(self, request):
-        from .utils import generate_random_ref_code
         code = generate_random_ref_code()
         return Response({"detail": code})
 
 
+class BankAPIListView(generics.ListAPIView):
+    permission_classes = []
+    serializer_class = BankSerializer
+    queryset = Bank.objects.all()
 
 
+class OpenAccountAPIView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        try:
+            bank_id = request.data.get("bank_id")
+            if not bank_id:
+                return Response({"detail": "bank_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+            bank = Bank.objects.get(id=bank_id)
+
+            success, detail = open_account_with_banks(bank, request)
+            if success is False:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": detail})
+        except Exception as err:
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CustomerDashboardAPIView(APIView):
+
+    def get(self, request, bank_id):
+
+        # try:
+        account_no = [
+            account.account_no for account in
+            CustomerAccount.objects.filter(customer__user=request.user, customer__bank_id=bank_id)
+        ]
+
+        date_from = request.GET.get("date_from")
+        date_to = request.GET.get("date_to")
+        last_7_days = request.GET.get("last_7_days")
+        this_month = request.GET.get("this_month")
+        this_year = request.GET.get("this_year")
+        this_week = request.GET.get("this_week")
+
+        present_day = datetime.datetime.now()
+        if last_7_days == "true":
+            past_7_day = get_previous_date(date=present_day, delta=7)
+            start_date = past_7_day
+            end_date = present_day
+        elif this_month == "true":
+            month_start, month_end = get_month_start_and_end_datetime(present_day)
+            start_date = month_start
+            end_date = month_end
+        elif this_year == "true":
+            year_start, year_end = get_year_start_and_end_datetime(present_day)
+            start_date = year_start
+            end_date = year_end
+        elif this_week == "true":
+            week_start, week_end = get_week_start_and_end_datetime(present_day)
+            start_date = week_start
+            end_date = week_end
+        else:
+            start_date = date_from
+            end_date = date_to
+
+        transfer = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__user=request.user)
+        airtime = Airtime.objects.filter(
+            created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+        ).distinct()
+        data = Data.objects.filter(
+            created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+        ).distinct()
+        cable = CableTV.objects.filter(
+            created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+        ).distinct()
+        electricity = Electricity.objects.filter(
+            created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+        ).distinct()
+
+        account_number = CustomerAccount.objects.filter(customer__user=request.user).first().account_no
+
+        bank = Bank.objects.get(id=bank_id)
+        last_ten_trans, pagination = get_transaction_history(bank, account_number)
+
+        result = dict()
+        result["transfer"] = dict()
+        result["transfer"]["total"] = transfer.count()
+        result["transfer"]["amount"] = transfer.aggregate(Sum("amount"))["amount__sum"] or 0
+
+        result["airtime"] = dict()
+        result["airtime"]["total"] = airtime.count()
+        result["airtime"]["amount"] = airtime.aggregate(Sum("amount"))["amount__sum"] or 0
+
+        result["data"] = dict()
+        result["data"]["total"] = data.count()
+        result["data"]["amount"] = data.aggregate(Sum("amount"))["amount__sum"] or 0
+
+        result["cableTv"] = dict()
+        result["cableTv"]["total"] = cable.count()
+        result["cableTv"]["amount"] = cable.aggregate(Sum("amount"))["amount__sum"] or 0
+
+        result["electricity"] = dict()
+        result["electricity"]["total"] = electricity.count()
+        result["electricity"]["amount"] = electricity.aggregate(Sum("amount"))["amount__sum"] or 0
+
+        result["recent_transactions"] = last_ten_trans
+
+        return Response(result)
+        # except Exception as ex:
+        #     return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BankHistoryAPIView(APIView):
+
+    def get(self, request, bank_id):
+
+        try:
+            account_no = request.GET.get("account_no")
+            date_from = request.GET.get("date_from")
+            date_to = request.GET.get("date_to")
+            page_no = request.GET.get("page_no")
+
+            if not CustomerAccount.objects.filter(customer__user=request.user, account_no=account_no,
+                                                  customer__bank_id=bank_id).exists():
+                return Response({"detail": "Account number is not valid"}, status=status.HTTP_400_BAD_REQUEST)
+
+            bank = Bank.objects.get(id=bank_id)
+            result, pages = get_transaction_history(bank, account_no, date_from, date_to, page_no)
+
+            return Response({"detail": result, "pagination": pages})
+
+        except Exception as err:
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GenerateStatement(APIView):
+
+    def post(self, request, bank_id):
+        try:
+            date_from = request.data.get("date_from")
+            date_to = request.data.get("date_to")
+            account_no = request.data.get("account_no")
+            download = request.data.get("download")
+            email = request.data.get("email")
+
+            if not all([date_to, date_from, account_no]):
+                return Response({"detail": "Dates and account number are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if not CustomerAccount.objects.filter(
+                    customer__user=request.user, customer__bank_id=bank_id, account_no=account_no).exists():
+                return Response({"detail": "Account not valid for user"}, status=status.HTTP_400_BAD_REQUEST)
+
+            bank = Bank.objects.get(id=bank_id)
+            if download is True:
+                success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "pdf")
+            else:
+                success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "html")
+                if success is True:
+                    if email:
+                        # Send statement to customer
+                        email_from = str(settings.CIT_EMAIL_FROM)
+                        Thread(
+                            target=cit_send_email,
+                            args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}",
+                                  response]
+                        ).start()
+                        response = f"Statement sent to {email}"
+
+            if success is False:
+                return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": response})
+        except Exception as err:
+            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AccountOfficerAPIView(APIView):
+
+    def get(self, request):
+        account_no = request.GET.get("account_no")
+
+        if not CustomerAccount.objects.filter(account_no=account_no).exists():
+            return Response({"detail": "User with account not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        account = CustomerAccount.objects.get(account_no=account_no)
+
+        data = get_account_officer(account)
+
+        return Response({"detail": data})
+
+
+class BankFlexAPIView(APIView):
+
+    def get(self, request):
+
+        try:
+            customer = Customer.objects.get(user=request.user)
+
+            success, detail = get_bank_flex_balance(customer)
+            if success is False:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": detail})
+        except Exception as err:
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TransferAPIView(APIView):
+
+    def post(self, request, bank_id):
+        # try:
+        bank = Bank.objects.get(id=bank_id)
+        success, detail = perform_bank_transfer(bank, request)
+        if success is False:
+            return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+        data = TransferSerializer(detail).data
+        return Response({"detail": "Transfer successful", "data": data})
+        # except Exception as ex:
+        #     return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class NameEnquiryAPIView(APIView):
+
+    def get(self, request, bank_id):
+
+        try:
+            bank = Bank.objects.get(id=bank_id)
+            success, detail = perform_name_query(bank, request)
+            if success is False:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(detail)
+        except Exception as err:
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CardOperationAPIView(APIView):
+
+    def get(self, request):
+        account_no = request.GET.get("account_no")
+
+        try:
+            customer = Customer.objects.get(user=request.user)
+            success, detail = retrieve_customer_card(customer, account_no)
+            if success is False:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": detail})
+        except Exception as ex:
+            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request):
+        try:
+            success, detail = block_or_unblock_card(request)
+            if success is False:
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": detail})
+        except Exception as err:
+            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ValidateBVNAPIView(APIView):
+    permission_classes = []
+
+    def post(self, request, bank_id):
+        bvn = request.data.get("bvn")
+
+        if not bvn:
+            return Response({"detail": "BVN is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        bank = get_object_or_404(Bank, id=bank_id)
+
+        success, response = perform_bvn_validation(bank, bvn)
+        if success is False:
+            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": response})
+
+
+class FixDepositAPIView(APIView):
+
+    def get(self, request, bank_id):
+        bank = get_object_or_404(Bank, id=bank_id)
+        success, response = get_fix_deposit_accounts(bank, request)
+        if success is False:
+            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(response)
 

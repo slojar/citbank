@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Airtime, Data, CableTV
+from .models import Airtime, Data, CableTV, Electricity
 
 
 class AirtimeSerializer(serializers.ModelSerializer):
@@ -17,5 +17,11 @@ class DataSerializer(serializers.ModelSerializer):
 class CableTVSerializer(serializers.ModelSerializer):
     class Meta:
         model = CableTV
+        exclude = []
+
+
+class ElectricitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Electricity
         exclude = []
 

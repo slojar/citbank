@@ -1,9 +1,43 @@
-from .models import Customer, CustomerAccount, Transaction, Beneficiary
+from bankone.api import cit_get_banks
+from .models import Customer, CustomerAccount, Transaction, Beneficiary, Bank, AccountRequest
 from rest_framework import serializers
 from .utils import decrypt_text
 
 
+class BankSerializer(serializers.ModelSerializer):
+    logo = serializers.SerializerMethodField()
+    nip_banks = serializers.SerializerMethodField()
+
+    def get_logo(self, obj):
+        if obj.logo:
+            request = self.context.get('request')
+            if request:
+                image = request.build_absolute_uri(obj.logo.url)
+                return image
+            return obj.logo.url
+
+    def get_nip_banks(self, obj):
+        result = list()
+        if obj.short_name == "cit":
+            response = cit_get_banks()
+            for res in response:
+                data = dict()
+                data["bank_name"] = res["Name"]
+                data["bank_code"] = res["Code"]
+                result.append(data)
+        return result
+
+    class Meta:
+        model = Bank
+        exclude = []
+
+
 class CustomerAccountSerializer(serializers.ModelSerializer):
+    customer_name = serializers.SerializerMethodField()
+
+    def get_customer_name(self, obj):
+        return obj.customer.get_full_name()
+
     class Meta:
         model = CustomerAccount
         exclude = []
@@ -14,6 +48,13 @@ class CustomerSerializer(serializers.ModelSerializer):
     accounts = serializers.SerializerMethodField()
     bvn_number = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
+    bank = serializers.SerializerMethodField()
+
+    def get_bank(self, obj):
+        bank = None
+        if obj.bank:
+            bank = BankSerializer(obj.bank, context={"request": self.context.get("request")}).data
+        return bank
 
     def get_customer_detail(self, obj):
         return obj.get_customer_detail()
@@ -37,10 +78,10 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        exclude = ['transaction_pin', 'nin', 'bvn']
+        exclude = ['transaction_pin', 'nin', 'bvn', 'user']
 
 
-class TransactionSerializer(serializers.ModelSerializer):
+class TransferSerializer(serializers.ModelSerializer):
     customer = serializers.SerializerMethodField()
 
     def get_customer(self, obj):
@@ -54,4 +95,13 @@ class TransactionSerializer(serializers.ModelSerializer):
 class BeneficiarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Beneficiary
-        exclude = ()
+        exclude = []
+
+
+class AccountRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AccountRequest
+        exclude = []
+
+
+

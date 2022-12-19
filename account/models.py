@@ -8,12 +8,12 @@ STATUS_CHOICES = (
     ('pending', 'Pending'), ('failed', 'Failed'), ('success', 'Success')
 )
 
-TRANSACTION_TYPE_CHOICES = (
-    ('transfer', 'Transfer'), ('bill_payment', 'Bill Payment')
+TRANSFER_TYPE_CHOICES = (
+    ('local_transfer', 'Local Transfer'), ('external_transfer', 'External Transfer')
 )
 
 BENEFICIARY_TYPE_CHOICES = (
-    ('cit_bank_transfer', 'CIT Bank Transfer'), ('other_bank_transfer', 'Other Bank Transfer'), ('airtime', 'Airtime'),
+    ('local_transfer', 'Local Transfer'), ('external_transfer', 'External Transfer'), ('airtime', 'Airtime'),
     ('data', 'Data'), ('utility', 'Utility')
 )
 
@@ -22,9 +22,45 @@ NOTIFICATION_TYPE_CHOICES = (
     ('account_manager_rating', 'Account Manager Rating')
 )
 
+GENDER_TYPE_CHOICES = (
+    ('male', 'Male'), ('female', 'Female')
+)
+
+APPROVAL_STATUS_CHOICES = (
+    ('approved', 'Approved'), ('declined', 'Declined'), ('pending', 'Pending')
+)
+
+# class Provider(models.Model):
+#     name = models.CharField(max_length=100)
+#     base_url = models.CharField(max_length=200, blank=True, null=True)
+#     email_api = models.CharField(max_length=200, blank=True, null=True)
+#     sms_api = models.CharField(max_length=200, blank=True, null=True)
+#     local_transfer_api = models.CharField(max_length=200, blank=True, null=True)
+#     others_transfer_api = models.CharField(max_length=200, blank=True, null=True)
+#     local_name_enquiry_api = models.CharField(max_length=200, blank=True, null=True)
+#     other_name_enquiry_api = models.CharField(max_length=200, blank=True, null=True)
+#     bvn_validation_api = models.CharField(max_length=200, blank=True, null=True)
+#     bvn_validation_api = models.CharField(max_length=200, blank=True, null=True)
+
+
+class Bank(models.Model):
+    name = models.CharField(max_length=200)
+    short_name = models.CharField(max_length=50)
+    support_email = models.CharField(max_length=50)
+    website = models.CharField(max_length=50)
+    address = models.TextField()
+    logo = models.ImageField(upload_to="bank-logo")
+    active = models.BooleanField(default=False)
+    tm_service_id = models.TextField(blank=True, null=True)
+    # provide = models.ForeignKey(Provider, on_delete=models.SET_NULL, blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
 
 class Customer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True, blank=True)
     customerID = models.CharField(max_length=200, null=True, blank=True)
     other_name = models.CharField(max_length=100, blank=True, null=True)
     gender = models.CharField(max_length=20, blank=True, null=True)
@@ -48,9 +84,14 @@ class Customer(models.Model):
         data["email"] = self.user.email
         data["username"] = self.user.username
         data["gender"] = self.gender
+        data["dob"] = self.dob
+        data["phone_no"] = self.phone_number
         data["customer_id"] = self.customerID
         data["staff"] = self.user.is_staff
         return data
+
+    def get_full_name(self):
+        return self.user.get_full_name()
 
     def __str__(self):
         return f"{self.user.first_name}-{self.user.last_name}"
@@ -59,8 +100,10 @@ class Customer(models.Model):
 class CustomerAccount(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     account_no = models.CharField(max_length=10, null=True, blank=True)
+    bank_acct_number = models.CharField(max_length=200, blank=True, null=True)
     account_type = models.CharField(max_length=200, blank=True, null=True)
     card_no = models.CharField(max_length=200, blank=True, null=True)
+    statement = models.FileField(null=True, blank=True, upload_to='statements')
     active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -78,11 +121,12 @@ class CustomerOTP(models.Model):
 
 class Transaction(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, blank=True, null=True)
-    transaction_type = models.CharField(max_length=100, choices=TRANSACTION_TYPE_CHOICES, default='transfer')
-    transaction_option = models.CharField(max_length=100, blank=True, null=True, choices=BENEFICIARY_TYPE_CHOICES)
+    sender_acct_no = models.CharField(max_length=200, blank=True, null=True)
+    transfer_type = models.CharField(max_length=100, choices=TRANSFER_TYPE_CHOICES, default='local_transfer')
+    beneficiary_type = models.CharField(max_length=100, blank=True, null=True, choices=BENEFICIARY_TYPE_CHOICES)
     beneficiary_name = models.CharField(max_length=100, blank=True, null=True)
-    biller_name = models.CharField(max_length=200, blank=True, null=True)
-    beneficiary_number = models.CharField(max_length=200, blank=True, null=True)
+    bank_name = models.CharField(max_length=200, blank=True, null=True)
+    beneficiary_acct_no = models.CharField(max_length=200, blank=True, null=True)
     status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='pending')
     amount = models.FloatField()
     narration = models.TextField(blank=True, null=True)
@@ -112,15 +156,45 @@ class Beneficiary(models.Model):
         return f"{self.customer}: {self.created_on}"
 
 
-# class Notification(models.Model):
-#     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-#     content = models.TextField()
-#     rating = models.IntegerField(default=0)
-#     message_type = models.CharField(max_length=200, choices=NOTIFICATION_TYPE_CHOICES, default='enquiry_email')
-#     created_on = models.DateTimeField(auto_now_add=True)
-#
-#     def __str__(self):
-#         return f"{self.customer}-{self.message_type}"
+class AccountRequest(models.Model):
+    bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, blank=True, null=True)
+    bvn = models.CharField(max_length=50)
+    phone_no = models.CharField(max_length=50)
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    other_name = models.CharField(max_length=100)
+    gender = models.CharField(max_length=50, choices=GENDER_TYPE_CHOICES, default="male")
+    dob = models.CharField(max_length=50)
+    nin = models.CharField(max_length=50)
+    email = models.EmailField()
+    address = models.CharField(max_length=250)
+    signature = models.ImageField(upload_to='account-opening')
+    image = models.ImageField(upload_to='account-opening')
+    utility = models.ImageField(upload_to='account-opening')
+    valid_id = models.ImageField(upload_to='account-opening')
+    status = models.CharField(max_length=50, choices=APPROVAL_STATUS_CHOICES, default="pending")
+    rejection_reason = models.TextField(blank=True, null=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_by")
+    rejected_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="rejected_by")
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.bvn}: {self.first_name} - {self.last_name}"
+
+    def get_request_detail(self):
+        data = dict()
+        data["id"] = self.id
+        data["first_name"] = self.first_name
+        data["other_name"] = self.other_name
+        data["last_name"] = self.last_name
+        data["email"] = self.email
+        data["gender"] = self.gender
+        data["dob"] = self.dob
+        data["phone_no"] = self.phone_no
+        data["status"] = self.status
+        return data
+
 
 
 
