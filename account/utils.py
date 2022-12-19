@@ -503,9 +503,6 @@ def perform_bank_transfer(bank, request):
         if balance <= 0:
             return False, "Insufficient balance"
 
-        if decimal.Decimal(amount) > balance:
-            return False, "Amount to transfer cannot be greater than current balance"
-
         # Narration max is 100 char, Reference max is 12 char, amount should be in kobo (i.e multiply by 100)
         narration = ""
         if description:
@@ -518,6 +515,8 @@ def perform_bank_transfer(bank, request):
         ref_code = cit_generate_transaction_ref_code(code)
 
         if transfer_type == "same_bank":
+            if decimal.Decimal(amount) > balance:
+                return False, "Amount to transfer cannot be greater than current balance"
 
             bank_name = bank.name
             response = cit_to_cit_bank_transfer(
@@ -543,6 +542,8 @@ def perform_bank_transfer(bank, request):
         elif transfer_type == "other_bank":
             # Convert kobo amount sent on OtherBankTransfer to naira... To be removed in future update
             o_amount = amount / 100
+            if decimal.Decimal(o_amount) > balance:
+                return False, "Amount to transfer cannot be greater than current balance"
 
             response = cit_other_bank_transfer(
                 amount=o_amount, bank_acct_no=app_zone_acct, sender_name=sender_name, sender_acct_no=account_number,
@@ -555,7 +556,7 @@ def perform_bank_transfer(bank, request):
             transfer = Transaction.objects.create(
                 customer=customer, sender_acct_no=account_number, transfer_type="external_transfer",
                 beneficiary_type="external_transfer", beneficiary_name=beneficiary_name, bank_name=bank_name,
-                beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code
+                beneficiary_acct_no=beneficiary_acct, amount=o_amount, narration=description, reference=ref_code
             )
             if response["IsSuccessFul"] is True and response["ResponseCode"] != "00":
                 return False, str(response["ResponseMessage"])
