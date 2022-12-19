@@ -7,7 +7,7 @@ from account.views import HomepageView, RerouteView
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', HomepageView.as_view()),
-    path('bankone/', RerouteView.as_view()),
+    # path('bankone/', RerouteView.as_view()),
     path('account/', include("account.urls")),
     path('bills/', include('billpayment.urls')),
     path('api/', include('api.urls')),
