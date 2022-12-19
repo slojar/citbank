@@ -238,6 +238,7 @@ def cit_other_bank_transfer(**kwargs):
     url = f'{base_url_3ps}/Transfer/InterBankTransfer'
 
     amount = kwargs.get("amount") * 100
+    header = {"Content-Type": "application/json"}
 
     payload = json.dumps(
         {
@@ -259,7 +260,7 @@ def cit_other_bank_transfer(**kwargs):
         }
     )
 
-    response = requests.request('POST', url=url, data=payload).json()
+    response = requests.request('POST', url=url, data=payload, headers=header).json()
     log_request(url, payload, response)
     return response
 
