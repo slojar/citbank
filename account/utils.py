@@ -534,6 +534,12 @@ def perform_bank_transfer(bank, request):
                 beneficiary_type="local_transfer", beneficiary_name=beneficiary_name, bank_name=bank_name,
                 beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code
             )
+            if response["IsSuccessful"] is True and response["ResponseCode"] != "00":
+                return False, str(response["ResponseMessage"])
+
+            if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+                transfer.status = "success"
+                transfer.save()
 
         elif transfer_type == "other_bank":
 
@@ -550,15 +556,15 @@ def perform_bank_transfer(bank, request):
                 beneficiary_type="external_transfer", beneficiary_name=beneficiary_name, bank_name=bank_name,
                 beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code
             )
+            if response["IsSuccessFul"] is True and response["ResponseCode"] != "00":
+                return False, str(response["ResponseMessage"])
+
+            if response["IsSuccessFul"] is True and response["ResponseCode"] == "00":
+                transfer.status = "success"
+                transfer.save()
+
         else:
             return False, "Invalid transfer type selected"
-
-        if response["IsSuccessful"] is True and response["ResponseCode"] != "00":
-            return False, str(response["ResponseMessage"])
-
-        if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
-            transfer.status = "success"
-            transfer.save()
 
     return True, transfer
 
