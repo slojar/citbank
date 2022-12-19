@@ -503,10 +503,6 @@ def perform_bank_transfer(bank, request):
         if balance <= 0:
             return False, "Insufficient balance"
 
-        # Convert kobo amount sent on OtherBankTransfer to naira... To be removed in future update
-        if transfer_type == "other_bank":
-            amount = amount / 100
-
         if decimal.Decimal(amount) > balance:
             return False, "Amount to transfer cannot be greater than current balance"
 
@@ -537,14 +533,19 @@ def perform_bank_transfer(bank, request):
             if response["IsSuccessful"] is True and response["ResponseCode"] != "00":
                 return False, str(response["ResponseMessage"])
 
+            if response["IsSuccessful"] is False:
+                return False, str(response["ResponseMessage"])
+
             if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
                 transfer.status = "success"
                 transfer.save()
 
         elif transfer_type == "other_bank":
+            # Convert kobo amount sent on OtherBankTransfer to naira... To be removed in future update
+            o_amount = amount / 100
 
             response = cit_other_bank_transfer(
-                amount=amount, bank_acct_no=app_zone_acct, sender_name=sender_name, sender_acct_no=account_number,
+                amount=o_amount, bank_acct_no=app_zone_acct, sender_name=sender_name, sender_acct_no=account_number,
                 receiver_acct_no=beneficiary_acct, receiver_acct_type=beneficiary_acct_type,
                 receiver_bank_code=bank_code, receiver_name=beneficiary_name,
                 description=narration, trans_ref=ref_code,
@@ -557,6 +558,9 @@ def perform_bank_transfer(bank, request):
                 beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code
             )
             if response["IsSuccessFul"] is True and response["ResponseCode"] != "00":
+                return False, str(response["ResponseMessage"])
+
+            if response["IsSuccessFul"] is False:
                 return False, str(response["ResponseMessage"])
 
             if response["IsSuccessFul"] is True and response["ResponseCode"] == "00":
