@@ -813,10 +813,10 @@ class AccountOfficerAPIView(APIView):
 
 class BankFlexAPIView(APIView):
 
-    def get(self, request):
+    def get(self, request, bank_id):
 
         try:
-            customer = Customer.objects.get(user=request.user)
+            customer = Customer.objects.get(user=request.user, bank_id=bank_id)
 
             success, detail = get_bank_flex_balance(customer)
             if success is False:
