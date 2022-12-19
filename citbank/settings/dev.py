@@ -28,11 +28,11 @@ ALLOWED_HOSTS = []
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': "citbank_db",
-        'USER': "citbank",
-        'PASSWORD': "citbank",
-        'HOST': "localhost",
-        'PORT': "5432",
+        'NAME': env('DATABASE_NAME'),
+        'USER': env('DATABASE_USER'),
+        'PASSWORD': env('DATABASE_PASSWORD'),
+        'HOST': env('DATABASE_HOST'),
+        'PORT': env('DATABASE_PORT'),
     }
 }
 
@@ -62,8 +62,11 @@ CIT_ENQUIRY_EMAIL = env('CIT_ENQUIRY_EMAIL')
 CIT_FEEDBACK_EMAIL = env('CIT_FEEDBACK_EMAIL')
 CIT_ACCOUNT_OFFICE_RATING_EMAIL = env('CIT_ACCOUNT_OFFICE_RATING_EMAIL')
 CIT_APP_REG_EMAIL = env('CIT_APP_REG_EMAIL')
-SERVICE_CHARGE = env('SERVICE_CHARGE')
+CIT_SERVICE_CHARGE = env('SERVICE_CHARGE')
+
+# BANK_FLEX
+BANK_FLEX_BASE_URL = env('BANK_FLEX_BASE_URL')
+BANK_FLEX_KEY = f"${env('BANK_FLEX_KEY')}"
 
 # Activate Django-Heroku.
 django_heroku.settings(locals())
-

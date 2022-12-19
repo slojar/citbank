@@ -16,11 +16,18 @@ citbank.log
 .DS_Store
 *.DS_Store
 .push.py
+.version2.py
 
 # Project image and file folders
 profile_picture/
+account-opening/
 cit_venv/
 cit_venv
 .env.sample
+<<<<<<< HEAD
 statements/
 
+=======
+
+statements/
+>>>>>>> 6c352fec3d64e2f59105de1e67a931b2519194b4

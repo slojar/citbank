@@ -2,7 +2,7 @@ from threading import Thread
 
 from account.models import CustomerAccount
 from account.utils import check_account_status
-from bankone.api import get_details_by_customer_id, charge_customer, send_sms
+from bankone.api import cit_get_details_by_customer_id, cit_charge_customer, cit_send_sms
 from billpayment.models import Electricity
 from tm_saas.api import validate_meter_no, electricity
 
@@ -19,7 +19,7 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
         return False, "Your account is locked, please contact the bank to unlock"
 
     # CHECK ACCOUNT BALANCE
-    response = get_details_by_customer_id(customer.customerID).json()
+    response = cit_get_details_by_customer_id(customer.customerID).json()
 
     balance = 0
     accounts = response["Accounts"]
@@ -34,15 +34,15 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
         return False, "Amount cannot be greater than current balance"
 
     # CHARGE CUSTOMER ACCOUNT
-    response = charge_customer(account_no=account_no, amount=amount, trans_ref=ref_code, description=narration)
+    response = cit_charge_customer(account_no=account_no, amount=amount, trans_ref=ref_code, description=narration)
     response = response.json()
 
     return True, response
 
 
-def vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref_code):
+def vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_number, ref_code):
     token = ""
-    response = validate_meter_no(disco_type, meter_no)
+    response = validate_meter_no(customer.bank, disco_type, meter_no)
     if "error" in response:
         return False, "An error occurred while trying to vend electricity", token
 
@@ -119,7 +119,7 @@ def vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref
     else:
         return False, "disco type is not valid", token
 
-    response = electricity(data)
+    response = electricity(customer.bank, data)
     if "error" in response:
         return False, response["error"], token
 
@@ -140,13 +140,14 @@ def vend_electricity(account_no, disco_type, meter_no, amount, phone_number, ref
     # Create Electricity Instance
     elect = Electricity.objects.create(
         account_no=account_no, disco_type=disco_type, meter_number=meter_no, amount=amount, phone_number=phone_number,
-        status=status, transaction_id=transaction_id, bill_id=bill_id, token=token, reference=ref_code
+        status=status, transaction_id=transaction_id, bill_id=bill_id, token=token, reference=ref_code,
+        bank=customer.bank
     )
 
     if not token == "":
         # SEND TOKEN TO PHONE NUMBER
         content = f"Your {disco_type} token is: {token}".replace("_", " ")
-        Thread(target=send_sms, args=[account_no, content, phone_number]).start()
+        Thread(target=cit_send_sms, args=[account_no, content, phone_number]).start()
         elect.token_sent = True
         elect.save()
 
