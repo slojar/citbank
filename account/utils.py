@@ -503,6 +503,10 @@ def perform_bank_transfer(bank, request):
         if balance <= 0:
             return False, "Insufficient balance"
 
+        # Convert kobo amount sent on OtherBankTransfer to naira... To be removed in future update
+        if transfer_type == "other_bank":
+            amount = amount / 100
+
         if decimal.Decimal(amount) > balance:
             return False, "Amount to transfer cannot be greater than current balance"
 
