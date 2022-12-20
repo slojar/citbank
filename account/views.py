@@ -120,10 +120,10 @@ class LoginView(APIView):
     def post(self, request):
         version = request.data.get("build")
         if not version:
-            return Response({"detail": "Service is unavailable, please try again later"})
+            return Response({"detail": "Service is unavailable, please try again later"}, status=status.HTTP_400_BAD_REQUEST)
 
         if version < 26:
-            return Response({"detail": "Please download the latest version from your store"})
+            return Response({"detail": "Please download the latest version from your store"}, status=status.HTTP_400_BAD_REQUEST)
 
         detail, success = authenticate_user(request)
         if success is True:
