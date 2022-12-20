@@ -479,9 +479,6 @@ def perform_bank_transfer(bank, request):
         today_trans = \
             Transaction.objects.filter(customer=customer, status="success", created_on__day=today.day).aggregate(
                 Sum("amount"))["amount__sum"] or 0
-        current_limit = float(amount) + float(today_trans)
-        if current_limit > customer.daily_limit:
-            return False, f"Your current daily transfer limit is NGN{customer.daily_limit}, please contact the bank"
 
         # Check if customer status is active
         result = check_account_status(customer)
@@ -511,6 +508,10 @@ def perform_bank_transfer(bank, request):
         ref_code = cit_generate_transaction_ref_code(code)
 
         if transfer_type == "same_bank":
+            current_limit = float(amount) + float(today_trans)
+            if current_limit > customer.daily_limit:
+                return False, f"Your current daily transfer limit is NGN{customer.daily_limit}, please contact the bank"
+
             if decimal.Decimal(amount) > balance:
                 return False, "Amount to transfer cannot be greater than current balance"
 
@@ -543,12 +544,17 @@ def perform_bank_transfer(bank, request):
         elif transfer_type == "other_bank":
             # Convert kobo amount sent on OtherBankTransfer to naira... To be removed in future update
             o_amount = amount / 100
+
             if decimal.Decimal(o_amount) > balance:
                 return False, "Amount to transfer cannot be greater than current balance"
             # Check Transfer Limit
             if o_amount > customer.transfer_limit:
                 log_request(f"Amount sent: {decimal.Decimal(amount)}, transfer_limit: {customer.transfer_limit}")
                 return False, "amount is greater than your limit. please contact the bank"
+
+            current_limit = float(o_amount) + float(today_trans)
+            if current_limit > customer.daily_limit:
+                return False, f"Your current daily transfer limit is NGN{customer.daily_limit}, please contact the bank"
 
             response = cit_other_bank_transfer(
                 amount=o_amount, bank_acct_no=app_zone_acct, sender_name=sender_name, sender_acct_no=account_number,
