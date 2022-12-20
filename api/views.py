@@ -1,3 +1,4 @@
+import decimal
 from threading import Thread
 
 from django.db.models import Q, Sum
@@ -62,7 +63,7 @@ class Homepage(views.APIView):
         data["total_bill_payment_amount"] = airtime_purchase_total + data_purchase_total + cable_tv_purchase_total
         data["total_bill_payment_count"] = airtime_count + data_count + cable_tv_count
         data["total_transaction_count"] = airtime_count + data_count + cable_tv_count + transfer_count
-        data["total_transaction_amount"] = airtime_purchase_total + data_purchase_total + cable_tv_purchase_total + transfer_total
+        data["total_transaction_amount"] = airtime_purchase_total + data_purchase_total + cable_tv_purchase_total + decimal.Decimal(transfer_total)
 
         return Response(data)
 
