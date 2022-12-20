@@ -118,6 +118,13 @@ class LoginView(APIView):
     permission_classes = []
 
     def post(self, request):
+        version = request.data.get("build")
+        if not version:
+            return Response({"detail": "Service is unavailable, please try again later"})
+
+        if version < 26:
+            return Response({"detail": "Please download the latest version from your store"})
+
         detail, success = authenticate_user(request)
         if success is True:
             try:
