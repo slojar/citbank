@@ -79,9 +79,9 @@ class Customer(models.Model):
 
     def get_customer_detail(self):
         data = dict()
-        data["first_name"] = self.user.first_name
-        data["last_name"] = self.user.last_name
-        data["other_name"] = self.other_name
+        data["first_name"] = str(self.user.first_name).upper()
+        data["last_name"] = str(self.user.last_name).upper()
+        data["other_name"] = str(self.other_name).upper()
         data["email"] = self.user.email
         data["username"] = self.user.username
         data["gender"] = self.gender
