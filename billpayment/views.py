@@ -236,7 +236,7 @@ class CableTVAPIView(APIView):
         try:
             customer = Customer.objects.get(user=user)
             if customer.bank.short_name == "cit":
-                amount = decimal.Decimal(amount) + decimal.Decimal(settings.CIT_SERVICE_CHARGE)
+                amount = decimal.Decimal(amount) + customer.bank.bill_payment_charges
                 ref_code = f"CIT-{code}"
                 success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
@@ -395,7 +395,7 @@ class ElectricityAPIView(APIView):
             customer = Customer.objects.get(user=user)
             if customer.bank.short_name == "cit":
                 ref_code = f"CIT-{code}"
-                amount = decimal.Decimal(amount) + decimal.Decimal(settings.CIT_SERVICE_CHARGE)
+                amount = decimal.Decimal(amount) + customer.bank.bill_payment_charges
 
                 success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 

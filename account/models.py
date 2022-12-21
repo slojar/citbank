@@ -52,6 +52,7 @@ class Bank(models.Model):
     logo = models.ImageField(upload_to="bank-logo")
     active = models.BooleanField(default=False)
     tm_service_id = models.TextField(blank=True, null=True)
+    bill_payment_charges = models.DecimalField(max_digits=20, decimal_places=2, default=100)
     # provide = models.ForeignKey(Provider, on_delete=models.SET_NULL, blank=True, null=True)
 
     def __str__(self):
