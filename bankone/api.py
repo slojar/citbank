@@ -1,4 +1,5 @@
 import datetime
+import decimal
 import json
 import uuid
 from threading import Thread
@@ -46,7 +47,7 @@ def cit_charge_customer(**kwargs):
     from account.utils import log_request
     url = f"{base_url_3ps}/CoreTransactions/LocalFundsTransfer"
 
-    amount = kwargs.get("amount") * 100
+    amount = decimal.Decimal(kwargs.get("amount")) * 100
 
     payload = dict()
     payload['AuthenticationKey'] = auth_token
