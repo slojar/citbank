@@ -7,6 +7,7 @@ import os.path
 import random
 import uuid
 import re
+from threading import Thread
 
 from django.conf import settings
 from django.contrib.auth import login, authenticate
@@ -228,13 +229,29 @@ def get_account_balance(customer, request):
                 account_detail["withdrawable_balance"] = decimal.Decimal(withdraw_able)
                 account_detail["available_balance"] = decimal.Decimal(available)
                 account_detail["kyc_level"] = account["kycLevel"]
+                account_detail["account_type"] = account["accountType"]
+                account_detail["bank_acct_no"] = account["accountNumber"]
                 customer_account.append(account_detail)
-        print(customer_account)
         data["account_balances"] = customer_account
+        Thread(target=update_customer_account, args=[customer, customer_account]).start()
 
     data["customer"] = CustomerSerializer(customer, context={"request": request}).data
 
     return data
+
+
+def update_customer_account(customer, account_balances):
+
+    for account in account_balances:
+        account_no = account["account_no"]
+        bank_acct_no = account["bank_acct_no"]
+        account_type = account["account_type"]
+
+        if not CustomerAccount.objects.filter(customer=customer, account_no=account_no).exists():
+            CustomerAccount.objects.create(
+                customer=customer, account_no=account_no, bank_acct_number=bank_acct_no, account_type=account_type
+            )
+    return True
 
 
 def get_previous_date(date, delta):
