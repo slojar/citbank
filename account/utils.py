@@ -406,7 +406,7 @@ def perform_bank_transfer(bank, request):
     if bank.short_name == "cit":
         app_zone_acct = customer_account.bank_acct_number
         # Check Transfer Limit
-        if amount > customer.transfer_limit:
+        if decimal.Decimal(amount) > customer.transfer_limit:
             log_request(f"Amount sent: {decimal.Decimal(amount)}, transfer_limit: {customer.transfer_limit}")
             return False, "amount is greater than your limit. please contact the bank"
 
