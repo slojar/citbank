@@ -238,7 +238,7 @@ def cit_other_bank_transfer(**kwargs):
     from account.utils import log_request
     url = f'{base_url_3ps}/Transfer/InterBankTransfer'
 
-    amount = kwargs.get("amount") * 100
+    amount = decimal.Decimal(kwargs.get("amount")) * 100
     header = {"Content-Type": "application/json"}
 
     payload = json.dumps(
@@ -550,7 +550,7 @@ def cit_to_cit_bank_transfer(**kwargs):
     from account.utils import log_request
     url = f"{base_url_3ps}/CoreTransactions/LocalFundsTransfer"
 
-    amount = kwargs.get("amount") * 100
+    amount = decimal.Decimal(kwargs.get("amount")) * 100
 
     payload = dict()
     payload['AuthenticationKey'] = auth_token
