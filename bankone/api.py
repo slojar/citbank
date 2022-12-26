@@ -241,25 +241,22 @@ def cit_other_bank_transfer(**kwargs):
     amount = decimal.Decimal(kwargs.get("amount")) * 100
     header = {"Content-Type": "application/json"}
 
-    payload = json.dumps(
-        {
-            "Amount": amount,
-            "AppzoneAccount": kwargs.get("bank_acct_no"),
-            "Payer": kwargs.get("sender_name"),
-            "PayerAccountNumber": kwargs.get("sender_acct_no"),
-            "ReceiverAccountNumber": kwargs.get("receiver_acct_no"),
-            "ReceiverAccountType": kwargs.get("receiver_acct_type"),
-            "ReceiverBankCode": kwargs.get("receiver_bank_code"),
-            "ReceiverPhoneNumber": "",
-            "ReceiverName": kwargs.get("receiver_name"),
-            "ReceiverBVN": "",
-            "ReceiverKYC": "",
-            "Narration": kwargs.get("description"),
-            "TransactionReference": kwargs.get("trans_ref"),
-            "NIPSessionID": kwargs.get("nip_session_id"),  # this is from NameEnquiry ep
-            "Token": auth_token
-        }
-    )
+    payload = dict()
+    payload["Amount"] = amount
+    payload["AppzoneAccount"] = kwargs.get("bank_acct_no")
+    payload["Payer"] = kwargs.get("sender_name")
+    payload["PayerAccountNumber"] = kwargs.get("sender_acct_no")
+    payload["ReceiverAccountNumber"] = kwargs.get("receiver_acct_no")
+    payload["ReceiverAccountType"] = kwargs.get("receiver_acct_type")
+    payload["ReceiverBankCode"] = kwargs.get("receiver_bank_code")
+    payload["ReceiverPhoneNumber"] = ""
+    payload["ReceiverName"] = kwargs.get("receiver_name")
+    payload["ReceiverBVN"] = ""
+    payload["ReceiverKYC"] = ""
+    payload["Narration"] = kwargs.get("description")
+    payload["TransactionReference"] = kwargs.get("trans_ref")
+    payload["NIPSessionID"] = kwargs.get("nip_session_id")
+    payload["Token"] = auth_token
 
     response = requests.request('POST', url=url, data=payload, headers=header).json()
     log_request(url, payload, response)
