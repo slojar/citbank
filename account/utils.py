@@ -505,18 +505,7 @@ def perform_bank_transfer(bank, request):
     return True, transfer
 
 
-# <<<<<<< HEAD
-    # generate transaction reference using the format CYYMMDDCODES
-    # now = datetime.datetime.now()
-    # start_date = now.date()
-    # start_date = datetime.datetime.today().date().replace(day=1)
-    # end_date = datetime.date(now.year, 1 if now.month == 12 else now.month + 1, 1) - datetime.timedelta(days=1)
-    # month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date)).count()
-    # code = str(month_transaction + 1)
-    # ref_code = generate_transaction_ref_code(code)
-# =======
 def perform_name_query(bank, request):
-# >>>>>>> 6c352fec3d64e2f59105de1e67a931b2519194b4
 
     account_no = request.GET.get("account_no")
     bank_code = request.GET.get("bank_code")
