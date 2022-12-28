@@ -692,16 +692,16 @@ class CustomerDashboardAPIView(APIView):
 
         transfer = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__user=request.user)
         airtime = Airtime.objects.filter(
-            created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+            created_on__range=(start_date, end_date), account_no__in=account_no, status__iexact="success"
         ).distinct()
         data = Data.objects.filter(
-            created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+            created_on__range=(start_date, end_date), account_no__in=account_no, status__iexact="success"
         ).distinct()
         cable = CableTV.objects.filter(
-            created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+            created_on__range=(start_date, end_date), account_no__in=account_no, status__iexact="success"
         ).distinct()
         electricity = Electricity.objects.filter(
-            created_on__range=(start_date, end_date), account_no__in=account_no, status="success"
+            created_on__range=(start_date, end_date), account_no__in=account_no, status__iexact="success"
         ).distinct()
 
         account_number = CustomerAccount.objects.filter(customer__user=request.user).first().account_no
