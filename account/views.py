@@ -484,10 +484,10 @@ class BeneficiaryView(APIView, CustomPagination):
             # To be removed when Mobile APP update beneficiary type
             query = Q(customer=customer)
             if beneficiary_type == "local_transfer" or beneficiary_type == "cit_bank_transfer":
-                query = Q(beneficiary_type="local_transfer") | Q(beneficiary_type="cit_bank_transfer")
+                query &= Q(beneficiary_type="local_transfer") | Q(beneficiary_type="cit_bank_transfer")
 
             if beneficiary_type == "external_transfer" or beneficiary_type == "other_bank_transfer":
-                query = Q(beneficiary_type="external_transfer") | Q(beneficiary_type="other_bank_transfer")
+                query &= Q(beneficiary_type="external_transfer") | Q(beneficiary_type="other_bank_transfer")
 
             if search:
                 query |= Q(beneficiary_name__icontains=search)
