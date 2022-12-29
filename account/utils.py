@@ -450,6 +450,8 @@ def perform_bank_transfer(bank, request):
         ref_code = cit_generate_transaction_ref_code(code)
 
         if transfer_type == "same_bank":
+            if not narration:
+                narration = "transfer"
 
             bank_name = bank.name
             response = cit_to_cit_bank_transfer(

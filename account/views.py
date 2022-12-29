@@ -481,18 +481,33 @@ class BeneficiaryView(APIView, CustomPagination):
 
             customer = Customer.objects.get(user=request.user)
 
-            beneficiaries = Beneficiary.objects.filter(customer=customer)
+            # To be removed when Mobile APP update beneficiary type
+            query = Q(customer=customer)
+            if beneficiary_type == "local_transfer" or beneficiary_type == "cit_bank_transfer":
+                query = Q(beneficiary_type="local_transfer") | Q(beneficiary_type="cit_bank_transfer")
 
-            if beneficiary_type and search:
-                query = Q(beneficiary_name__icontains=search)
+            if beneficiary_type == "external_transfer" or beneficiary_type == "other_bank_transfer":
+                query = Q(beneficiary_type="external_transfer") | Q(beneficiary_type="other_bank_transfer")
+
+            if search:
+                query |= Q(beneficiary_name__icontains=search)
                 query |= Q(beneficiary_bank__icontains=search)
                 query |= Q(beneficiary_acct_no__icontains=search)
                 query |= Q(beneficiary_number__icontains=search)
                 query |= Q(biller_name__icontains=search)
-                beneficiaries = Beneficiary.objects.filter(query, customer=customer, beneficiary_type=beneficiary_type)
 
-            if beneficiary_type and not search:
-                beneficiaries = Beneficiary.objects.filter(customer=customer, beneficiary_type=beneficiary_type)
+            beneficiaries = Beneficiary.objects.filter(query, beneficiary_type=beneficiary_type)
+
+            # if beneficiary_type and search:
+            #     query = Q(beneficiary_name__icontains=search)
+            #     query |= Q(beneficiary_bank__icontains=search)
+            #     query |= Q(beneficiary_acct_no__icontains=search)
+            #     query |= Q(beneficiary_number__icontains=search)
+            #     query |= Q(biller_name__icontains=search)
+            #     beneficiaries = Beneficiary.objects.filter(query, customer=customer, beneficiary_type=beneficiary_type)
+            #
+            # if beneficiary_type and not search:
+            #     beneficiaries = Beneficiary.objects.filter(customer=customer, beneficiary_type=beneficiary_type)
 
             paginate = self.paginate_queryset(beneficiaries, request)
             paginated_query = self.get_paginated_response(BeneficiarySerializer(paginate, many=True).data).data
