@@ -489,6 +489,15 @@ class BeneficiaryView(APIView, CustomPagination):
             if beneficiary_type == "external_transfer" or beneficiary_type == "other_bank_transfer":
                 query &= Q(beneficiary_type="external_transfer") | Q(beneficiary_type="other_bank_transfer")
 
+            if beneficiary_type == "airtime":
+                query &= Q(beneficiary_type="airtime")
+
+            if beneficiary_type == "data":
+                query &= Q(beneficiary_type="data")
+
+            if beneficiary_type == "utility":
+                query &= Q(beneficiary_type="utility")
+
             if search:
                 query &= Q(beneficiary_name__icontains=search) | Q(beneficiary_bank__icontains=search) | \
                          Q(beneficiary_acct_no__icontains=search) | Q(beneficiary_number__icontains=search) | \
