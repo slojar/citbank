@@ -490,13 +490,11 @@ class BeneficiaryView(APIView, CustomPagination):
                 query &= Q(beneficiary_type="external_transfer") | Q(beneficiary_type="other_bank_transfer")
 
             if search:
-                query |= Q(beneficiary_name__icontains=search)
-                query |= Q(beneficiary_bank__icontains=search)
-                query |= Q(beneficiary_acct_no__icontains=search)
-                query |= Q(beneficiary_number__icontains=search)
-                query |= Q(biller_name__icontains=search)
+                query &= Q(beneficiary_name__icontains=search) | Q(beneficiary_bank__icontains=search) | \
+                         Q(beneficiary_acct_no__icontains=search) | Q(beneficiary_number__icontains=search) | \
+                         Q(biller_name__icontains=search)
 
-            beneficiaries = Beneficiary.objects.filter(query, beneficiary_type=beneficiary_type)
+            beneficiaries = Beneficiary.objects.filter(query)
 
             # if beneficiary_type and search:
             #     query = Q(beneficiary_name__icontains=search)
