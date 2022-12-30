@@ -417,6 +417,7 @@ def perform_bank_transfer(bank, request):
                 Sum("amount"))["amount__sum"] or 0
         current_limit = float(amount) + float(today_trans)
         if current_limit > customer.daily_limit:
+            log_request(f"Amount to transfer:{amount}, Total Transfered today: {today_trans}, Exceed: {current_limit}")
             return False, f"Your current daily transfer limit is NGN{customer.daily_limit}, please contact the bank"
 
         # Check if customer status is active
