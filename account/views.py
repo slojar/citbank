@@ -119,7 +119,7 @@ class LoginView(APIView):
 
     def post(self, request):
         version = request.data.get("build")
-        if not version or version < 27:
+        if not version or version < 28:
             return Response({"detail": "Please download the latest version from your store"}, status=status.HTTP_400_BAD_REQUEST)
 
         detail, success = authenticate_user(request)
