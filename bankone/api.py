@@ -278,7 +278,7 @@ def bankone_get_banks(auth_token):
     url = f'{base_url_3ps}/BillsPayment/GetCommercialBanks/{auth_token}'
 
     response = requests.request('GET', url=url).json()
-    log_request(url, response)
+    # log_request(url, response)
     return response
 
 
