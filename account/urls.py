@@ -34,7 +34,7 @@ urlpatterns = [
     path('confirm-transaction-pin/', views.ConfirmTransactionPin.as_view(), name="confirm-transaction-pin"),
 
     path('feedback/', views.FeedbackView.as_view(), name="user-feedback"),
-    path('generate-code/', views.GenerateRandomCode.as_view(), name="generate-code"),
+    # path('generate-code/', views.GenerateRandomCode.as_view(), name="generate-code"),
 
     path('history/<int:bank_id>', views.BankHistoryAPIView.as_view(), name="history"),
     path('statement/<int:bank_id>', views.GenerateStatement.as_view(), name="statement"),

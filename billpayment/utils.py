@@ -1,10 +1,15 @@
+import json
 from threading import Thread
 
+from django.conf import settings
+
 from account.models import CustomerAccount
-from account.utils import check_account_status
-from bankone.api import cit_get_details_by_customer_id, cit_charge_customer, cit_send_sms
+from account.utils import check_account_status, decrypt_text
+from bankone.api import bankone_get_details_by_customer_id, bankone_charge_customer, bankone_send_sms
 from billpayment.models import Electricity
 from tm_saas.api import validate_meter_no, electricity
+
+bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
 
 def check_balance_and_charge(user, account_no, amount, ref_code, narration):
@@ -19,7 +24,8 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
         return False, "Your account is locked, please contact the bank to unlock"
 
     # CHECK ACCOUNT BALANCE
-    response = cit_get_details_by_customer_id(customer.customerID).json()
+    token = decrypt_text(customer.bank.auth_token)
+    response = bankone_get_details_by_customer_id(customer.customerID, token).json()
 
     balance = 0
     accounts = response["Accounts"]
@@ -34,7 +40,9 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
         return False, "Amount cannot be greater than current balance"
 
     # CHARGE CUSTOMER ACCOUNT
-    response = cit_charge_customer(account_no=account_no, amount=amount, trans_ref=ref_code, description=narration)
+    response = bankone_charge_customer(
+        account_no=account_no, amount=amount, trans_ref=ref_code, description=narration, auth_token=token
+    )
     response = response.json()
 
     return True, response
@@ -146,10 +154,13 @@ def vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_n
 
     if not token == "":
         # SEND TOKEN TO PHONE NUMBER
-        content = f"Your {disco_type} token is: {token}".replace("_", " ")
-        Thread(target=cit_send_sms, args=[account_no, content, phone_number]).start()
-        elect.token_sent = True
-        elect.save()
+        if customer.bank.short_name in bank_one_banks:
+            auth_token = decrypt_text(customer.bank.auth_token)
+            code = decrypt_text(customer.bank.institution_code)
+            content = f"Your {disco_type} token is: {token}".replace("_", " ")
+            Thread(target=bankone_send_sms, args=[account_no, content, phone_number, auth_token, code]).start()
+            elect.token_sent = True
+            elect.save()
 
     return True, "vending was successful", token
 

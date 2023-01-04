@@ -1,5 +1,6 @@
 import datetime
 import decimal
+import json
 import uuid
 from threading import Thread
 
@@ -16,6 +17,8 @@ from billpayment.utils import check_balance_and_charge, vend_electricity
 from tm_saas.api import get_networks, get_data_plan, purchase_airtime, purchase_data, get_services, \
     get_service_products, validate_scn, cable_tv_sub, validate_meter_no, get_discos
 
+bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
+
 
 class GetNetworksAPIView(APIView):
 
@@ -25,7 +28,7 @@ class GetNetworksAPIView(APIView):
             network = request.GET.get("network")
             customer = Customer.objects.get(user=request.user)
 
-            if customer.bank.short_name == "cit":
+            if customer.bank.tm_service_id:
                 if network:
                     response = get_data_plan(str(network).lower(), customer.bank)
                     if "data" in response:
@@ -79,8 +82,9 @@ class AirtimeDataPurchaseAPIView(APIView):
         try:
             customer = Customer.objects.get(user=user)
 
-            if customer.bank.short_name == "cit":
-                ref_code = f"CIT-{code}"
+            if customer.bank.short_name in bank_one_banks:
+                name = str(customer.bank.short_name.upper())
+                ref_code = f"{name}-{code}"
                 success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
                 if success is False:
@@ -177,7 +181,7 @@ class CableTVAPIView(APIView):
 
         try:
             customer = Customer.objects.get(user=request.user)
-            if customer.bank.short_name == "cit":
+            if customer.bank.short_name in bank_one_banks:
                 if service_name:
                     response = get_service_products(customer.bank, service_name, product_code)
                     if "error" in response:
@@ -235,9 +239,10 @@ class CableTVAPIView(APIView):
 
         try:
             customer = Customer.objects.get(user=user)
-            if customer.bank.short_name == "cit":
+            if customer.bank.short_name in bank_one_banks:
                 amount = decimal.Decimal(amount) + customer.bank.bill_payment_charges
-                ref_code = f"CIT-{code}"
+                s_name = str(customer.bank.short_name).upper()
+                ref_code = f"{s_name}-{code}"
                 success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
                 if success is False:
@@ -312,7 +317,7 @@ class ValidateAPIView(APIView):
 
         try:
             customer = Customer.objects.get(user=request.user)
-            if customer.bank.short_name == "cit":
+            if customer.bank.short_name in bank_one_banks:
 
                 if validate_type == "smart_card":
                     if not all([smart_card_no, service_name]):
@@ -353,7 +358,7 @@ class ElectricityAPIView(APIView):
         try:
             customer = Customer.objects.get(user=request.user)
 
-            if customer.bank.short_name == "cit":
+            if customer.bank.short_name in bank_one_banks:
                 response = get_discos(customer.bank)
                 if not response["data"]:
                     return Response({"detail": "An error occurred while fetching data"},
@@ -393,8 +398,9 @@ class ElectricityAPIView(APIView):
 
         try:
             customer = Customer.objects.get(user=user)
-            if customer.bank.short_name == "cit":
-                ref_code = f"CIT-{code}"
+            if customer.bank.short_name in bank_one_banks:
+                sh_name = str(customer.bank.short_name).upper()
+                ref_code = f"{sh_name}-{code}"
                 amount = decimal.Decimal(amount) + customer.bank.bill_payment_charges
 
                 success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)

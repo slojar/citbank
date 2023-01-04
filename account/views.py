@@ -27,11 +27,11 @@ from .utils import authenticate_user, generate_new_otp, \
     get_bank_flex_balance, perform_bank_transfer, perform_name_query, retrieve_customer_card, block_or_unblock_card, \
     perform_bvn_validation, get_fix_deposit_accounts
 
-from bankone.api import cit_get_account_by_account_no, send_otp_message, cit_create_new_customer, \
-    generate_random_ref_code, cit_send_email
+from bankone.api import bankone_get_account_by_account_no, bankone_send_otp_message, bankone_create_new_customer, \
+    generate_random_ref_code, bankone_send_email
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
 
-bankOneToken = settings.BANK_ONE_AUTH_TOKEN
+bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
 
 class HomepageView(APIView):
@@ -103,8 +103,8 @@ class SignupView(APIView):
             if bank.active is False:
                 return Response({'detail': "Error, bank is inactive"}, status=status.HTTP_400_BAD_REQUEST)
 
-            if bank.short_name == "cit":
-                success, detail = cit_create_new_customer(data, account_no, bank)
+            if bank.short_name in bank_one_banks:
+                success, detail = bankone_create_new_customer(data, account_no, bank)
                 if not success:
                     log_request(f"error-message: {detail}")
                     return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
@@ -155,13 +155,16 @@ class SignupOtpView(APIView):
 
             bank = Bank.objects.get(id=bank_id)
             phone_number = content = subject = email = None
+            bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
+            short_name = bank.short_name
+            decrypted_token = decrypt_text(bank.auth_token)
 
             if bank.active is False:
                 return Response({'detail': "Error, bank is inactive"}, status=status.HTTP_400_BAD_REQUEST)
 
             # GET CUSTOMER PHONE NUMBER AND EMAIL
-            if bank.short_name == "cit":
-                response = cit_get_account_by_account_no(account_no)
+            if short_name in bank_one_banks:
+                response = bankone_get_account_by_account_no(account_no, decrypted_token)
                 if response.status_code != 200:
                     for response in response.json():
                         detail = response['error-Message']
@@ -174,11 +177,12 @@ class SignupOtpView(APIView):
                 name = str(customer_data['CustomerDetails']['Name']).split()[0]
 
                 otp = generate_new_otp(phone_number)
+                sh_name = str(bank.name).upper()
                 content = f"Dear {name}, \nKindly use this OTP: {otp} to complete " \
-                          f"your registration on CIT Mobile App."
-                subject = "CIT Mobile Registration"
+                          f"your registration on {sh_name}."
+                subject = f"{sh_name} Registration"
             # SEND OTP TO USER
-            success, detail = send_otp_message(phone_number, content, subject, account_no, email, bank)
+            success, detail = bankone_send_otp_message(phone_number, content, subject, account_no, email, bank)
             if success is False:
                 log_request(f"error-message: {detail}")
                 return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
@@ -281,10 +285,11 @@ class ResetOTPView(APIView):
             account_no = customer_acct.account_no
             email = customer.user.email
             content = subject = ""
-            if bank.short_name == "cit":
-                content = f"Dear {first_name},\nKindly use this OTP: {otp} to reset your {reset_type} on CIT Mobile App."
-                subject = f"Reset {reset_type} on CIT Mobile"
-            success, detail = send_otp_message(phone_number, content, subject, account_no, email, bank)
+            if bank.short_name in bank_one_banks:
+                s_name = str(bank.name).upper()
+                content = f"Dear {first_name},\nKindly use this OTP: {otp} to reset your {reset_type} on {s_name}."
+                subject = f"Reset {reset_type} on {s_name}"
+            success, detail = bankone_send_otp_message(phone_number, content, subject, account_no, email, bank)
             if success is False:
                 log_request(f"error-message: {detail}")
                 return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
@@ -621,14 +626,17 @@ class FeedbackView(APIView):
         message_type = request.data.get("message_type")
 
         name = str("{} {}").format(self.request.user.first_name, self.request.user.last_name).capitalize()
+        customer = get_object_or_404(Customer, user=request.user)
 
         if not all([message, message_type]):
             log_request(f"error-message: required are message and message_type")
             return Response({"detail": "message and message_type are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        rating_email = settings.CIT_ACCOUNT_OFFICE_RATING_EMAIL
-        feedback_email = settings.CIT_FEEDBACK_EMAIL
-        enquiry_email = settings.CIT_ENQUIRY_EMAIL
+        rating_email = customer.bank.officer_rating_email
+        feedback_email = customer.bank.feedback_email
+        enquiry_email = customer.bank.enquiry_email
+        institution_code = decrypt_text(customer.bank.institution_code)
+        mfb_code = decrypt_text(customer.bank.mfb_code)
 
         if message_type == "account_manager_rating":
             subject, receiver = f"ACCOUNT OFFICER RATING FROM {name}", rating_email
@@ -637,23 +645,69 @@ class FeedbackView(APIView):
         else:
             subject, receiver = f"ENQUIRY FROM {name}", enquiry_email
 
-        Thread(target=cit_send_email, args=[request.user.email, receiver, subject, message])
+        Thread(target=bankone_send_email, args=[request.user.email, receiver, subject, message, institution_code, mfb_code])
 
         return Response({"detail": "Message sent successfully"})
 
 
-class GenerateRandomCode(APIView):
-    permission_classes = []
+# class GenerateRandomCode(APIView):
+#     permission_classes = []
+#
+#     def get(self, request):
+#         code = generate_random_ref_code()
+#         return Response({"detail": code})
 
-    def get(self, request):
-        code = generate_random_ref_code()
-        return Response({"detail": code})
 
-
-class BankAPIListView(generics.ListAPIView):
+class OldBankAPIListView(generics.ListAPIView):
     permission_classes = []
     serializer_class = BankSerializer
     queryset = Bank.objects.all()
+
+
+class BankAPIListView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        name = request.data.get("name")
+        short_name = request.data.get("short_name")
+        tm_service_id = request.data.get("tm_service_id")
+        institution_code = request.data.get("institution_code")
+        mfb_code = request.data.get("mfb_code")
+        auth_token = request.data.get("auth_token")
+        auth_key_bank_flex = request.data.get("auth_key_bank_flex")
+
+        if not name:
+            return Response({"detail": "Bank name is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        bank, create = Bank.objects.get_or_create(name=name)
+        if short_name:
+            # remove spaces
+            s_name = str(short_name).replace(" ", "").lower()
+            bank.short_name = s_name
+        bank.support_email = request.data.get("support_email")
+        bank.enquiry_email = request.data.get("enquiry_email")
+        bank.feedback_email = request.data.get("feedback_email")
+        bank.officer_rating_email = request.data.get("officer_rating_email")
+        bank.registration_email = request.data.get("registration_email")
+        bank.website = request.data.get("website")
+        bank.address = request.data.get("address")
+        bank.bill_payment_charges = request.data.get("bill_payment_charges")
+        if tm_service_id:
+            bank.tm_service_id = encrypt_text(tm_service_id)
+        if auth_token:
+            bank.auth_token = encrypt_text(auth_token)
+        if institution_code:
+            bank.institution_code = encrypt_text(institution_code)
+        if mfb_code:
+            bank.mfb_code = encrypt_text(mfb_code)
+        if auth_key_bank_flex:
+            bank.auth_key_bank_flex = encrypt_text(auth_key_bank_flex)
+        bank.save()
+
+        return Response(BankSerializer(bank, context={"request": request}).data)
+
+    def get(self, request):
+        return Response(BankSerializer(Bank.objects.all(), many=True).data)
 
 
 class OpenAccountAPIView(APIView):
@@ -810,7 +864,7 @@ class GenerateStatement(APIView):
                         # Send statement to customer
                         email_from = str(settings.CIT_EMAIL_FROM)
                         Thread(
-                            target=cit_send_email,
+                            target=bankone_send_email,
                             args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}",
                                   response]
                         ).start()

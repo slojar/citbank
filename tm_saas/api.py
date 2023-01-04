@@ -1,13 +1,13 @@
 import requests
 from django.conf import settings
-from account.utils import log_request
+from account.utils import log_request, decrypt_text
 
 baseUrl = settings.TM_BASE_URL
 
 
 def get_header(bank):
     header = {
-        "client-id": bank.tm_service_id
+        "client-id": decrypt_text(bank.tm_service_id)
     }
     return header
 
@@ -76,7 +76,7 @@ def get_service_products(bank, service_name, product_code=None):
 def validate_scn(bank, service_name, scn):
     url = f"{baseUrl}/{service_name}/validate"
     d_header = {
-        "client-id": bank.tm_service_id,
+        "client-id": decrypt_text(bank.tm_service_id),
         "Content-Type": "application/x-www-form-urlencoded"
     }
     payload = f"provider=cdl&smartCardNumber={scn}"
