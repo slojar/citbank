@@ -61,6 +61,7 @@ class Bank(models.Model):
     institution_code = models.TextField(blank=True, null=True)
     mfb_code = models.TextField(blank=True, null=True)
     auth_key_bank_flex = models.TextField(blank=True, null=True)
+    app_version = models.IntegerField(default=1)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
     # provide = models.ForeignKey(Provider, on_delete=models.SET_NULL, blank=True, null=True)
