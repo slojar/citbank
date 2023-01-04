@@ -11,7 +11,7 @@ from account.models import Customer, Transaction, AccountRequest
 from account.serializers import CustomerSerializer, TransferSerializer, AccountRequestSerializer
 from account.paginations import CustomPagination
 from account.utils import review_account_request, log_request
-from bankone.api import send_otp_message
+from bankone.api import bankone_send_otp_message
 from billpayment.models import Airtime, CableTV, Data, Electricity
 from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
 
@@ -258,7 +258,7 @@ class AdminAccountRequestAPIView(views.APIView, CustomPagination):
                       f"a customer service agent will contact you soon."
             subject = f"{acct_req.bank.name}: Account Creation Rejected"
             Thread(
-                target=send_otp_message,
+                target=bankone_send_otp_message,
                 args=[acct_req.phone_no, content, subject, 1234567890, acct_req.email, acct_req.bank]
             ).start()
 

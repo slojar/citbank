@@ -1,7 +1,11 @@
-from bankone.api import cit_get_banks
+import json
+from django.conf import settings
+from bankone.api import bankone_get_banks
 from .models import Customer, CustomerAccount, Transaction, Beneficiary, Bank, AccountRequest
 from rest_framework import serializers
 from .utils import decrypt_text
+
+bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
 
 class BankSerializer(serializers.ModelSerializer):
@@ -18,8 +22,9 @@ class BankSerializer(serializers.ModelSerializer):
 
     def get_nip_banks(self, obj):
         result = list()
-        if obj.short_name == "cit":
-            response = cit_get_banks()
+        if obj.short_name in bank_one_banks:
+            token = decrypt_text(obj.auth_token)
+            response = bankone_get_banks(token)
             for res in response:
                 data = dict()
                 data["bank_name"] = res["Name"]
@@ -29,7 +34,7 @@ class BankSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Bank
-        exclude = []
+        exclude = ["tm_service_id", "auth_token", "institution_code", "mfb_code", "auth_key_bank_flex"]
 
 
 class CustomerAccountSerializer(serializers.ModelSerializer):

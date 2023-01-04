@@ -2,6 +2,7 @@ import base64
 import calendar
 import datetime
 import decimal
+import json
 import logging
 import os.path
 import random
@@ -16,14 +17,12 @@ from django.db.models import Sum
 
 from dateutil.relativedelta import relativedelta
 
-from bankone.api import cit_generate_transaction_ref_code, generate_random_ref_code, cit_get_acct_officer, \
-    cit_create_account, \
-    cit_get_details_by_customer_id, cit_transaction_history, cit_generate_statement, cit_get_customer_acct_officer, \
-    bank_flex, cit_to_cit_bank_transfer, cit_other_bank_transfer, cit_get_account_by_account_no, cit_others_name_query, \
-    cit_get_customer_cards, cit_freeze_or_unfreeze_card, cit_get_bvn_detail, cit_get_fixed_deposit
+from bankone.api import *
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction, AccountRequest
 
 from cryptography.fernet import Fernet
+
+bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
 
 def log_request(*args):
@@ -162,7 +161,7 @@ def confirm_trans_pin(request):
 
 def open_account_with_banks(bank, request):
     data = request.data
-    if bank.short_name == "cit":
+    if bank.short_name in bank_one_banks:
         bvn = data.get("bvn")
         phone = data.get("phone_number")
         f_name = data.get("first_name")
@@ -212,9 +211,10 @@ def get_account_balance(customer, request):
     from .serializers import CustomerSerializer
 
     data = dict()
-    if customer.bank.short_name == "cit":
+    if customer.bank.short_name in bank_one_banks:
         # GET ACCOUNT BALANCES
-        response = cit_get_details_by_customer_id(customer.customerID).json()
+        token = decrypt_text(customer.bank.auth_token)
+        response = bankone_get_details_by_customer_id(customer.customerID, token).json()
         accounts = response["Accounts"]
         customer_account = list()
         for account in accounts:
@@ -288,8 +288,12 @@ def get_previous_month_date(date, delta):
 
 
 def get_transaction_history(bank, acct_no, date_from=None, date_to=None, page=None):
-    if bank.short_name == "cit":
-        response = cit_transaction_history(acct_no=acct_no, page_no=page, date_from=date_from, date_to=date_to)
+    if bank.short_name in bank_one_banks:
+        token = decrypt_text(bank.auth_token)
+        code = decrypt_text(bank.institution_code)
+        response = bankone_transaction_history(
+            acct_no=acct_no, page_no=page, date_from=date_from, date_to=date_to, auth_token=token, institution_code=code
+        )
         result = list()
         pages = dict()
 
@@ -313,15 +317,18 @@ def get_transaction_history(bank, acct_no, date_from=None, date_to=None, page=No
 
 
 def generate_bank_statement(request, bank, date_from, date_to, account_no, format_):
-    if bank.short_name == "cit":
+    if bank.short_name in bank_one_banks:
         # Check if date duration is not more than 6months
+        token = decrypt_text(bank.auth_token)
         max_date = get_previous_month_date(datetime.datetime.strptime(date_to, '%Y-%m-%d'), 6)
 
         if max_date > datetime.datetime.strptime(date_from, '%Y-%m-%d'):
             return False, "The maximum period to generate cannot be greater than six (6) months"
 
         # Call Bank to generate statement
-        response = cit_generate_statement(accountNo=account_no, dateFrom=date_from, dateTo=date_to, format=format_)
+        response = bankone_generate_statement(
+            accountNo=account_no, dateFrom=date_from, dateTo=date_to, format=format_, auth_token=token
+        )
 
         statement = ""
         if response["IsSuccessful"] is True:
@@ -342,10 +349,12 @@ def generate_bank_statement(request, bank, date_from, date_to, account_no, forma
 
 def get_account_officer(account):
     data = dict()
-    if account.customer.bank.short_name == "cit":
+    bank = account.customer.bank
+    if bank.short_name in bank_one_banks:
         account_no = account.account_no
+        token = decrypt_text(bank.auth_token)
         # GET ACCOUNT OFFICER
-        response = cit_get_customer_acct_officer(account_no)
+        response = bankone_get_customer_acct_officer(account_no, token)
         if response["IsSuccessful"] is True:
             if response["Message"]:
                 result = response["Message"]
@@ -361,14 +370,15 @@ def get_account_officer(account):
 
 def get_bank_flex_balance(customer):
     if customer.bvn:
-        # decrypt bvn
-        bvn = decrypt_text(customer.bvn)
-        response = bank_flex(bvn)
-        if response["code"] != 200:
-            return False, "Could not retrieve bank flex details at the moment, please try again later"
-        data = response["data"]
+        if customer.bank.short_name in bank_one_banks:
+            flex_token = decrypt_text(customer.bank.auth_key_bank_flex)
+            bvn = decrypt_text(customer.bvn)
+            response = bank_flex(bvn, flex_token)
+            if response["code"] != 200:
+                return False, "Could not retrieve bank flex details at the moment, please try again later"
+            data = response["data"]
 
-        return True, data
+            return True, data
 
 
 def perform_bank_transfer(bank, request):
@@ -403,7 +413,7 @@ def perform_bank_transfer(bank, request):
 
     transfer = None
 
-    if bank.short_name == "cit":
+    if bank.short_name in bank_one_banks:
         app_zone_acct = customer_account.bank_acct_number
         # Check Transfer Limit
         if decimal.Decimal(amount) > customer.transfer_limit:
@@ -427,7 +437,8 @@ def perform_bank_transfer(bank, request):
 
         # Compare amount with customer balance
         balance = 0
-        account = cit_get_details_by_customer_id(customer.customerID).json()
+        token = decrypt_text(bank.auth_token)
+        account = bankone_get_details_by_customer_id(customer.customerID, token).json()
         for acct in account["Accounts"]:
             if acct["NUBAN"] == account_number:
                 withdraw_able = str(acct["withdrawableAmount"]).replace(",", "")
@@ -446,18 +457,18 @@ def perform_bank_transfer(bank, request):
         # generate transaction reference using the format CYYMMDDCODES
         today = datetime.datetime.now()
         start_date, end_date = get_month_start_and_end_datetime(today)
-        month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date)).count()
+        month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__bank=bank).count()
         code = str(month_transaction + 1)
-        ref_code = cit_generate_transaction_ref_code(code)
+        ref_code = bankone_generate_transaction_ref_code(code, bank.short_name)
 
         if transfer_type == "same_bank":
             if not narration:
                 narration = "transfer"
 
             bank_name = bank.name
-            response = cit_to_cit_bank_transfer(
+            response = bankone_local_bank_transfer(
                 amount=amount, sender=account_number, receiver=beneficiary_acct, trans_ref=ref_code,
-                description=narration
+                description=narration, auth_token=token
             )
             # Create Transaction instance
             transfer = Transaction.objects.create(
@@ -479,10 +490,10 @@ def perform_bank_transfer(bank, request):
             # Convert kobo amount sent on OtherBankTransfer to naira... To be removed in future update
             # o_amount = amount / 100
 
-            response = cit_other_bank_transfer(
+            response = bankone_other_bank_transfer(
                 amount=amount, bank_acct_no=app_zone_acct, sender_name=sender_name, sender_acct_no=account_number,
                 receiver_acct_no=beneficiary_acct, receiver_acct_type=beneficiary_acct_type,
-                receiver_bank_code=bank_code, receiver_name=beneficiary_name,
+                receiver_bank_code=bank_code, receiver_name=beneficiary_name, auth_token=token,
                 description=narration, trans_ref=ref_code,
                 nip_session_id=nip_session_id
             )
@@ -519,10 +530,13 @@ def perform_name_query(bank, request):
 
     data = dict()
     name = nip_session_id = ""
+    bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
+    short_name = bank.short_name
+    decrypted_token = decrypt_text(bank.auth_token)
 
     if query_type == "same_bank":
-        if bank.short_name == "cit":
-            response = cit_get_account_by_account_no(account_no).json()
+        if short_name in bank_one_banks:
+            response = bankone_get_account_by_account_no(account_no, decrypted_token).json()
             if "CustomerDetails" in response:
                 customer_detail = response["CustomerDetails"]
                 name = customer_detail["Name"]
@@ -534,8 +548,8 @@ def perform_name_query(bank, request):
         if not all([account_no, bank_code]):
             return False, "Account number and bank code are required"
 
-        if bank.short_name == "cit":
-            response = cit_others_name_query(account_no, bank_code)
+        if short_name in bank_one_banks:
+            response = bankone_others_name_query(account_no, bank_code, decrypted_token)
             if response["IsSuccessful"] is True:
                 name = response["Name"]
                 nip_session_id = response["SessionID"]
@@ -561,8 +575,9 @@ def retrieve_customer_card(customer, account_no):
 
     result = list()
 
-    if customer.bank.short_name == "cit":
-        response = cit_get_customer_cards(account_no)
+    if customer.bank.short_name in bank_one_banks:
+        token = decrypt_text(customer.bank.auth_token)
+        response = bankone_get_customer_cards(account_no, token)
         if response["isSuccessful"] is True:
             cards = response["Cards"]
             data = dict()
@@ -588,7 +603,8 @@ def block_or_unblock_card(request):
     if not CustomerAccount.objects.filter(account_no=account_no, customer=customer).exists():
         return False, "Account number is not valid for authenticated user"
 
-    if customer.bank.short_name == "cit":
+    if customer.bank.short_name in bank_one_banks:
+        token = decrypt_text(customer.bank.auth_token)
         if not all([serial_no, account_no]):
             return False, "Required: card serial number and account number"
         if request_action == "block":
@@ -598,7 +614,7 @@ def block_or_unblock_card(request):
         else:
             return False, "Invalid action selected. Expected 'block' or 'unblock'"
 
-        response = cit_freeze_or_unfreeze_card(serial_no, reason, account_no, action)
+        response = bankone_freeze_or_unfreeze_card(serial_no, reason, account_no, action, token)
         if response["IsSuccessful"] is False:
             return False, f"Error occurred while {request_action}ing card. Please try again later or contact the bank."
 
@@ -610,8 +626,9 @@ def block_or_unblock_card(request):
 
 def perform_bvn_validation(bank, bvn):
     success, detail = False, "Error occurred while retrieving BVN information"
-    if bank.short_name == "cit":
-        response = cit_get_bvn_detail(bvn)
+    if bank.short_name in bank_one_banks:
+        token = decrypt_text(bank.auth_token)
+        response = bankone_get_bvn_detail(bvn, token)
         if "RequestStatus" in response:
             if response["RequestStatus"] is True and response["isBvnValid"] is True:
                 success, detail = True, response["bvnDetails"]
@@ -627,8 +644,9 @@ def get_fix_deposit_accounts(bank, request):
     success = False
     detail = "Error while retrieving fixed account"
 
-    if bank.short_name == "cit":
-        response = cit_get_fixed_deposit(phone_no)
+    if bank.short_name in bank_one_banks:
+        auth_token = decrypt_text(bank.auth_token)
+        response = bankone_get_fixed_deposit(phone_no, auth_token)
         if response.status_code == 404:
             detail = response.json()
         if response.status_code == 200:
@@ -649,13 +667,15 @@ def get_fix_deposit_accounts(bank, request):
 
 
 def review_account_request(acct_req):
-    if acct_req.bank.short_name == "cit":
+    short_name = acct_req.bank.short_name
+    if short_name in bank_one_banks:
+        token = decrypt_text(acct_req.bank.auth_token)
 
         # GENERATE TRANSACTION REF
-        tran_code = generate_random_ref_code()
+        tran_code = generate_random_ref_code(short_name)
 
         # GET RANDOM ACCOUNT OFFICER
-        officers = cit_get_acct_officer()
+        officers = bankone_get_acct_officer(token)
         acct_officer = random.choice(officers)
         officer_code = acct_officer["Code"]
 
@@ -664,16 +684,17 @@ def review_account_request(acct_req):
         image_str = base64.b64encode(acct_req.image.read())
 
         # OPEN ACCOUNT FOR CUSTOMER
-        response = cit_create_account(
+        response = bankone_create_account(
             bvnNumber=acct_req.bvn, phoneNumber=acct_req.phone_no, firstName=acct_req.first_name,
             otherName=acct_req.other_name, lastName=acct_req.last_name, gender=acct_req.gender, dob=acct_req.dob,
             nin=acct_req.nin, email=acct_req.email, address=acct_req.address, transRef=tran_code,
-            officerCode=officer_code, signatureString=signature_str, imageString=image_str
+            officerCode=officer_code, signatureString=signature_str, imageString=image_str, auth_token=token
         )
 
         if response["IsSuccessful"] is False:
             return False, response["Message"]["CreationMessage"]
-        return True, "Request submitted for account opening"
+
+    return True, "Request submitted for account opening"
 
 
 

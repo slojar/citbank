@@ -10,23 +10,26 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 
 from account.models import CustomerAccount, CustomerOTP, Customer, Transaction
+from account.utils import decrypt_text
+
+bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
 base_url = settings.BANK_ONE_BASE_URL
 base_url_3ps = settings.BANK_ONE_3PS_URL
 version = settings.BANK_ONE_VERSION
-auth_token = settings.BANK_ONE_AUTH_TOKEN
-institution_code = settings.CIT_INSTITUTION_CODE
-mfb_code = settings.CIT_MFB_CODE
+# auth_token = settings.BANK_ONE_AUTH_TOKEN
+# institution_code = settings.CIT_INSTITUTION_CODE
+# mfb_code = settings.CIT_MFB_CODE
 base_url_bank_flex = settings.BANK_FLEX_BASE_URL
-auth_key_bank_flex = settings.BANK_FLEX_KEY
+# auth_key_bank_flex = settings.BANK_FLEX_KEY
 
 
-def cit_get_account_by_account_no(account_no):
+def bankone_get_account_by_account_no(account_no, token):
     from account.utils import log_request
     url = f'{base_url}/Customer/GetByAccountNo/{version}'
 
     payload = dict()
-    payload['authtoken'] = auth_token
+    payload['authtoken'] = token
     payload['accountNumber'] = account_no
 
     response = requests.request('GET', url=url, params=payload)
@@ -34,23 +37,23 @@ def cit_get_account_by_account_no(account_no):
     return response
 
 
-def cit_get_details_by_customer_id(customer_id):
+def bankone_get_details_by_customer_id(customer_id, token):
     from account.utils import log_request
-    url = f'{base_url}/Account/GetAccountsByCustomerId/2?authtoken={auth_token}&customerId={customer_id}'
+    url = f'{base_url}/Account/GetAccountsByCustomerId/2?authtoken={token}&customerId={customer_id}'
 
     response = requests.request('GET', url=url)
     log_request(url, response.json())
     return response
 
 
-def cit_charge_customer(**kwargs):
+def bankone_charge_customer(**kwargs):
     from account.utils import log_request
     url = f"{base_url_3ps}/CoreTransactions/LocalFundsTransfer"
 
     amount = decimal.Decimal(kwargs.get("amount")) * 100
 
     payload = dict()
-    payload['AuthenticationKey'] = auth_token
+    payload['AuthenticationKey'] = kwargs.get("auth_token")
     payload['Amount'] = amount
     payload['FromAccountNumber'] = kwargs.get("account_no")
     payload['ToAccountNumber'] = 1100303086
@@ -62,7 +65,7 @@ def cit_charge_customer(**kwargs):
     return response
 
 
-def cit_log_reversal(tran_date, trans_ref):
+def bankone_log_reversal(tran_date, trans_ref, auth_token):
     from account.utils import log_request
     url = f"{base_url_3ps}/CoreTransactions/Reversal"
 
@@ -77,9 +80,9 @@ def cit_log_reversal(tran_date, trans_ref):
     return response
 
 
-def cit_send_sms(account_no, content, receiver):
+def bankone_send_sms(account_no, content, receiver, token, code):
     from account.utils import log_request
-    url = f'{base_url}/Messaging/SaveBulkSms/{version}?authtoken={auth_token}&institutionCode={institution_code}'
+    url = f'{base_url}/Messaging/SaveBulkSms/{version}?authtoken={token}&institutionCode={code}'
     ref = 'CIT-REF-' + str(uuid.uuid4().int)[:12]
 
     payload = list()
@@ -99,7 +102,7 @@ def cit_send_sms(account_no, content, receiver):
     return response
 
 
-def cit_send_email(mail_from, to, subject, body):
+def bankone_send_email(mail_from, to, subject, body, institution_code, mfb_code):
     from account.utils import log_request
     url = f'{base_url}/Messaging/SaveEmail/{version}'
 
@@ -118,8 +121,9 @@ def cit_send_email(mail_from, to, subject, body):
     return response
 
 
-def cit_create_account(**kwargs):
+def bankone_create_account(**kwargs):
     from account.utils import log_request
+    auth_token = kwargs.get("auth_token")
     url = f'{base_url}/Account/CreateAccountQuick/{version}?authtoken={auth_token}'
     signature = str(kwargs.get("signatureString"), "utf-8")
     image = str(kwargs.get("imageString"), "utf-8")
@@ -157,7 +161,7 @@ def cit_create_account(**kwargs):
     return response
 
 
-def cit_get_acct_officer():
+def bankone_get_acct_officer(auth_token):
     from account.utils import log_request
     url = f'{base_url}/AccountOfficer/Get/{version}'
 
@@ -169,7 +173,7 @@ def cit_get_acct_officer():
     return response
 
 
-def cit_get_fix_deposit_by_phone_no(phone_no):
+def bankone_get_fix_deposit_by_phone_no(phone_no, auth_token):
     from account.utils import log_request
     url = f'{base_url}/FixedDeposit/GetFixedDepositAccountByPhoneNumber/{version}'
 
@@ -182,7 +186,7 @@ def cit_get_fix_deposit_by_phone_no(phone_no):
     return response
 
 
-def cit_get_customer_acct_officer(acct_no):
+def bankone_get_customer_acct_officer(acct_no, auth_token):
     from account.utils import log_request
     url = f'{base_url}/AccountOfficer/GetCustomerAccountOfficer/{version}'
 
@@ -195,13 +199,15 @@ def cit_get_customer_acct_officer(acct_no):
     return response
 
 
-def cit_transaction_history(**kwargs):
+def bankone_transaction_history(**kwargs):
     from account.utils import log_request
     url = f'{base_url}/Account/GetTransactionsPaginated/{version}'
 
     page_no = kwargs.get("page_no")
     date_from = kwargs.get("date_from")
     date_to = kwargs.get("date_to")
+    auth_token = kwargs.get("auth_token")
+    institution_code = kwargs.get("institution_code")
 
     payload = dict()
     payload['authtoken'] = auth_token
@@ -221,7 +227,7 @@ def cit_transaction_history(**kwargs):
     return response
 
 
-def bvn_lookup(bvn):
+def bankone_bvn_lookup(bvn, auth_token):
     from account.utils import log_request
     url = f'{base_url_3ps}/Account/BVN/GetBvnDetails'
 
@@ -234,7 +240,7 @@ def bvn_lookup(bvn):
     return response
 
 
-def cit_other_bank_transfer(**kwargs):
+def bankone_other_bank_transfer(**kwargs):
     from account.utils import log_request
     url = f'{base_url_3ps}/Transfer/InterBankTransfer'
 
@@ -257,7 +263,7 @@ def cit_other_bank_transfer(**kwargs):
             "Narration": kwargs.get("description"),
             "TransactionReference": kwargs.get("trans_ref"),
             "NIPSessionID": kwargs.get("nip_session_id"),  # this is from NameEnquiry ep
-            "Token": auth_token
+            "Token": kwargs.get("auth_token")
         }
     )
 
@@ -266,7 +272,7 @@ def cit_other_bank_transfer(**kwargs):
     return response
 
 
-def cit_others_name_query(account_no, bank_code):
+def bankone_others_name_query(account_no, bank_code, auth_token):
     from account.utils import log_request
     url = f'{base_url_3ps}/Transfer/NameEnquiry'
 
@@ -280,16 +286,16 @@ def cit_others_name_query(account_no, bank_code):
     return response
 
 
-def cit_get_banks():
+def bankone_get_banks(auth_token):
     from account.utils import log_request
     url = f'{base_url_3ps}/BillsPayment/GetCommercialBanks/{auth_token}'
 
     response = requests.request('GET', url=url).json()
-    # log_request(url, response)
+    log_request(url, response)
     return response
 
 
-def cit_get_customer_cards(account_no):
+def bankone_get_customer_cards(account_no, auth_token):
     from account.utils import log_request
     url = f'{base_url_3ps}/Cards/RetrieveCustomerCards'
 
@@ -302,7 +308,7 @@ def cit_get_customer_cards(account_no):
     return response
 
 
-def cit_freeze_or_unfreeze_card(serial_no, reason, account_no, action):
+def bankone_freeze_or_unfreeze_card(serial_no, reason, account_no, action, auth_token):
     from account.utils import log_request
     url = ""
     if action == "freeze":
@@ -321,19 +327,22 @@ def cit_freeze_or_unfreeze_card(serial_no, reason, account_no, action):
     return response
 
 
-def send_otp_message(phone_number, content, subject, account_no, email, bank):
+def bankone_send_otp_message(phone_number, content, subject, account_no, email, bank):
     from account.utils import format_phone_number
     phone_number = format_phone_number(phone_number)
-    if bank.short_name == "cit":
-        email_from = str(settings.CIT_EMAIL_FROM)
-        Thread(target=cit_send_email, args=[email_from, email, subject, content]).start()
-        Thread(target=cit_send_sms, args=[account_no, content, phone_number]).start()
+    if bank.short_name in bank_one_banks:
+        email_from = str(bank.support_email)
+        token = decrypt_text(bank.auth_token)
+        code = decrypt_text(bank.institution_code)
+        mfb_code = decrypt_text(bank.mfb_code)
+        Thread(target=bankone_send_email, args=[email_from, email, subject, content, code, mfb_code]).start()
+        Thread(target=bankone_send_sms, args=[account_no, content, phone_number, token, code]).start()
     detail = 'OTP successfully sent'
 
     return True, detail
 
 
-def cit_create_new_customer(data, account_no, bank):
+def bankone_create_new_customer(data, account_no, bank):
     from account.utils import format_phone_number, encrypt_text
     success = False
 
@@ -343,6 +352,8 @@ def cit_create_new_customer(data, account_no, bank):
     password = data.get('password')
     password_confirm = data.get('password_confirm')
     token = data.get('otp')
+
+    decrypted_token = decrypt_text(bank.auth_token)
 
     if not all([username, transaction_pin, password, transaction_pin_confirm, password_confirm, token]):
         detail = 'Username, Transaction PIN, OTP, and Password are required'
@@ -385,7 +396,7 @@ def cit_create_new_customer(data, account_no, bank):
 
     try:
         # API to check if account exist
-        response = cit_get_account_by_account_no(account_no)
+        response = bankone_get_account_by_account_no(account_no, decrypted_token)
         if response.status_code != 200:
             for response in response.json():
                 # print("from for loop: ", response, f"response.json: ", response.json())
@@ -454,20 +465,23 @@ def cit_create_new_customer(data, account_no, bank):
         customer_acct.save()
 
     # send email to admin
-    app_reg = str(settings.CIT_APP_REG_EMAIL)
-    sender = str(settings.CIT_EMAIL_FROM)
+    app_reg = str(bank.registration_email)
+    sender = str(bank.support_email)
+    code = decrypt_text(bank.institution_code)
+    mfb_code = decrypt_text(bank.mfb_code)
     content = str("A new customer just registered on the mobile app. Please unlock {f_name} {l_name} with "
                   "username {u_name} and telephone number {tel}.").format(
         f_name=str(user.first_name).title(), l_name=str(user.last_name).title(), u_name=user.username,
         tel=customer.phone_number
     )
-    Thread(target=cit_send_email, args=[sender, app_reg, "New Registration on CIT Mobile App", content]).start()
+    Thread(target=bankone_send_email, args=[sender, app_reg, "New Registration on CIT Mobile App", content, code, mfb_code]).start()
 
     detail = 'Registration is successful'
     return True, detail
 
 
-def cit_generate_transaction_ref_code(code):
+def bankone_generate_transaction_ref_code(code, short_name):
+    initial = str(short_name).upper()[0]
     if len(code) == 1:
         code = f"0000{code}"
     elif len(code) == 2:
@@ -486,15 +500,16 @@ def cit_generate_transaction_ref_code(code):
         month = f"0{month}"
     year = str(now.year)[2:]
 
-    ref_code = f"C{year}{month}{day}{code}"
+    ref_code = f"{initial}{year}{month}{day}{code}"
     if Transaction.objects.filter(reference=ref_code).exists():
         x_code = str(uuid.uuid4().int)[:5]
-        ref_code = f"C{year}{month}{day}{x_code}"
+        ref_code = f"{initial}{year}{month}{day}{x_code}"
 
     return ref_code
 
 
-def generate_random_ref_code():
+def generate_random_ref_code(short_name):
+    name = str(short_name).upper()
     now = datetime.date.today()
     day = str(now.day)
     if len(day) < 2:
@@ -506,18 +521,18 @@ def generate_random_ref_code():
 
     code = str(uuid.uuid4().int)[:5]
 
-    ref_code = f"CIT-{year}{month}{day}{code}"
+    ref_code = f"{name}-{year}{month}{day}{code}"
     return ref_code
 
 
-def cit_generate_statement(**kwargs):
+def bankone_generate_statement(**kwargs):
     from account.utils import log_request
     url = f"{base_url}/Account/GenerateAccountStatement/{version}"
 
     _format = kwargs.get("format")  # html or pdf
 
     payload = dict()
-    payload['authtoken'] = auth_token
+    payload['authtoken'] = kwargs.get("auth_token")
     payload['accountNumber'] = kwargs.get("accountNo")
     payload['fromDate'] = kwargs.get("dateFrom")
     payload['toDate'] = kwargs.get("dateTo")
@@ -532,7 +547,7 @@ def cit_generate_statement(**kwargs):
 
 
 # Bank Flex API
-def bank_flex(bvn):
+def bank_flex(bvn, auth_key_bank_flex):
     from account.utils import log_request
     url = f"{base_url_bank_flex}/load_account?bvn={bvn}"
     payload = {}
@@ -546,14 +561,14 @@ def bank_flex(bvn):
     return response
 
 
-def cit_to_cit_bank_transfer(**kwargs):
+def bankone_local_bank_transfer(**kwargs):
     from account.utils import log_request
     url = f"{base_url_3ps}/CoreTransactions/LocalFundsTransfer"
 
     amount = decimal.Decimal(kwargs.get("amount")) * 100
 
     payload = dict()
-    payload['AuthenticationKey'] = auth_token
+    payload['AuthenticationKey'] = kwargs.get("auth_token")
     payload['Amount'] = amount
     payload['FromAccountNumber'] = kwargs.get("sender")
     payload['ToAccountNumber'] = kwargs.get("receiver")
@@ -565,7 +580,7 @@ def cit_to_cit_bank_transfer(**kwargs):
     return response
 
 
-def cit_get_bvn_detail(bvn):
+def bankone_get_bvn_detail(bvn, auth_token):
     from account.utils import log_request
     url = f"{base_url_3ps}/Account/BVN/GetBVNDetails"
 
@@ -578,7 +593,7 @@ def cit_get_bvn_detail(bvn):
     return response
 
 
-def cit_get_fixed_deposit(phone_no):
+def bankone_get_fixed_deposit(phone_no, auth_token):
     from account.utils import log_request
     url = f"{base_url}/FixedDeposit/GetFixedDepositAccountByPhoneNumber/{version}"
 
