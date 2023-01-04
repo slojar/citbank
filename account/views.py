@@ -119,13 +119,14 @@ class LoginView(APIView):
 
     def post(self, request):
         version = request.data.get("build")
-        if not version or version < 28:
-            return Response({"detail": "Please download the latest version from your store"}, status=status.HTTP_400_BAD_REQUEST)
 
         detail, success = authenticate_user(request)
         if success is True:
             try:
                 customer = Customer.objects.get(user=request.user)
+                if not version or version < customer.bank.app_version:
+                    return Response({"detail": "Please download the latest version from your store"},
+                                    status=status.HTTP_400_BAD_REQUEST)
             except Exception as ex:
                 log_request(f"error-message: {ex}")
                 return Response({"detail": "An error occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)

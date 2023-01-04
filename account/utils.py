@@ -17,7 +17,6 @@ from django.db.models import Sum
 
 from dateutil.relativedelta import relativedelta
 
-from bankone.api import *
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction, AccountRequest
 
 from cryptography.fernet import Fernet
@@ -209,6 +208,7 @@ def open_account_with_banks(bank, request):
 
 def get_account_balance(customer, request):
     from .serializers import CustomerSerializer
+    from bankone.api import bankone_get_details_by_customer_id
 
     data = dict()
     if customer.bank.short_name in bank_one_banks:
@@ -288,6 +288,8 @@ def get_previous_month_date(date, delta):
 
 
 def get_transaction_history(bank, acct_no, date_from=None, date_to=None, page=None):
+    from bankone.api import bankone_transaction_history
+
     if bank.short_name in bank_one_banks:
         token = decrypt_text(bank.auth_token)
         code = decrypt_text(bank.institution_code)
@@ -317,6 +319,8 @@ def get_transaction_history(bank, acct_no, date_from=None, date_to=None, page=No
 
 
 def generate_bank_statement(request, bank, date_from, date_to, account_no, format_):
+    from bankone.api import bankone_generate_statement
+
     if bank.short_name in bank_one_banks:
         # Check if date duration is not more than 6months
         token = decrypt_text(bank.auth_token)
@@ -348,6 +352,8 @@ def generate_bank_statement(request, bank, date_from, date_to, account_no, forma
 
 
 def get_account_officer(account):
+    from bankone.api import bankone_get_customer_acct_officer
+
     data = dict()
     bank = account.customer.bank
     if bank.short_name in bank_one_banks:
@@ -369,6 +375,7 @@ def get_account_officer(account):
 
 
 def get_bank_flex_balance(customer):
+    from bankone.api import bank_flex
     if customer.bvn:
         if customer.bank.short_name in bank_one_banks:
             flex_token = decrypt_text(customer.bank.auth_key_bank_flex)
@@ -382,6 +389,9 @@ def get_bank_flex_balance(customer):
 
 
 def perform_bank_transfer(bank, request):
+    from bankone.api import bankone_get_details_by_customer_id, bankone_generate_transaction_ref_code, \
+        bankone_local_bank_transfer, bankone_other_bank_transfer
+
     transfer_type = request.data.get('transfer_type')  # same_bank or other_bank
     account_number = request.data.get('account_no')
     amount = request.data.get('amount')
@@ -520,6 +530,7 @@ def perform_bank_transfer(bank, request):
 
 
 def perform_name_query(bank, request):
+    from bankone.api import bankone_get_account_by_account_no, bankone_others_name_query
 
     account_no = request.GET.get("account_no")
     bank_code = request.GET.get("bank_code")
@@ -566,6 +577,7 @@ def perform_name_query(bank, request):
 def retrieve_customer_card(customer, account_no):
     # function is expected to return card number, expiry date, name on card, and/or serial number (optional)
     # card_no = expiry_date = serial_no = name = ""
+    from bankone.api import bankone_get_customer_cards
 
     if not account_no:
         return False, "Account number is required"
@@ -594,6 +606,8 @@ def retrieve_customer_card(customer, account_no):
 
 
 def block_or_unblock_card(request):
+    from bankone.api import bankone_freeze_or_unfreeze_card
+
     account_no = request.data.get("account_no")
     reason = request.data.get("reason")
     serial_no = request.data.get("serial_no")
@@ -625,6 +639,8 @@ def block_or_unblock_card(request):
 
 
 def perform_bvn_validation(bank, bvn):
+    from bankone.api import bankone_get_bvn_detail
+
     success, detail = False, "Error occurred while retrieving BVN information"
     if bank.short_name in bank_one_banks:
         token = decrypt_text(bank.auth_token)
@@ -639,6 +655,8 @@ def perform_bvn_validation(bank, bvn):
 
 
 def get_fix_deposit_accounts(bank, request):
+    from bankone.api import bankone_get_fixed_deposit
+
     phone_no = request.GET.get("phone_no")
 
     success = False
@@ -667,6 +685,7 @@ def get_fix_deposit_accounts(bank, request):
 
 
 def review_account_request(acct_req):
+    from bankone.api import generate_random_ref_code, bankone_get_acct_officer, bankone_create_account
     short_name = acct_req.bank.short_name
     if short_name in bank_one_banks:
         token = decrypt_text(acct_req.bank.auth_token)

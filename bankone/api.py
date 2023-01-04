@@ -227,19 +227,6 @@ def bankone_transaction_history(**kwargs):
     return response
 
 
-def bankone_bvn_lookup(bvn, auth_token):
-    from account.utils import log_request
-    url = f'{base_url_3ps}/Account/BVN/GetBvnDetails'
-
-    payload = dict()
-    payload['token'] = auth_token
-    payload['BVN'] = bvn
-
-    response = requests.request('POST', url=url, data=payload).json()
-    log_request(url, payload, response)
-    return response
-
-
 def bankone_other_bank_transfer(**kwargs):
     from account.utils import log_request
     url = f'{base_url_3ps}/Transfer/InterBankTransfer'
