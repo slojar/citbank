@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 
 from account.models import Customer, CustomerAccount
 from account.utils import confirm_trans_pin, log_request
-from billpayment.cron import retry_eko_elect_cron, bill_payment_reversal_cron
+from billpayment.cron import retry_eko_elect_cron, bill_payment_reversal_cron, check_tm_saas_wallet_balance_cron
 from billpayment.models import Airtime, Data, CableTV, BillPaymentReversal
 from billpayment.utils import check_balance_and_charge, vend_electricity
 from tm_saas.api import get_networks, get_data_plan, purchase_airtime, purchase_data, get_services, \
@@ -459,4 +459,11 @@ class BillPaymentReversalCronView(APIView):
         response = bill_payment_reversal_cron()
         return Response({"detail": response})
 
+
+class CheckTMSaaSBalanceCronView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        response = check_tm_saas_wallet_balance_cron()
+        return Response({"detail": response})
 

@@ -1,11 +1,16 @@
+import json
 from threading import Thread
 
+from django.conf import settings
 from django.db.models import Q
 
+from account.models import Bank
 from account.utils import decrypt_text
-from bankone.api import bankone_send_sms, bankone_log_reversal
+from bankone.api import bankone_send_sms, bankone_log_reversal, bankone_send_email
 from billpayment.models import Electricity, BillPaymentReversal
-from tm_saas.api import retry_electricity
+from tm_saas.api import retry_electricity, check_wallet_balance
+
+bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
 
 def retry_eko_elect_cron():
@@ -51,4 +56,28 @@ def bill_payment_reversal_cron():
 
     return "Bill Payment Reversal Cron ran successfully"
 
+
+def check_tm_saas_wallet_balance_cron():
+    bank_one = Bank.objects.filter(short_name__in=bank_one_banks)
+    if bank_one:
+        for bank in bank_one:
+            if bank.tm_service_id and bank.tm_notification:
+                notify = json.dumps(str(bank.tm_notification).replace(" ", "").split(","))
+                inst_code = decrypt_text(bank.institution_code)
+                mfb_code = decrypt_text(bank.mfb_code)
+                response = check_wallet_balance(bank)
+                subject = "Bills Payment Account Balance"
+                sender = "tmsaas@tm30.net"
+                balance = response["balance"]
+                content = f"Kindly note that your UBalance is below the required threshold. Your balance is N{balance}"
+                # Check if balance is below 50000
+                if balance < 50000:
+                    # Send email to bank and TM SaaS Admins
+                    for email in notify:
+                        bankone_send_email(
+                            mail_from=sender, to=email, subject=subject, body=content, institution_code=inst_code,
+                            mfb_code=mfb_code
+                        )
+
+    return "Bill Payment Balance Check Cron ran successfully"
 

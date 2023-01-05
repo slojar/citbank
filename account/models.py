@@ -30,18 +30,6 @@ APPROVAL_STATUS_CHOICES = (
     ('approved', 'Approved'), ('declined', 'Declined'), ('pending', 'Pending')
 )
 
-# class Provider(models.Model):
-#     name = models.CharField(max_length=100)
-#     base_url = models.CharField(max_length=200, blank=True, null=True)
-#     email_api = models.CharField(max_length=200, blank=True, null=True)
-#     sms_api = models.CharField(max_length=200, blank=True, null=True)
-#     local_transfer_api = models.CharField(max_length=200, blank=True, null=True)
-#     others_transfer_api = models.CharField(max_length=200, blank=True, null=True)
-#     local_name_enquiry_api = models.CharField(max_length=200, blank=True, null=True)
-#     other_name_enquiry_api = models.CharField(max_length=200, blank=True, null=True)
-#     bvn_validation_api = models.CharField(max_length=200, blank=True, null=True)
-#     bvn_validation_api = models.CharField(max_length=200, blank=True, null=True)
-
 
 class Bank(models.Model):
     name = models.CharField(max_length=200)
@@ -56,6 +44,7 @@ class Bank(models.Model):
     logo = models.ImageField(upload_to="bank-logo", blank=True, null=True)
     active = models.BooleanField(default=False)
     tm_service_id = models.TextField(blank=True, null=True)
+    tm_notification = models.TextField(blank=True, null=True)
     bill_payment_charges = models.DecimalField(max_digits=20, decimal_places=2, default=100)
     auth_token = models.TextField(blank=True, null=True)
     institution_code = models.TextField(blank=True, null=True)
@@ -64,7 +53,6 @@ class Bank(models.Model):
     app_version = models.IntegerField(default=1)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
-    # provide = models.ForeignKey(Provider, on_delete=models.SET_NULL, blank=True, null=True)
 
     def __str__(self):
         return self.name

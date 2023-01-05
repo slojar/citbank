@@ -139,7 +139,13 @@ def retry_electricity(bank, transaction_id):
     return response
 
 
-
+def check_wallet_balance(bank):
+    header = get_header(bank)
+    client_id = decrypt_text(bank.tm_service_id)
+    url = f"{baseUrl}/client/wallet/{client_id}"
+    response = requests.request("GET", url, headers=header).json()
+    log_request("GET", f"url: {url}", f"header: {header}", f"response: {response}")
+    return response
 
 
 
