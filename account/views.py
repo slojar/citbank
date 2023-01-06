@@ -25,7 +25,7 @@ from .utils import authenticate_user, generate_new_otp, \
     get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
     get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, get_account_officer, \
     get_bank_flex_balance, perform_bank_transfer, perform_name_query, retrieve_customer_card, block_or_unblock_card, \
-    perform_bvn_validation, get_fix_deposit_accounts
+    perform_bvn_validation, get_fix_deposit_accounts, create_or_update_bank
 
 from bankone.api import bankone_get_account_by_account_no, bankone_send_otp_message, bankone_create_new_customer, \
     generate_random_ref_code, bankone_send_email
@@ -670,41 +670,12 @@ class BankAPIListView(APIView):
 
     def post(self, request):
         name = request.data.get("name")
-        short_name = request.data.get("short_name")
-        tm_service_id = request.data.get("tm_service_id")
-        institution_code = request.data.get("institution_code")
-        mfb_code = request.data.get("mfb_code")
-        auth_token = request.data.get("auth_token")
-        auth_key_bank_flex = request.data.get("auth_key_bank_flex")
 
         if not name:
             return Response({"detail": "Bank name is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         bank, create = Bank.objects.get_or_create(name=name)
-        if short_name:
-            # remove spaces
-            s_name = str(short_name).replace(" ", "").lower()
-            bank.short_name = s_name
-        bank.support_email = request.data.get("support_email")
-        bank.enquiry_email = request.data.get("enquiry_email")
-        bank.feedback_email = request.data.get("feedback_email")
-        bank.officer_rating_email = request.data.get("officer_rating_email")
-        bank.registration_email = request.data.get("registration_email")
-        bank.website = request.data.get("website")
-        bank.address = request.data.get("address")
-        bank.bill_payment_charges = request.data.get("bill_payment_charges")
-        if tm_service_id:
-            bank.tm_service_id = encrypt_text(tm_service_id)
-        if auth_token:
-            bank.auth_token = encrypt_text(auth_token)
-        if institution_code:
-            bank.institution_code = encrypt_text(institution_code)
-        if mfb_code:
-            bank.mfb_code = encrypt_text(mfb_code)
-        if auth_key_bank_flex:
-            bank.auth_key_bank_flex = encrypt_text(auth_key_bank_flex)
-        bank.save()
-
+        create_or_update_bank(request, bank)
         return Response(BankSerializer(bank, context={"request": request}).data)
 
     def get(self, request):

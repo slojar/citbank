@@ -109,15 +109,19 @@ class AdminCustomerAPIView(views.APIView, CustomPagination):
         transfer_limit = request.data.get("transfer_limit")
         try:
             customer = get_object_or_404(Customer, id=pk, bank_id=bank_id)
-            if account_status:
-                customer.active = account_status
+            if account_status is True:
+                customer.active = True
+            if account_status is False:
+                customer.active = False
             if daily_limit:
                 customer.daily_limit = daily_limit
             if transfer_limit:
                 customer.transfer_limit = transfer_limit
-            if staff_status:
-                customer.user.is_staff = staff_status
-                customer.user.save()
+            if staff_status is True:
+                customer.user.is_staff = True
+            if staff_status is False:
+                customer.user.is_staff = False
+            customer.user.save()
             customer.save()
         except Exception as ex:
             return Response({"detail": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
