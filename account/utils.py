@@ -716,7 +716,59 @@ def review_account_request(acct_req):
     return True, "Request submitted for account opening"
 
 
+def create_or_update_bank(request, bank):
+    data = request.data
+    short_name = data.get("short_name")
+    tm_service_id = data.get("tm_service_id")
+    institution_code = data.get("institution_code")
+    mfb_code = data.get("mfb_code")
+    auth_token = data.get("auth_token")
+    auth_key_bank_flex = data.get("auth_key_bank_flex")
+    support_email = data.get("support_email")
+    enquiry_email = data.get("enquiry_email")
+    feedback_email = data.get("feedback_email")
+    officer_rating_email = data.get("officer_rating_email")
+    registration_email = data.get("registration_email")
+    website = data.get("website")
+    address = data.get("address")
+    bill_payment_charges = data.get("bill_payment_charges")
+    tm_notification = data.get("tm_notification")
 
+    if short_name:
+        # remove spaces
+        s_name = str(short_name).replace(" ", "").lower()
+        bank.short_name = s_name
+    if support_email:
+        bank.support_email = support_email
+    if enquiry_email:
+        bank.enquiry_email = enquiry_email
+    if feedback_email:
+        bank.feedback_email = feedback_email
+    if officer_rating_email:
+        bank.officer_rating_email = officer_rating_email
+    if registration_email:
+        bank.registration_email = registration_email
+    if website:
+        bank.website = website
+    if address:
+        bank.address = address
+    if tm_notification:
+        bank.tm_notification = tm_notification
+    if bill_payment_charges:
+        bank.bill_payment_charges = bill_payment_charges
+    if tm_service_id:
+        bank.tm_service_id = encrypt_text(tm_service_id)
+    if auth_token:
+        bank.auth_token = encrypt_text(auth_token)
+    if institution_code:
+        bank.institution_code = encrypt_text(institution_code)
+    if mfb_code:
+        bank.mfb_code = encrypt_text(mfb_code)
+    if auth_key_bank_flex:
+        bank.auth_key_bank_flex = encrypt_text(auth_key_bank_flex)
+    bank.save()
+
+    return True
 
 
 
