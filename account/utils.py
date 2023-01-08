@@ -432,8 +432,9 @@ def perform_bank_transfer(bank, request):
 
         # Check Daily Transfer Limit
         today = datetime.datetime.today()
+        today_date = str(today.date())
         today_trans = \
-            Transaction.objects.filter(customer=customer, status="success", created_on__day=today.date()).aggregate(
+            Transaction.objects.filter(customer=customer, status="success", created_on=today_date).aggregate(
                 Sum("amount"))["amount__sum"] or 0
         current_limit = float(amount) + float(today_trans)
         if current_limit > customer.daily_limit:
