@@ -62,19 +62,10 @@ def check_tm_saas_wallet_balance_cron():
     if bank_one:
         for bank in bank_one:
             if bank.tm_service_id and bank.tm_notification:
-                notify = json.dumps(str(bank.tm_notification).replace(" ", "").split(","))
+                notify = json.dumps(bank.tm_notification).replace(" ", "").replace('"', '').split(",")
                 inst_code = decrypt_text(bank.institution_code)
                 mfb_code = decrypt_text(bank.mfb_code)
                 response = check_wallet_balance(bank)
-                response = {
-                    'message': 'Success',
-                    'data': {
-                        'balance': 5777.26,
-                        'overDraftAmount': 0,
-                        'clientId': 'local_d2dddefdafe389d27f64',
-                        'userId': '61e5539f00329baec50d9c4d'
-                    }
-                }
                 subject = "Bills Payment Account Balance"
                 sender = "tmsaas@tm30.net"
                 if "message" in response and response["message"] == "Success":
