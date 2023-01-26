@@ -66,18 +66,25 @@ def check_tm_saas_wallet_balance_cron():
                 inst_code = decrypt_text(bank.institution_code)
                 mfb_code = decrypt_text(bank.mfb_code)
                 response = check_wallet_balance(bank)
+                response = {
+                    'message': 'Success',
+                    'data': {
+                        'balance': 5777.26,
+                        'overDraftAmount': 0,
+                        'clientId': 'local_d2dddefdafe389d27f64',
+                        'userId': '61e5539f00329baec50d9c4d'
+                    }
+                }
                 subject = "Bills Payment Account Balance"
                 sender = "tmsaas@tm30.net"
-                balance = response["balance"]
-                content = f"Kindly note that your UBalance is below the required threshold. Your balance is N{balance}"
-                # Check if balance is below 50000
-                if balance < 50000:
-                    # Send email to bank and TM SaaS Admins
-                    for email in notify:
-                        bankone_send_email(
-                            mail_from=sender, to=email, subject=subject, body=content, institution_code=inst_code,
-                            mfb_code=mfb_code
-                        )
+                if "message" in response and response["message"] == "Success":
+                    balance = response["data"]["balance"]
+                    content = f"Kindly note that your UBalance is below the required threshold. Your balance is N{balance}"
+                    # Check if balance is below 50000
+                    if balance < 50000:
+                        # Send email to bank and TM SaaS Admins
+                        for email in notify:
+                            Thread(target=bankone_send_email, args=[sender, email, content, inst_code, mfb_code]).start()
 
     return "Bill Payment Balance Check Cron ran successfully"
 

@@ -3,6 +3,7 @@ from django.conf import settings
 from account.utils import log_request, decrypt_text
 
 baseUrl = settings.TM_BASE_URL
+managerUrl = settings.TM_MANAGER_SERVICE_URL
 
 
 def get_header(bank):
@@ -142,7 +143,7 @@ def retry_electricity(bank, transaction_id):
 def check_wallet_balance(bank):
     header = get_header(bank)
     client_id = decrypt_text(bank.tm_service_id)
-    url = f"{baseUrl}/client/wallet/{client_id}"
+    url = f"{managerUrl}/client/wallet/{client_id}"
     response = requests.request("GET", url, headers=header).json()
     log_request("GET", f"url: {url}", f"header: {header}", f"response: {response}")
     return response
