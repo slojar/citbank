@@ -84,7 +84,7 @@ def check_tm_saas_wallet_balance_cron():
                     if balance < 50000:
                         # Send email to bank and TM SaaS Admins
                         for email in notify:
-                            Thread(target=bankone_send_email, args=[sender, email, content, inst_code, mfb_code]).start()
+                            Thread(target=bankone_send_email, args=[sender, email, subject, content, inst_code, mfb_code]).start()
 
     return "Bill Payment Balance Check Cron ran successfully"
 
