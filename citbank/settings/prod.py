@@ -8,7 +8,7 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['api.citmfb.com']
+ALLOWED_HOSTS = ['api.citmfb.com', 'api.bankpro.ng']
 
 # DATABASE
 DATABASES = {
