@@ -25,6 +25,7 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
 
     # CHECK ACCOUNT BALANCE
     token = decrypt_text(customer.bank.auth_token)
+    settlement_acct_no = customer.bank.settlement_acct_no
     response = bankone_get_details_by_customer_id(customer.customerID, token).json()
 
     balance = 0
@@ -41,7 +42,8 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration):
 
     # CHARGE CUSTOMER ACCOUNT
     response = bankone_charge_customer(
-        account_no=account_no, amount=amount, trans_ref=ref_code, description=narration, auth_token=token
+        account_no=account_no, amount=amount, trans_ref=ref_code, description=narration, auth_token=token,
+        settlement_acct=settlement_acct_no
     )
     response = response.json()
 

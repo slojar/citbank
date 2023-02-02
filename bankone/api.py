@@ -56,7 +56,7 @@ def bankone_charge_customer(**kwargs):
     payload['AuthenticationKey'] = kwargs.get("auth_token")
     payload['Amount'] = amount
     payload['FromAccountNumber'] = kwargs.get("account_no")
-    payload['ToAccountNumber'] = 1100303086
+    payload['ToAccountNumber'] = kwargs.get("settlement_acct")
     payload['RetrievalReference'] = kwargs.get("trans_ref")
     payload['Narration'] = kwargs.get("description")
 
