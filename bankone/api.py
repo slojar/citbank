@@ -173,19 +173,6 @@ def bankone_get_acct_officer(auth_token):
     return response
 
 
-def bankone_get_fix_deposit_by_phone_no(phone_no, auth_token):
-    from account.utils import log_request
-    url = f'{base_url}/FixedDeposit/GetFixedDepositAccountByPhoneNumber/{version}'
-
-    payload = dict()
-    payload['authtoken'] = auth_token
-    payload['phoneNumber'] = phone_no
-
-    response = requests.request('GET', url=url, params=payload).json()
-    log_request(url, payload, response)
-    return response
-
-
 def bankone_get_customer_acct_officer(acct_no, auth_token):
     from account.utils import log_request
     url = f'{base_url}/AccountOfficer/GetCustomerAccountOfficer/{version}'
