@@ -157,10 +157,11 @@ def vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_n
     if not token == "":
         # SEND TOKEN TO PHONE NUMBER
         if customer.bank.short_name in bank_one_banks:
-            auth_token = decrypt_text(customer.bank.auth_token)
-            code = decrypt_text(customer.bank.institution_code)
+            bank = customer.bank
+            auth_token = decrypt_text(bank.auth_token)
+            code = decrypt_text(bank.institution_code)
             content = f"Your {disco_type} token is: {token}".replace("_", " ")
-            Thread(target=bankone_send_sms, args=[account_no, content, phone_number, auth_token, code]).start()
+            Thread(target=bankone_send_sms, args=[account_no, content, phone_number, auth_token, code, bank.short_name]).start()
             elect.token_sent = True
             elect.save()
 

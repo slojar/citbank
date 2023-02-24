@@ -35,7 +35,7 @@ def retry_eko_elect_cron():
                     query.save()
                     # SEND TOKEN
                     content = f"Your EKEDC PREPAID token is: {token}"
-                    Thread(target=bankone_send_sms, args=[query.account_no, content, query.phone_number, auth_token, code]).start()
+                    Thread(target=bankone_send_sms, args=[query.account_no, content, query.phone_number, auth_token, code, bank.short_name]).start()
     return "Elect Retry Cron ran successfully"
 
 
