@@ -80,10 +80,10 @@ def bankone_log_reversal(tran_date, trans_ref, auth_token):
     return response
 
 
-def bankone_send_sms(account_no, content, receiver, token, code):
+def bankone_send_sms(account_no, content, receiver, token, code, bank_code):
     from account.utils import log_request
     url = f'{base_url}/Messaging/SaveBulkSms/{version}?authtoken={token}&institutionCode={code}'
-    ref = 'CIT-REF-' + str(uuid.uuid4().int)[:12]
+    ref = f'{bank_code}-REF-' + str(uuid.uuid4().int)[:12]
 
     payload = list()
 
@@ -167,19 +167,6 @@ def bankone_get_acct_officer(auth_token):
 
     payload = dict()
     payload['authtoken'] = auth_token
-
-    response = requests.request('GET', url=url, params=payload).json()
-    log_request(url, payload, response)
-    return response
-
-
-def bankone_get_fix_deposit_by_phone_no(phone_no, auth_token):
-    from account.utils import log_request
-    url = f'{base_url}/FixedDeposit/GetFixedDepositAccountByPhoneNumber/{version}'
-
-    payload = dict()
-    payload['authtoken'] = auth_token
-    payload['phoneNumber'] = phone_no
 
     response = requests.request('GET', url=url, params=payload).json()
     log_request(url, payload, response)
@@ -323,7 +310,7 @@ def bankone_send_otp_message(phone_number, content, subject, account_no, email, 
         code = decrypt_text(bank.institution_code)
         mfb_code = decrypt_text(bank.mfb_code)
         Thread(target=bankone_send_email, args=[email_from, email, subject, content, code, mfb_code]).start()
-        Thread(target=bankone_send_sms, args=[account_no, content, phone_number, token, code]).start()
+        Thread(target=bankone_send_sms, args=[account_no, content, phone_number, token, code, bank.short_name]).start()
     detail = 'OTP successfully sent'
 
     return True, detail
