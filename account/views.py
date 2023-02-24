@@ -883,11 +883,41 @@ class TransferAPIView(APIView):
 
     def post(self, request, bank_id):
         # try:
-        bank = Bank.objects.get(id=bank_id)
-        success, detail = perform_bank_transfer(bank, request)
-        if success is False:
-            return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
-        data = TransferSerializer(detail).data
+        # bank = Bank.objects.get(id=bank_id)
+        bank = get_object_or_404(Bank, id=bank_id)
+        # success, detail = perform_bank_transfer(bank, request)
+        # if success is False:
+        #     return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+        # data = TransferSerializer(detail).data
+
+        # Remove the below after test
+        data = {
+                   "id":7863,
+                   "customer":{
+                       "first_name":"OLANREWAJUGAJITEI",
+                       "last_name":"OMOBOH",
+                       "other_name":"NONE",
+                       "email":"dvebony2003@yahoo.com",
+                       "username":"Backsheet",
+                       "gender":"Male",
+                       "dob":"2/20/1983 12:00:00 AM",
+                       "phone_no":"07038881716",
+                       "customer_id":"032974",
+                       "staff":False
+                   },
+                   "sender_acct_no":"1100329745",
+                   "transfer_type":"local_transfer",
+                   "beneficiary_type":"local_transfer",
+                   "beneficiary_name":"RAHMON,  SHIFAU YETUNDE",
+                   "bank_name":"CIT Microfinance Bank",
+                   "beneficiary_acct_no":"1200268935",
+                   "status":"success",
+                   "amount":500.0,
+                   "narration":"Am backsheet ",
+                   "reference":"C23021401461",
+                   "created_on":"2023-02-14T10:41:42.763987+01:00",
+                   "updated_on":"2023-02-14T10:41:42.767308+01:00"
+               },
         return Response({"detail": "Transfer successful", "data": data})
         # except Exception as ex:
         #     return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
