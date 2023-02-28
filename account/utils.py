@@ -712,7 +712,7 @@ def review_account_request(acct_req):
         )
 
         if response["IsSuccessful"] is False:
-            return False, response["Message"]["CreationMessage"]
+            return False, response["Message"]
 
     return True, "Request submitted for account opening"
 
