@@ -201,6 +201,7 @@ def open_account_with_banks(bank, request):
         acct.image = image
         acct.utility = utility
         acct.valid_id = valid_id
+        acct.status = "pending"
         acct.save()
 
     return True, "Your request is submitted for review. You will get a response soon"
