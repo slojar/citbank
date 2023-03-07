@@ -834,7 +834,7 @@ class GenerateStatement(APIView):
                 if success is True:
                     if email:
                         # Send statement to customer
-                        email_from = str(settings.CIT_EMAIL_FROM)
+                        email_from = str(bank.support_email)
                         Thread(
                             target=bankone_send_email,
                             args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}",
