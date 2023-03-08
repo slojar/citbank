@@ -38,6 +38,7 @@ class Homepage(views.APIView):
         airtime_count = Airtime.objects.filter(bank_id=bank).count()
         data_count = Data.objects.filter(bank_id=bank).count()
         cable_tv_count = CableTV.objects.filter(bank_id=bank).count()
+        electricity_count = Electricity.objects.filter(bank_id=bank).count()
         transfer_count = Transaction.objects.filter(customer__bank_id=bank).count()
 
         airtime_purchase_total = Airtime.objects.filter(
@@ -46,6 +47,9 @@ class Homepage(views.APIView):
             status__iexact="success", bank_id=bank).aggregate(Sum("amount"))["amount__sum"] or 0
         cable_tv_purchase_total = CableTV.objects.filter(
             status__iexact="success", bank_id=bank).aggregate(Sum("amount"))["amount__sum"] or 0
+        electricity_purchase_total = Electricity.objects.filter(
+            status__iexact="success", bank_id=bank).aggregate(Sum("amount"))["amount__sum"] or 0
+
         transfer_total = Transaction.objects.filter(
             customer__bank_id=bank, status="success").aggregate(Sum("amount"))["amount__sum"] or 0
 
@@ -56,12 +60,14 @@ class Homepage(views.APIView):
         data["airtime_count"] = airtime_count
         data["data_count"] = data_count
         data["cable_tv_count"] = cable_tv_count
+        data["electricity_count"] = electricity_count
         data["airtime_purchase_total"] = airtime_purchase_total
         data["data_purchase_total"] = data_purchase_total
         data["cable_tv_purchase_total"] = cable_tv_purchase_total
+        data["electricity_purchase_total"] = electricity_purchase_total
 
-        data["total_bill_payment_amount"] = airtime_purchase_total + data_purchase_total + cable_tv_purchase_total
-        data["total_bill_payment_count"] = airtime_count + data_count + cable_tv_count
+        data["total_bill_payment_amount"] = airtime_purchase_total + data_purchase_total + cable_tv_purchase_total + electricity_purchase_total
+        data["total_bill_payment_count"] = airtime_count + data_count + cable_tv_count + electricity_count
         data["total_transaction_count"] = airtime_count + data_count + cable_tv_count + transfer_count
         data["total_transaction_amount"] = airtime_purchase_total + data_purchase_total + cable_tv_purchase_total + decimal.Decimal(transfer_total)
 
