@@ -77,6 +77,9 @@ class Electricity(models.Model):
     def __str__(self):
         return f"{self.account_no}, {self.disco_type} -----> {self.meter_number} - {self.amount}"
 
+    class Meta:
+        verbose_name_plural = "Electricity"
+
 
 class BillPaymentReversal(models.Model):
     bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True, blank=True)
