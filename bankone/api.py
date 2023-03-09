@@ -581,10 +581,3 @@ def bankone_get_fixed_deposit(phone_no, auth_token):
     return response
 
 
-
-
-
-
-
-
-curl 'https://api.mybankone.com/BankOneWebAPI/api/Messaging/SaveEmail/2?institutionCode=100321&mfbCode=100125&emailFrom=admin@citmfb.com&emailTo=sundayolaofe@rocketmail.com&subject=OTPTEST&Message=Thisisatestemail' --header 'Accept: application/json'

@@ -835,8 +835,8 @@ class GenerateStatement(APIView):
                     if email:
                         # Send statement to customer
                         email_from = str(bank.support_email)
-                        inst_code = decrypt_text(bank.institution_code)
-                        mfb_code = decrypt_text(bank.mfb_code)
+                        inst_code = str(decrypt_text(bank.institution_code))
+                        mfb_code = str(decrypt_text(bank.mfb_code))
                         Thread(
                             target=bankone_send_email,
                             args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}",
