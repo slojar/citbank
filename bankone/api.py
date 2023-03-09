@@ -581,7 +581,3 @@ def bankone_get_fixed_deposit(phone_no, auth_token):
     return response
 
 
-
-
-
-
