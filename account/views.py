@@ -28,7 +28,7 @@ from .utils import authenticate_user, generate_new_otp, \
     perform_bvn_validation, get_fix_deposit_accounts, create_or_update_bank
 
 from bankone.api import bankone_get_account_by_account_no, bankone_send_otp_message, bankone_create_new_customer, \
-    generate_random_ref_code, bankone_send_email
+    generate_random_ref_code, bankone_send_email, bankone_send_statement
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
@@ -812,49 +812,35 @@ class BankHistoryAPIView(APIView):
 class GenerateStatement(APIView):
 
     def post(self, request, bank_id):
-    # try:
-        date_from = request.data.get("date_from")
-        date_to = request.data.get("date_to")
-        account_no = request.data.get("account_no")
-        download = request.data.get("download")
-        email = request.data.get("email")
+        try:
+            date_from = request.data.get("date_from")
+            date_to = request.data.get("date_to")
+            account_no = request.data.get("account_no")
+            download = request.data.get("download")
+            email = request.data.get("email")
 
-        if not all([date_to, date_from, account_no]):
-            return Response({"detail": "Dates and account number are required"}, status=status.HTTP_400_BAD_REQUEST)
+            if not all([date_to, date_from, account_no]):
+                return Response({"detail": "Dates and account number are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not CustomerAccount.objects.filter(
-                customer__user=request.user, customer__bank_id=bank_id, account_no=account_no).exists():
-            return Response({"detail": "Account not valid for user"}, status=status.HTTP_400_BAD_REQUEST)
+            if not CustomerAccount.objects.filter(
+                    customer__user=request.user, customer__bank_id=bank_id, account_no=account_no).exists():
+                return Response({"detail": "Account not valid for user"}, status=status.HTTP_400_BAD_REQUEST)
 
-        bank = Bank.objects.get(id=bank_id)
-        if download is True:
-            success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "pdf")
-        else:
-            success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "pdf")
-            if success is True:
-                if email:
-                    # Send statement to customer
-                    email_from = str(bank.support_email)
-                    inst_code = str(decrypt_text(bank.institution_code))
-                    mfb_code = str(decrypt_text(bank.mfb_code))
-                    message = f"Dear {request.user.first_name}," \
-                              f"Kindly click on the below url to view and/or download your statement" \
-                              f"{response}" \
-                              f"\nThank you for choosing {bank.name}."
-                    # Thread(
-                    #     target=bankone_send_email,
-                    #     args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}",
-                    #           message, inst_code, mfb_code]
-                    # ).start()
-                    log_request(f"Message: {message}")
-                    bankone_send_email(email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}", message, inst_code, mfb_code)
-                    response = f"Statement sent to {email}"
+            bank = Bank.objects.get(id=bank_id)
+            if download is True:
+                success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "pdf")
+            else:
+                success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "pdf")
+                if success is True:
+                    if email:
+                        # Send statement to customer
+                        response = bankone_send_statement(request, bank, response)
 
-        if success is False:
-            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"detail": response})
-    # except Exception as err:
-    #     return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+            if success is False:
+                return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": response})
+        except Exception as err:
+            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AccountOfficerAPIView(APIView):
