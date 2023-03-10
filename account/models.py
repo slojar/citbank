@@ -45,6 +45,7 @@ class Bank(models.Model):
     logo = models.ImageField(upload_to="bank-logo", blank=True, null=True)
     active = models.BooleanField(default=False)
     tm_service_id = models.TextField(blank=True, null=True)
+    savings_product_code = models.IntegerField(blank=True, null=True)
     tm_notification = models.TextField(blank=True, null=True)
     bill_payment_charges = models.DecimalField(max_digits=20, decimal_places=2, default=100)
     auth_token = models.TextField(blank=True, null=True)
