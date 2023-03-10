@@ -841,11 +841,12 @@ class GenerateStatement(APIView):
                                   f"Kindly click on the below url to view and/or download your statement" \
                                   f"{response}" \
                                   f"\nThank you for choosing {bank.name}."
-                        Thread(
-                            target=bankone_send_email,
-                            args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}",
-                                  message, inst_code, mfb_code]
-                        ).start()
+                        # Thread(
+                        #     target=bankone_send_email,
+                        #     args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}",
+                        #           message, inst_code, mfb_code]
+                        # ).start()
+                        bankone_send_email(email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}", message, inst_code, mfb_code)
                         response = f"Statement sent to {email}"
 
             if success is False:
