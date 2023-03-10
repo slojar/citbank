@@ -830,18 +830,21 @@ class GenerateStatement(APIView):
             if download is True:
                 success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "pdf")
             else:
-                success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "html")
-                log_request(f"REQUEST ---> {request.data}\n RESPONSE FROM GENERATE STATEMENT ----> {response}, success: {success}")
+                success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "pdf")
                 if success is True:
                     if email:
                         # Send statement to customer
                         email_from = str(bank.support_email)
                         inst_code = str(decrypt_text(bank.institution_code))
                         mfb_code = str(decrypt_text(bank.mfb_code))
+                        message = f"Dear {request.user.first_name}," \
+                                  f"Kindly click on the below url to view and/or download your statement" \
+                                  f"{response}" \
+                                  f"\nThank you for choosing {bank.name}."
                         Thread(
                             target=bankone_send_email,
                             args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}",
-                                  response, inst_code, mfb_code]
+                                  message, inst_code, mfb_code]
                         ).start()
                         response = f"Statement sent to {email}"
 
