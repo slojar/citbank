@@ -831,6 +831,7 @@ class GenerateStatement(APIView):
                 success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "pdf")
             else:
                 success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "html")
+                log_request(f"REQUEST ---> {request.data}\n RESPONSE FROM GENERATE STATEMENT ----> {response}, success: {success}")
                 if success is True:
                     if email:
                         # Send statement to customer
