@@ -124,6 +124,7 @@ def bankone_send_email(mail_from, to, subject, body, institution_code, mfb_code)
 def bankone_create_account(**kwargs):
     from account.utils import log_request
     auth_token = kwargs.get("auth_token")
+    product_code = kwargs.get("product_code")
     url = f'{base_url}/Account/CreateAccountQuick/{version}?authtoken={auth_token}'
     signature = str(kwargs.get("signatureString"), "utf-8")
     image = str(kwargs.get("imageString"), "utf-8")
@@ -140,7 +141,7 @@ def bankone_create_account(**kwargs):
         "Email": kwargs.get("email"),
         "Address": kwargs.get("address"),
         "TransactionTrackingRef": kwargs.get("transRef"),
-        "ProductCode": 102,
+        "ProductCode": product_code,
         "AccountOfficerCode": kwargs.get("officerCode"),
         # select random account officer from acct office ep
         "CustomerSignature": signature,

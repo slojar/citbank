@@ -691,6 +691,7 @@ def review_account_request(acct_req):
     short_name = acct_req.bank.short_name
     if short_name in bank_one_banks:
         token = decrypt_text(acct_req.bank.auth_token)
+        prod_code = acct_req.bank.savings_product_code
 
         # GENERATE TRANSACTION REF
         tran_code = generate_random_ref_code(short_name)
@@ -709,7 +710,7 @@ def review_account_request(acct_req):
         response = bankone_create_account(
             bvnNumber=acct_req.bvn, phoneNumber=acct_req.phone_no, firstName=acct_req.first_name,
             otherName=acct_req.other_name, lastName=acct_req.last_name, gender=acct_req.gender, dob=acct_req.dob,
-            nin=acct_req.nin, email=email, address=acct_req.address, transRef=tran_code,
+            nin=acct_req.nin, email=email, address=acct_req.address, transRef=tran_code, product_code=prod_code,
             officerCode=officer_code, signatureString=signature_str, imageString=image_str, auth_token=token
         )
 
