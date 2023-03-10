@@ -844,7 +844,7 @@ class GenerateStatement(APIView):
                         Thread(
                             target=bankone_send_email,
                             args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}",
-                                  response, inst_code, mfb_code]
+                                  message, inst_code, mfb_code]
                         ).start()
                         response = f"Statement sent to {email}"
 
