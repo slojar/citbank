@@ -705,10 +705,11 @@ def review_account_request(acct_req):
         image_str = base64.b64encode(acct_req.image.read())
 
         # OPEN ACCOUNT FOR CUSTOMER
+        email = str(acct_req.email).replace(" ", "")
         response = bankone_create_account(
             bvnNumber=acct_req.bvn, phoneNumber=acct_req.phone_no, firstName=acct_req.first_name,
             otherName=acct_req.other_name, lastName=acct_req.last_name, gender=acct_req.gender, dob=acct_req.dob,
-            nin=acct_req.nin, email=acct_req.email, address=acct_req.address, transRef=tran_code,
+            nin=acct_req.nin, email=email, address=acct_req.address, transRef=tran_code,
             officerCode=officer_code, signatureString=signature_str, imageString=image_str, auth_token=token
         )
 
