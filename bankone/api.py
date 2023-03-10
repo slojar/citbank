@@ -581,7 +581,26 @@ def bankone_get_fixed_deposit(phone_no, auth_token):
     return response
 
 
+def bankone_send_statement(request, bank, response):
+    name = request.user.first_name
+    email = request.data.get("email")
+    date_from = request.data.get("date_from")
+    date_to = request.data.get("date_to")
+    account_no = request.data.get("account_no")
 
+    email_from = str(bank.support_email)
+    inst_code = decrypt_text(bank.institution_code)
+    mfb_code = decrypt_text(bank.mfb_code)
+    message = f"Dear {name},\n" \
+              f"Kindly click on the below url to view and/or download your statement\n" \
+              f"{response}\n" \
+              f"\nThank you for choosing {bank.name}."
+    Thread(target=bankone_send_email,
+           args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}", message,
+                 inst_code, mfb_code]).start()
+    result = f"Statement sent to {email}"
+
+    return result
 
 
 

@@ -28,7 +28,7 @@ from .utils import authenticate_user, generate_new_otp, \
     perform_bvn_validation, get_fix_deposit_accounts, create_or_update_bank
 
 from bankone.api import bankone_get_account_by_account_no, bankone_send_otp_message, bankone_create_new_customer, \
-    generate_random_ref_code, bankone_send_email
+    generate_random_ref_code, bankone_send_email, bankone_send_statement
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
@@ -830,17 +830,11 @@ class GenerateStatement(APIView):
             if download is True:
                 success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "pdf")
             else:
-                success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "html")
+                success, response = generate_bank_statement(request, bank, date_from, date_to, account_no, "pdf")
                 if success is True:
                     if email:
                         # Send statement to customer
-                        email_from = str(bank.support_email)
-                        Thread(
-                            target=bankone_send_email,
-                            args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}",
-                                  response]
-                        ).start()
-                        response = f"Statement sent to {email}"
+                        response = bankone_send_statement(request, bank, response)
 
             if success is False:
                 return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
