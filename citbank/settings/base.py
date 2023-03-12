@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'account.apps.AccountConfig',
     'api.apps.ApiConfig',
     'billpayment.apps.BillpaymentConfig',
+    'coporate.apps.CoporateConfig',
 ]
 
 MIDDLEWARE = [

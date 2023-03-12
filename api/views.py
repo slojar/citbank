@@ -5,7 +5,7 @@ from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
-from rest_framework import status, views
+from rest_framework import status, views, generics
 
 from account.models import Customer, Transaction, AccountRequest
 from account.serializers import CustomerSerializer, TransferSerializer, AccountRequestSerializer
@@ -14,6 +14,10 @@ from account.utils import review_account_request, log_request
 from bankone.api import bankone_send_otp_message
 from billpayment.models import Airtime, CableTV, Data, Electricity
 from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
+from citbank.exceptions import raise_serializer_error_msg
+from coporate.models import Institution, Role, Mandate
+from coporate.serializers import MandateSerializerIn, InstitutionSerializerIn, InstitutionSerializerOut, \
+    RoleSerializerOut, MandateSerializerOut
 
 
 class Homepage(views.APIView):
@@ -285,7 +289,45 @@ class AdminAccountRequestAPIView(views.APIView, CustomPagination):
         })
 
 
+class CorporateUserAPIView(views.APIView, CustomPagination):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        serializer = MandateSerializerIn(data=request.data, context={"request": request})
+        serializer.is_valid() or raise_serializer_error_msg(errors=serializer.errors)
+        response = serializer.save()
+        return Response({"detail": "Mandate added successfully", "data": response})
+
+    def get(self, request, pk=None):
+        admin_bank = request.user.customer.bank
+        if pk:
+            mandate = get_object_or_404(Mandate, id=pk, institution__bank=admin_bank)
+            return Response(MandateSerializerOut(mandate).data)
+        queryset = self.paginate_queryset(Mandate.objects.filter(institution__bank=admin_bank).order_by("-id"), request)
+        serializer = MandateSerializerOut(queryset, many=True).data
+        return Response(self.get_paginated_response(serializer).data)
 
 
+class InstitutionAPIView(views.APIView, CustomPagination):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        serializer = InstitutionSerializerIn(data=request.data, context={"request": request})
+        serializer.is_valid() or raise_serializer_error_msg(errors=serializer.errors)
+        response = serializer.save()
+        return Response({"detail": "Institution created successfully", "data": response})
+
+    def get(self, request, pk=None):
+        bank = request.user.customer.bank
+        if pk:
+            inst = get_object_or_404(Institution, id=pk, bank=bank)
+            return Response(InstitutionSerializerOut(inst).data)
+        queryset = self.paginate_queryset(Institution.objects.filter(bank=bank).order_by("-id"), request)
+        serializer = InstitutionSerializerOut(queryset, many=True).data
+        return Response(self.get_paginated_response(serializer).data)
 
 
+class CorporateRoleListAPIView(generics.ListAPIView):
+    permission_classes = [IsAdminUser]
+    queryset = Role.objects.all().order_by("-id")
+    serializer_class = RoleSerializerOut
