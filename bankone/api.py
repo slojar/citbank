@@ -592,10 +592,14 @@ def bankone_send_statement(request, bank, response):
     email_from = str(bank.support_email)
     inst_code = decrypt_text(bank.institution_code)
     mfb_code = decrypt_text(bank.mfb_code)
-    message = f"Dear {name},\n" \
-              f"Kindly click on the below url to view and/or download your statement\n" \
-              f"{response}\n" \
-              f"\nThank you for choosing {bank.name}."
+    message = f'Dear {name},<br><br>' \
+              f'Please find attached statement, as requested.<br>If you are viewing this email on a mobile phone or ' \
+              f'iPad, please save the document first and then open it on your device. <br>For further enquiries, ' \
+              f'please contact {bank.support_email}<br>' \
+              f'<br>Thank you for choosing {bank.name}.<br>' \
+              f'<br><a href="{response}" target="_blank"><img src="{request.scheme}://{request.get_host()}/' \
+              f'media/pdf_icon.png" alt="statement" width="150px" height="150px"/></a>'
+
     Thread(target=bankone_send_email,
            args=[email_from, email, f"ACCOUNT STATEMENT FROM {date_from} TO {date_to} - {account_no}", message,
                  inst_code, mfb_code]).start()
