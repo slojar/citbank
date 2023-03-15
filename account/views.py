@@ -18,6 +18,7 @@ from rest_framework import status, generics
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from billpayment.models import Airtime, Data, CableTV, Electricity
+from coporate.models import Mandate
 from .paginations import CustomPagination
 from .serializers import CustomerSerializer, TransferSerializer, BeneficiarySerializer, BankSerializer
 from .utils import authenticate_user, generate_new_otp, \
@@ -131,6 +132,7 @@ class LoginView(APIView):
                 log_request(f"error-message: {ex}")
                 return Response({"detail": "An error occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
             data = get_account_balance(customer, request)
+            data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
             return Response({
                 "detail": detail, "access_token": str(AccessToken.for_user(request.user)),
                 "refresh_token": str(RefreshToken.for_user(request.user)), 'data': data})
@@ -198,6 +200,7 @@ class CustomerProfileView(APIView):
     def get(self, request):
         customer = Customer.objects.get(user=request.user)
         data = get_account_balance(customer, request)
+        data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
         return Response(data)
 
     def put(self, request):
@@ -822,9 +825,14 @@ class GenerateStatement(APIView):
             if not all([date_to, date_from, account_no]):
                 return Response({"detail": "Dates and account number are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            if not CustomerAccount.objects.filter(
-                    customer__user=request.user, customer__bank_id=bank_id, account_no=account_no).exists():
-                return Response({"detail": "Account not valid for user"}, status=status.HTTP_400_BAD_REQUEST)
+            if Customer.objects.filter(user=request.user).exists():
+                if not CustomerAccount.objects.filter(
+                        customer__user=request.user, customer__bank_id=bank_id, account_no=account_no).exists():
+                    return Response({"detail": "Account not valid for user"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if Mandate.objects.filter(user=request.user).exists():
+                if not Mandate.objects.filter(user=request.user, institution__bank_id=bank_id).exists():
+                    return Response({"detail": "Account selected is not valid"}, status=status.HTTP_400_BAD_REQUEST)
 
             bank = Bank.objects.get(id=bank_id)
             if download is True:
@@ -852,8 +860,9 @@ class AccountOfficerAPIView(APIView):
             return Response({"detail": "User with account not found"}, status=status.HTTP_400_BAD_REQUEST)
 
         account = CustomerAccount.objects.get(account_no=account_no)
+        bank = account.customer.bank
 
-        data = get_account_officer(account)
+        data = get_account_officer(account, bank)
 
         return Response({"detail": data})
 

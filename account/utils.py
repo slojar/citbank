@@ -17,6 +17,7 @@ from django.db.models import Sum
 
 from dateutil.relativedelta import relativedelta
 
+from coporate.models import Institution, TransferRequest
 from .models import Customer, CustomerAccount, CustomerOTP, Transaction, AccountRequest
 
 from cryptography.fernet import Fernet
@@ -207,8 +208,7 @@ def open_account_with_banks(bank, request):
     return True, "Your request is submitted for review. You will get a response soon"
 
 
-def get_account_balance(customer, request):
-    from .serializers import CustomerSerializer
+def get_account_balance(customer):
     from bankone.api import bankone_get_details_by_customer_id
 
     data = dict()
@@ -235,8 +235,6 @@ def get_account_balance(customer, request):
                 customer_account.append(account_detail)
         data["account_balances"] = customer_account
         Thread(target=update_customer_account, args=[customer, customer_account]).start()
-
-    data["customer"] = CustomerSerializer(customer, context={"request": request}).data
 
     return data
 
@@ -352,11 +350,11 @@ def generate_bank_statement(request, bank, date_from, date_to, account_no, forma
         return True, statement
 
 
-def get_account_officer(account):
+def get_account_officer(account, bank):
     from bankone.api import bankone_get_customer_acct_officer
 
     data = dict()
-    bank = account.customer.bank
+    # bank = account.customer.bank
     if bank.short_name in bank_one_banks:
         account_no = account.account_no
         token = decrypt_text(bank.auth_token)
@@ -399,6 +397,7 @@ def perform_bank_transfer(bank, request):
     description = request.data.get('narration')
     beneficiary_name = request.data.get('beneficiary_name')
     beneficiary_acct = request.data.get('beneficiary_acct_no')
+    sender_type = request.data.get('sender_type', 'individual')
 
     # Needed payloads for other bank transfer
     beneficiary_acct_type = request.data.get("beneficiary_acct_type")  # savings, current, etc
@@ -406,54 +405,91 @@ def perform_bank_transfer(bank, request):
     nip_session_id = request.data.get("nip_session_id")
     bank_name = request.data.get('beneficiary_bank_name')
 
-    success, message = confirm_trans_pin(request)
-    if success is False:
-        return False, message
+    transfer_id = request.data.get('transfer_id')
 
-    if not all([account_number, amount, beneficiary_acct, beneficiary_name]):
-        return False, "Required fields are account_number, beneficiary account details, and amount"
+    customer = institution = transfer = trans_req = None
+    today_trans = month_transaction = 0
+    today = datetime.datetime.today()
+    today_date = str(today.date())
+    customer_id = sender_name = ""
+    today_now = datetime.datetime.now()
+    start_date, end_date = get_month_start_and_end_datetime(today_now)
 
-    # check if account_number is valid
-    if not CustomerAccount.objects.filter(account_no=account_number, customer__user=request.user).exists():
-        return False, "Account number is not valid"
+    if sender_type == 'individual':
+        if not all([account_number, amount, beneficiary_acct, beneficiary_name]):
+            return False, "Required fields are account_number, beneficiary account details, and amount"
 
-    # get the customer the account_number belongs to
-    customer_account = CustomerAccount.objects.get(account_no=account_number)
-    customer = customer_account.customer
-    sender_name = customer.get_full_name()
-
-    transfer = None
-
-    if bank.short_name in bank_one_banks:
-        app_zone_acct = customer_account.bank_acct_number
-        # Check Transfer Limit
-        if decimal.Decimal(amount) > customer.transfer_limit:
-            log_request(f"Amount sent: {decimal.Decimal(amount)}, transfer_limit: {customer.transfer_limit}")
-            return False, "amount is greater than your limit. please contact the bank"
-
-        # Check Daily Transfer Limit
-        today = datetime.datetime.today()
-        today_date = str(today.date())
-        today_trans = \
-            Transaction.objects.filter(customer=customer, status="success", created_on=today_date).aggregate(
-                Sum("amount"))["amount__sum"] or 0
-        current_limit = float(amount) + float(today_trans)
-        if current_limit > customer.daily_limit:
-            log_request(f"Amount to transfer:{amount}, Total Transfered today: {today_trans}, Exceed: {current_limit}")
-            return False, f"Your current daily transfer limit is NGN{customer.daily_limit}, please contact the bank"
+        # get the customer the account_number belongs to
+        customer_account = CustomerAccount.objects.get(account_no=account_number)
+        customer = customer_account.customer
+        customer_id = customer.customerID
+        sender_name = customer.get_full_name()
 
         # Check if customer status is active
         result = check_account_status(customer)
         if result is False:
             return False, "Your account is locked, please contact the bank to unlock"
 
-        # Compare amount with customer balance
+        success, message = confirm_trans_pin(request)
+        if success is False:
+            return False, message
+
+        # check if account_number is valid
+        if not CustomerAccount.objects.filter(account_no=account_number, customer__user=request.user).exists():
+            return False, "Account number is not valid"
+
+        # Check Transfer Limit
+        if decimal.Decimal(amount) > customer.transfer_limit:
+            log_request(f"Amount sent: {decimal.Decimal(amount)}, transfer_limit: {customer.transfer_limit}")
+            return False, "amount is greater than your limit. please contact the bank"
+
+        current_limit = float(amount) + float(today_trans)
+        today_trans = \
+            Transaction.objects.filter(customer=customer, status="success", created_on=today_date).aggregate(
+                Sum("amount"))["amount__sum"] or 0
+
+        # Check Daily Transfer Limit
+        if current_limit > customer.daily_limit:
+            log_request(f"Amount to transfer:{amount}, Total Transferred today: {today_trans}, Exceed: {current_limit}")
+            return False, f"Your current daily transfer limit is NGN{customer.daily_limit}, please contact the bank"
+
+        month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__bank=bank).count()
+
+    if sender_type == 'corporate':
+        institution = Institution.objects.get(mandate__user=request.user)
+        customer_id = institution.customerID
+        sender_name = institution.name
+        trans_req = TransferRequest.objects.get(institution=institution, id=transfer_id, approved=True)
+
+        transfer_type = trans_req.transfer_type  # same_bank or other_bank
+        account_number = trans_req.account_number
+        amount = trans_req.amount
+        description = trans_req.description
+        beneficiary_name = trans_req.beneficiary_name
+        beneficiary_acct = trans_req.beneficiary_acct
+        beneficiary_acct_type = trans_req.beneficiary_acct_type  # savings, current, etc
+        bank_code = trans_req.bank_code
+        nip_session_id = trans_req.nip_session_id
+        bank_name = trans_req.bank_name
+
+        month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date), institution__bank=bank).count()
+
+    # Narration max is 100 char, Reference max is 12 char, amount should be in kobo (i.e multiply by 100)
+    narration = ""
+    if description:
+        narration = description[:100]
+
+    if bank.short_name in bank_one_banks:
+        app_zone_acct = ""
+
+        # Compare amount with balance
         balance = 0
         token = decrypt_text(bank.auth_token)
-        account = bankone_get_details_by_customer_id(customer.customerID, token).json()
+        account = bankone_get_details_by_customer_id(customer_id, token).json()
         for acct in account["Accounts"]:
             if acct["NUBAN"] == account_number:
                 withdraw_able = str(acct["withdrawableAmount"]).replace(",", "")
+                app_zone_acct = str(acct["AccountNumber"])
                 balance = decimal.Decimal(withdraw_able)
 
         if balance <= 0:
@@ -462,14 +498,7 @@ def perform_bank_transfer(bank, request):
         if decimal.Decimal(amount) > balance:
             return False, "Amount to transfer cannot be greater than current balance"
 
-        # Narration max is 100 char, Reference max is 12 char, amount should be in kobo (i.e multiply by 100)
-        narration = ""
-        if description:
-            narration = description[:100]
         # generate transaction reference using the format CYYMMDDCODES
-        today = datetime.datetime.now()
-        start_date, end_date = get_month_start_and_end_datetime(today)
-        month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__bank=bank).count()
         code = str(month_transaction + 1)
         ref_code = bankone_generate_transaction_ref_code(code, bank.short_name)
 
@@ -483,20 +512,31 @@ def perform_bank_transfer(bank, request):
                 description=narration, auth_token=token
             )
             # Create Transaction instance
-            transfer = Transaction.objects.create(
-                customer=customer, sender_acct_no=account_number, transfer_type="local_transfer",
-                beneficiary_type="local_transfer", beneficiary_name=beneficiary_name, bank_name=bank_name,
-                beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code
-            )
+            if sender_type == "individual":
+                transfer = Transaction.objects.create(
+                    customer=customer, sender_acct_no=account_number, transfer_type="local_transfer",
+                    beneficiary_type="local_transfer", beneficiary_name=beneficiary_name, bank_name=bank_name,
+                    beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code
+                )
+            if sender_type == "corporate":
+                transfer = Transaction.objects.create(
+                    institution=institution, sender_acct_no=account_number, transfer_type="local_transfer",
+                    beneficiary_type="local_transfer", beneficiary_name=beneficiary_name, bank_name=bank_name,
+                    beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code,
+                    transfer_request=trans_req
+                )
+
             if response["IsSuccessful"] is True and response["ResponseCode"] != "00":
+                transfer.status = "failed"
                 return False, str(response["ResponseMessage"])
 
             if response["IsSuccessful"] is False:
+                transfer.status = "failed"
                 return False, str(response["ResponseMessage"])
 
             if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
                 transfer.status = "success"
-                transfer.save()
+            transfer.save()
 
         elif transfer_type == "other_bank":
             # Convert kobo amount sent on OtherBankTransfer to naira... To be removed in future update
@@ -510,20 +550,31 @@ def perform_bank_transfer(bank, request):
                 nip_session_id=nip_session_id
             )
             # Create transfer
-            transfer = Transaction.objects.create(
-                customer=customer, sender_acct_no=account_number, transfer_type="external_transfer",
-                beneficiary_type="external_transfer", beneficiary_name=beneficiary_name, bank_name=bank_name,
-                beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code
-            )
+            if sender_type == "individual":
+                transfer = Transaction.objects.create(
+                    customer=customer, sender_acct_no=account_number, transfer_type="external_transfer",
+                    beneficiary_type="external_transfer", beneficiary_name=beneficiary_name, bank_name=bank_name,
+                    beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code
+                )
+            if sender_type == "corporate":
+                transfer = Transaction.objects.create(
+                    institution=institution, sender_acct_no=account_number, transfer_type="external_transfer",
+                    beneficiary_type="external_transfer", beneficiary_name=beneficiary_name, bank_name=bank_name,
+                    beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code,
+                    transfer_request=trans_req
+                )
+
             if response["IsSuccessFul"] is True and response["ResponseCode"] != "00":
+                transfer.status = "failed"
                 return False, str(response["ResponseMessage"])
 
             if response["IsSuccessFul"] is False:
+                transfer.status = "failed"
                 return False, str(response["ResponseMessage"])
 
             if response["IsSuccessFul"] is True and response["ResponseCode"] == "00":
                 transfer.status = "success"
-                transfer.save()
+            transfer.save()
 
         else:
             return False, "Invalid transfer type selected"
