@@ -1,18 +1,22 @@
 import datetime
 import decimal
 import json
+import uuid
 from threading import Thread
 
+import requests
 from django.conf import settings
+from django.contrib.auth.password_validation import validate_password
 from django.db.models import Sum
+from django.urls import reverse
 
 from account.models import Transaction
-from account.utils import get_account_balance, decrypt_text, get_month_start_and_end_datetime, log_request
+from account.utils import get_account_balance, decrypt_text, log_request, encrypt_text
 from bankone.api import bankone_get_details_by_customer_id
 from citbank.exceptions import InvalidRequestException
 from coporate.models import Mandate
-from coporate.notifications import send_approval_notification_request
-
+from coporate.notifications import send_approval_notification_request, send_token_to_mandate, \
+    send_successful_transfer_email
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
@@ -32,8 +36,6 @@ def get_dashboard_data(mandate):
 def check_mandate_password_pin_otp(mandate, **kwargs):
     password_changed = kwargs.get("password_changed")
     active = kwargs.get("active")
-    pin_set = kwargs.get("pin_set")
-    transaction_pin = kwargs.get("transaction_pin")
     otp = kwargs.get("otp")
     transaction_limit = kwargs.get("transaction_limit")
 
@@ -49,16 +51,7 @@ def check_mandate_password_pin_otp(mandate, **kwargs):
 
     if active:
         if not mandate.active:
-            raise InvalidRequestException({"detail": "You account is not active, please contact administrator"})
-
-    if pin_set:
-        if not mandate.pin_set:
-            raise InvalidRequestException({"detail": "Transaction PIN is not set"})
-
-    if transaction_pin:
-        trans_pin = decrypt_text(mandate.transaction_pin)
-        if trans_pin != transaction_pin:
-            raise InvalidRequestException({"detail": "Transaction PIN is not valid"})
+            raise InvalidRequestException({"detail": "Your account is not active, please contact administrator"})
 
     if otp:
         one_time_pin = decrypt_text(mandate.otp)
@@ -148,7 +141,7 @@ def transfer_validation(mandate, amount, account_number):
     return True
 
 
-def verify_approve_transfer(tran_req, mandate):
+def verify_approve_transfer(request, tran_req, mandate):
     if mandate.role.mandate_type == "uploader":
         if tran_req.verified or tran_req.approved:
             raise InvalidRequestException({"detail": "Request has recently been verified or approved"})
@@ -173,12 +166,63 @@ def verify_approve_transfer(tran_req, mandate):
         if tran_req.approved:
             raise InvalidRequestException({"detail": "Cannot approve, request has recently been approved"})
         tran_req.approved = True
-        # Send email to authorizers
-        for _mandates in Mandate.objects.filter(institution=mandate.institution, role__mandate_type="authorizer"):
-            Thread(target=send_approval_notification_request, args=[_mandates]).start()
+        # Perform Transfer
+        Thread(target=perform_corporate_transfer, args=[request, tran_req]).start()
+        # Send email to all mandate
+        for _mandates in Mandate.objects.filter(institution=mandate.institution):
+            Thread(target=send_successful_transfer_email, args=[_mandates, tran_req]).start()
 
     tran_req.save()
     return tran_req
+
+
+def generate_and_send_otp(mandate):
+    # Generate random Token
+    otp = str(uuid.uuid4().int)[:6]
+    token = encrypt_text(otp)
+    next_15_min = datetime.datetime.now() + datetime.timedelta(minutes=15)
+    mandate.otp = token
+    mandate.otp_expiry = next_15_min
+    mandate.save()
+    # Send Token to mandate
+    Thread(target=send_token_to_mandate, args=[mandate, otp]).start()
+    return True
+
+
+def change_password_and_pin(mandate, data):
+    old_password = data.get("old")
+    new_password = data.get("new")
+    confirm_new_password = data.get("confirm_new")
+
+    user = mandate.user
+    # Check if old password matches
+    if not user.check_password(old_password):
+        raise InvalidRequestException({"detail": "Old password is not valid"})
+
+    # Validate Password Characters
+    validate_password(new_password)
+
+    if new_password != confirm_new_password:
+        raise InvalidRequestException({"detail": "Password mismatch"})
+
+    user.set_password(new_password)
+    user.save()
+    mandate.password_changed = True
+    mandate.save()
+    return True
+
+
+def perform_corporate_transfer(request, trans_req):
+    host = request.build_absolute_uri(reverse('account:transfer', kwargs={'bank_id': trans_req.institution.bank_id}))
+    payload = json.dumps({
+        "sender_type": "corporate",
+        "transfer_id": trans_req.id
+    })
+    response = requests.post(url=host, data=payload)
+    log_request(f"Transfer from corporate account ---->>> {response}")
+    return True
+
+
 
 
 

@@ -68,3 +68,40 @@ def send_approval_notification_request(mandate):
     return True
 
 
+def send_token_to_mandate(mandate, otp):
+    first_name = mandate.user.first_name
+    subject = "Transaction Token"
+    bank = mandate.institution.bank
+    bank_name = bank.name
+    email = mandate.user.email
+    sender = bank.support_email
+    short_name = bank.short_name
+    content = f"Dear {first_name},<br><br>Kindly use the following token to complete transaction. " \
+              f"<br><strong>Token: {otp}</strong><br>" \
+              f"<br>Regards, <br>{bank_name} Team."
+    if short_name in bank_one_banks:
+        send_email_to_bankone_mandates(bank, sender, email, subject, content)
+    return True
+
+
+def send_successful_transfer_email(mandate, trans_req):
+    first_name = mandate.user.first_name
+    bank = mandate.institution.bank
+    bank_name = bank.name
+    subject = "Transaction Processed"
+    email = mandate.user.email
+    sender = bank.support_email
+    short_name = bank.short_name
+    content = f"Dear {first_name},<br><br>A transaction has been approved, please see details below: <br>" \
+              f"<br><strong>SENT FROM: {trans_req.account_number}</strong>" \
+              f"<br><strong>BENEFICIARY NAME: {trans_req.beneficiary_name}</strong>" \
+              f"<br><strong>BENEFICIARY ACCOUNT NUMBER: {trans_req.beneficiary_acct}</strong>" \
+              f"<br><strong>BENEFICIARY BANK: {trans_req.bank_name}</strong>" \
+              f"<br><strong>AMOUNT: {trans_req.amount}</strong>" \
+              f"<br><strong>NARRATION: {trans_req.description}</strong><br>" \
+              f"<br>Regards, <br>{bank_name} Team."
+    if short_name in bank_one_banks:
+        send_email_to_bankone_mandates(bank, sender, email, subject, content)
+    return True
+
+

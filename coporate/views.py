@@ -14,13 +14,16 @@ from coporate.permissions import IsVerifier, IsUploader, IsAuthorizer
 from coporate.serializers import MandateSerializerOut, LimitSerializerOut, TransferRequestSerializerOut, \
     TransferRequestSerializerIn
 from coporate.utils import get_dashboard_data, check_mandate_password_pin_otp, \
-    update_transaction_limits, verify_approve_transfer
+    update_transaction_limits, verify_approve_transfer, generate_and_send_otp, change_password_and_pin
 
 
 class MandateLoginAPIView(APIView):
     permission_classes = []
 
     def post(self, request):
+        from .utils import perform_corporate_transfer
+        perform_corporate_transfer(request)
+        exit()
         username = request.data.get("username")
         password = request.data.get("password")
 
@@ -67,10 +70,9 @@ class TransferLimitAPIView(APIView):
 
     def put(self, request):
         otp = request.data.get("otp")
-        trans_pin = request.data.get("transaction_pin")
         mandate = get_object_or_404(Mandate, user=request.user)
         # Check otp and transaction pin
-        check_mandate_password_pin_otp(mandate, otp=otp, transaction_pin=trans_pin)
+        check_mandate_password_pin_otp(mandate, otp=otp)
         limit = update_transaction_limits(request, mandate)
         data = LimitSerializerOut(limit, context={"request": request})
         return Response({"detail": "Transaction Limit updated successfully", "data": data})
@@ -117,19 +119,32 @@ class TransferRequestAPIView(APIView, CustomPagination):
 
     def put(self, request, pk):
         otp = request.data.get("otp")
-        trans_pin = request.data.get("transaction_pin")
-
         mandate = get_object_or_404(Mandate, user=request.user)
         trans_req = get_object_or_404(TransferRequest, id=pk, institution=mandate.institution)
-        check_mandate_password_pin_otp(mandate, otp=otp, transaction_pin=trans_pin)
-        trans_request = verify_approve_transfer(trans_req, mandate)
+        check_mandate_password_pin_otp(mandate, otp=otp)
+        trans_request = verify_approve_transfer(request, trans_req, mandate)
         serializer = TransferRequestSerializerOut(trans_request, context={"request": request}).data
         return Response({"detail": "Transfer updated successfully", "data": serializer})
 
 
+class SendOTPAPIView(APIView):
+    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
+
+    def get(self, request):
+        mandate = get_object_or_404(Mandate, user=request.user)
+        generate_and_send_otp(mandate)
+        return Response({"detail": "Token has been sent to your email"})
 
 
+class MandateChangePasswordAPIView(APIView):
+    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
 
+    def post(self, request):
+        otp = request.data.get("otp")
+        mandate = get_object_or_404(Mandate, user=request.user)
+        check_mandate_password_pin_otp(mandate, otp=otp)
+        change_password_and_pin(mandate, data=request.data)
+        return Response({"detail": "Password changed successfully"})
 
 
 
