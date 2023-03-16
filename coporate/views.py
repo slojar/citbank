@@ -21,9 +21,6 @@ class MandateLoginAPIView(APIView):
     permission_classes = []
 
     def post(self, request):
-        from .utils import perform_corporate_transfer
-        perform_corporate_transfer(request)
-        exit()
         username = request.data.get("username")
         password = request.data.get("password")
 
