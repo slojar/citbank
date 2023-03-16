@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -14,7 +15,7 @@ from coporate.permissions import IsVerifier, IsUploader, IsAuthorizer
 from coporate.serializers import MandateSerializerOut, LimitSerializerOut, TransferRequestSerializerOut, \
     TransferRequestSerializerIn
 from coporate.utils import get_dashboard_data, check_mandate_password_pin_otp, \
-    update_transaction_limits, verify_approve_transfer, generate_and_send_otp, change_password_and_pin
+    update_transaction_limits, verify_approve_transfer, generate_and_send_otp, change_password
 
 
 class MandateLoginAPIView(APIView):
@@ -23,22 +24,25 @@ class MandateLoginAPIView(APIView):
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
+        customer_id = request.data.get("customer_id")
 
-        if not all([username, password]):
-            raise InvalidRequestException({"detail": "Username and password required"})
+        if not all([username, password, customer_id]):
+            raise InvalidRequestException({"detail": "Username, customerID, and password required"})
 
         # Check user is valid
-        user = authenticate(username=username, password=password)
+        user = authenticate(request, username=username, password=password)
 
         if not user:
             raise InvalidRequestException({"detail": "Invalid username or password"})
 
         mandate = get_object_or_404(Mandate, user=user)
-        check_mandate_password_pin_otp(mandate, password_changed=0, active=1)
+        if mandate.institution.customerID != customer_id:
+            return Response({"detail": "Invalid Customer ID"})
+        check_mandate_password_pin_otp(mandate, active=1)
         serializer = MandateSerializerOut(mandate, context={"request": request}).data
         return Response({
-            "detail": "Login Successful", "access_token": str(AccessToken.for_user(request.user)),
-            "refresh_token": str(RefreshToken.for_user(request.user)), "data": serializer
+            "detail": "Login Successful", "access_token": str(AccessToken.for_user(user)),
+            "refresh_token": str(RefreshToken.for_user(user)), "data": serializer
         })
 
 
@@ -68,10 +72,12 @@ class TransferLimitAPIView(APIView):
     def put(self, request):
         otp = request.data.get("otp")
         mandate = get_object_or_404(Mandate, user=request.user)
-        # Check otp and transaction pin
+        # Check otp is valid
+        if not otp:
+            return Response({"detail": "Token is required to continue"}, status=status.HTTP_400_BAD_REQUEST)
         check_mandate_password_pin_otp(mandate, otp=otp)
         limit = update_transaction_limits(request, mandate)
-        data = LimitSerializerOut(limit, context={"request": request})
+        data = LimitSerializerOut(limit, context={"request": request}).data
         return Response({"detail": "Transaction Limit updated successfully", "data": data})
 
 
@@ -138,9 +144,11 @@ class MandateChangePasswordAPIView(APIView):
 
     def post(self, request):
         otp = request.data.get("otp")
+        if not otp:
+            return Response({"detail": "Token is required"}, status=status.HTTP_400_BAD_REQUEST)
         mandate = get_object_or_404(Mandate, user=request.user)
         check_mandate_password_pin_otp(mandate, otp=otp)
-        change_password_and_pin(mandate, data=request.data)
+        change_password(mandate, data=request.data)
         return Response({"detail": "Password changed successfully"})
 
 

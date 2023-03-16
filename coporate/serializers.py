@@ -100,7 +100,7 @@ class MandateSerializerOut(serializers.ModelSerializer):
                 "email": mandate.user.email,
                 "phone_number": mandate.phone_number,
                 "active": mandate.active
-            } for mandate in Mandate.objects.filter(institution=obj.institution).exists(id=obj.id)]
+            } for mandate in Mandate.objects.filter(institution=obj.institution).exclude(id=obj.id)]
         return data
 
     def get_bvn(self, obj):
@@ -185,28 +185,28 @@ class TransferRequestSerializerOut(serializers.ModelSerializer):
 
 class TransferRequestSerializerIn(serializers.Serializer):
     current_user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    account_number = serializers.CharField()
+    account_no = serializers.CharField()
     amount = serializers.FloatField()
-    description = serializers.CharField(max_length=60)
+    narration = serializers.CharField(max_length=60)
     beneficiary_name = serializers.CharField(max_length=100)
     transfer_type = serializers.CharField()
-    beneficiary_acct = serializers.CharField()
-    bank_code = serializers.CharField(required=False)
+    beneficiary_acct_no = serializers.CharField()
+    beneficiary_bank_code = serializers.CharField(required=False)
     nip_session_id = serializers.CharField(required=False)
-    bank_name = serializers.CharField(required=False)
+    beneficiary_bank_name = serializers.CharField(required=False)
     beneficiary_acct_type = serializers.CharField(required=False)
 
     def create(self, validated_data):
         user = validated_data.get('current_user')
-        account_number = validated_data.get("account_number")
+        account_number = validated_data.get("account_no")
         amount = validated_data.get("amount")
-        description = validated_data.get("description")
+        description = validated_data.get("narration")
         beneficiary_name = validated_data.get("beneficiary_name")
         transfer_type = validated_data.get("transfer_type")
-        beneficiary_acct = validated_data.get("beneficiary_acct")
-        bank_code = validated_data.get("bank_code")
+        beneficiary_acct = validated_data.get("beneficiary_acct_no")
+        bank_code = validated_data.get("beneficiary_bank_code")
         nip_session_id = validated_data.get("nip_session_id")
-        bank_name = validated_data.get("bank_name")
+        bank_name = validated_data.get("beneficiary_bank_name")
         beneficiary_acct_type = validated_data.get("beneficiary_acct_type")
 
         mandate = get_object_or_404(Mandate, user=user)

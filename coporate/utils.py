@@ -9,6 +9,7 @@ from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.db.models import Sum
 from django.urls import reverse
+from django.utils import timezone
 
 from account.models import Transaction
 from account.utils import get_account_balance, decrypt_text, log_request, encrypt_text
@@ -57,7 +58,7 @@ def check_mandate_password_pin_otp(mandate, **kwargs):
         one_time_pin = decrypt_text(mandate.otp)
         if one_time_pin != otp:
             raise InvalidRequestException({"detail": "You have entered an invalid token"})
-        if datetime.datetime.now() > mandate.otp_expiry:
+        if timezone.now() > mandate.otp_expiry:
             raise InvalidRequestException({"detail": "Token has expired, please request a new one"})
 
     return True
@@ -179,8 +180,9 @@ def verify_approve_transfer(request, tran_req, mandate):
 def generate_and_send_otp(mandate):
     # Generate random Token
     otp = str(uuid.uuid4().int)[:6]
+    print(otp)
     token = encrypt_text(otp)
-    next_15_min = datetime.datetime.now() + datetime.timedelta(minutes=15)
+    next_15_min = timezone.now() + timezone.timedelta(minutes=15)
     mandate.otp = token
     mandate.otp_expiry = next_15_min
     mandate.save()
@@ -189,10 +191,10 @@ def generate_and_send_otp(mandate):
     return True
 
 
-def change_password_and_pin(mandate, data):
-    old_password = data.get("old")
-    new_password = data.get("new")
-    confirm_new_password = data.get("confirm_new")
+def change_password(mandate, data):
+    old_password = data.get("old_password")
+    new_password = data.get("new_password")
+    confirm_new_password = data.get("confirm_new_password")
 
     user = mandate.user
     # Check if old password matches
@@ -200,7 +202,10 @@ def change_password_and_pin(mandate, data):
         raise InvalidRequestException({"detail": "Old password is not valid"})
 
     # Validate Password Characters
-    validate_password(new_password)
+    try:
+        validate_password(new_password)
+    except Exception:
+        raise InvalidRequestException({"detail": "Password is too short or does not meet required specification"})
 
     if new_password != confirm_new_password:
         raise InvalidRequestException({"detail": "Password mismatch"})
@@ -208,6 +213,9 @@ def change_password_and_pin(mandate, data):
     user.set_password(new_password)
     user.save()
     mandate.password_changed = True
+    # Reset OTP
+    otp = str(uuid.uuid4().int)[:6]
+    mandate.otp = encrypt_text(otp)
     mandate.save()
     return True
 

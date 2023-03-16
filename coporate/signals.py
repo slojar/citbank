@@ -6,7 +6,7 @@ from coporate.models import Institution, Limit
 
 @receiver(signal=post_save, sender=Institution)
 def create_transaction_limit(sender, instance, **kwargs):
-    if not instance.limit:
+    if not Limit.objects.filter(institution=instance).exists():
         Limit.objects.create(institution=instance)
 
 
