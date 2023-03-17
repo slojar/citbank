@@ -9,8 +9,9 @@ from rest_framework import serializers
 from account.models import Bank
 from account.utils import decrypt_text, encrypt_text
 from citbank.exceptions import InvalidRequestException
-from .models import Mandate, Institution, Role
+from .models import Mandate, Institution, Role, Limit, TransferRequest
 from .notifications import send_username_password_to_mandate
+from .utils import transfer_validation
 
 
 class MandateSerializerIn(serializers.Serializer):
@@ -88,6 +89,19 @@ class MandateSerializerOut(serializers.ModelSerializer):
     role = serializers.CharField(source="role.mandate_type")
     added_by = serializers.CharField(source="added_by.last_name")
     bvn = serializers.SerializerMethodField()
+    other_signatories = serializers.SerializerMethodField()
+
+    def get_other_signatories(self, obj):
+        data = None
+        if Mandate.objects.filter(institution=obj.institution).exists():
+            data = [{
+                "name": mandate.user.get_full_name(),
+                "role": mandate.role.mandate_type,
+                "email": mandate.user.email,
+                "phone_number": mandate.phone_number,
+                "active": mandate.active
+            } for mandate in Mandate.objects.filter(institution=obj.institution).exclude(id=obj.id)]
+        return data
 
     def get_bvn(self, obj):
         if obj.bvn:
@@ -112,12 +126,14 @@ class RoleSerializerOut(serializers.ModelSerializer):
 
 class InstitutionSerializerIn(serializers.Serializer):
     name = serializers.CharField()
+    customer_id = serializers.CharField()
     code = serializers.CharField()
     address = serializers.CharField()
     account_no = serializers.CharField()
 
     def create(self, validated_data):
         name = validated_data.get("name")
+        customer_id = validated_data.get("customer_id")
         code = validated_data.get("code")
         address = validated_data.get("address")
         account_no = validated_data.get("account_no")
@@ -132,7 +148,7 @@ class InstitutionSerializerIn(serializers.Serializer):
         bank = request.user.customer.bank
 
         # Create Institution
-        institution, created = Institution.objects.get_or_create(name=name, code=code, bank=bank)
+        institution, created = Institution.objects.get_or_create(name=name, code=code, bank=bank, customerID=customer_id)
         institution.address = address
         institution.account_no = account_no
         institution.created_by = request.user
@@ -153,6 +169,59 @@ class InstitutionSerializerOut(serializers.ModelSerializer):
     class Meta:
         model = Institution
         exclude = []
+
+
+class LimitSerializerOut(serializers.ModelSerializer):
+    class Meta:
+        model = Limit
+        exclude = []
+
+
+class TransferRequestSerializerOut(serializers.ModelSerializer):
+    class Meta:
+        model = TransferRequest
+        exclude = []
+
+
+class TransferRequestSerializerIn(serializers.Serializer):
+    current_user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    account_no = serializers.CharField()
+    amount = serializers.FloatField()
+    narration = serializers.CharField(max_length=60)
+    beneficiary_name = serializers.CharField(max_length=100)
+    transfer_type = serializers.CharField()
+    beneficiary_acct_no = serializers.CharField()
+    beneficiary_bank_code = serializers.CharField(required=False)
+    nip_session_id = serializers.CharField(required=False)
+    beneficiary_bank_name = serializers.CharField(required=False)
+    beneficiary_acct_type = serializers.CharField(required=False)
+
+    def create(self, validated_data):
+        user = validated_data.get('current_user')
+        account_number = validated_data.get("account_no")
+        amount = validated_data.get("amount")
+        description = validated_data.get("narration")
+        beneficiary_name = validated_data.get("beneficiary_name")
+        transfer_type = validated_data.get("transfer_type")
+        beneficiary_acct = validated_data.get("beneficiary_acct_no")
+        bank_code = validated_data.get("beneficiary_bank_code")
+        nip_session_id = validated_data.get("nip_session_id")
+        bank_name = validated_data.get("beneficiary_bank_name")
+        beneficiary_acct_type = validated_data.get("beneficiary_acct_type")
+
+        mandate = get_object_or_404(Mandate, user=user)
+        transfer_validation(mandate, amount, account_number)
+
+        # Create Transfer Request
+        trans_req = TransferRequest.objects.create(
+            institution=mandate.institution, account_number=account_number, amount=amount, description=description,
+            beneficiary_name=beneficiary_name, transfer_type=transfer_type, beneficiary_acct=beneficiary_acct,
+            bank_code=bank_code, nip_session_id=nip_session_id, bank_name=bank_name,
+            beneficiary_acct_type=beneficiary_acct_type
+        )
+
+        return TransferRequestSerializerOut(trans_req, context={"request": self.context.get("request")}).data
+
 
 
 

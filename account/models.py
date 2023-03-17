@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 from django.contrib.auth.models import User
 
+# from coporate.models import Institution
 
 STATUS_CHOICES = (
     ('pending', 'Pending'), ('failed', 'Failed'), ('success', 'Success')
@@ -28,6 +29,10 @@ GENDER_TYPE_CHOICES = (
 
 APPROVAL_STATUS_CHOICES = (
     ('approved', 'Approved'), ('declined', 'Declined'), ('pending', 'Pending')
+)
+
+SENDER_ACCOUNT_TYPE = (
+    ('individual', 'Individual'), ('corporate', 'Corporate')
 )
 
 
@@ -123,6 +128,9 @@ class CustomerOTP(models.Model):
 
 class Transaction(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, blank=True, null=True)
+    institution = models.ForeignKey("coporate.Institution", on_delete=models.SET_NULL, blank=True, null=True)
+    transfer_request = models.ForeignKey("coporate.TransferRequest", on_delete=models.SET_NULL, blank=True, null=True)
+    sender_acct_type = models.CharField(max_length=50, choices=SENDER_ACCOUNT_TYPE, default='individual')
     sender_acct_no = models.CharField(max_length=200, blank=True, null=True)
     transfer_type = models.CharField(max_length=100, choices=TRANSFER_TYPE_CHOICES, default='local_transfer')
     beneficiary_type = models.CharField(max_length=100, blank=True, null=True, choices=BENEFICIARY_TYPE_CHOICES)

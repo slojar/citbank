@@ -88,9 +88,17 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 class TransferSerializer(serializers.ModelSerializer):
     customer = serializers.SerializerMethodField()
+    institution = serializers.SerializerMethodField()
 
     def get_customer(self, obj):
-        return obj.customer.get_customer_detail()
+        if obj.customer:
+            return obj.customer.get_customer_detail()
+        return None
+
+    def get_institution(self, obj):
+        if obj.institution:
+            return obj.institution.name
+        return None
 
     class Meta:
         model = Transaction
