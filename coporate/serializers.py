@@ -39,10 +39,6 @@ class MandateSerializerIn(serializers.Serializer):
         # Reformat phone number
         phone_no = f"0{phone_number[-10:]}"
 
-        # Check if user already exist
-        if User.objects.filter(email__iexact=email).exists():
-            raise InvalidRequestException({"detail": "User with this email already exist"})
-
         # Check if institution exist
         if not Institution.objects.filter(id=institution_id, bank=admin_bank).exists():
             raise InvalidRequestException({"detail": "Selected institution is not valid"})

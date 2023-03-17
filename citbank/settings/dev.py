@@ -4,7 +4,7 @@ from decouple import config
 import dj_database_url
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY')
+SECRET_KEY = env('SECRET_KEY', default="")
 
 # CORS
 CORS_ALLOWED_ORIGINS = [
@@ -28,18 +28,18 @@ ALLOWED_HOSTS = []
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': env('DATABASE_NAME'),
-        'USER': env('DATABASE_USER'),
-        'PASSWORD': env('DATABASE_PASSWORD'),
-        'HOST': env('DATABASE_HOST'),
-        'PORT': env('DATABASE_PORT'),
+        'NAME': env('DATABASE_NAME', default=""),
+        'USER': env('DATABASE_USER', default=""),
+        'PASSWORD': env('DATABASE_PASSWORD', default=""),
+        'HOST': env('DATABASE_HOST', "localhost"),
+        'PORT': env('DATABASE_PORT', default="5432"),
     }
 }
 
 # BANK ONE API CREDENTIALS
-BANK_ONE_VERSION = env('BANK_ONE_VERSION')
-BANK_ONE_BASE_URL = env('BANK_ONE_BASE_URL')
-BANK_ONE_3PS_URL = env('BANK_ONE_3PS_URL')
+BANK_ONE_VERSION = env('BANK_ONE_VERSION', default="")
+BANK_ONE_BASE_URL = env('BANK_ONE_BASE_URL', default="")
+BANK_ONE_3PS_URL = env('BANK_ONE_3PS_URL', default="")
 
 # Simple JWT
 SIMPLE_JWT = {
@@ -50,14 +50,14 @@ SIMPLE_JWT = {
 }
 
 # TM SAAS
-TM_BASE_URL = env('TM_BASE_URL')
-TM_MANAGER_SERVICE_URL = env('TM_MANAGER_SERVICE_URL')
+TM_BASE_URL = env('TM_BASE_URL', default="")
+TM_MANAGER_SERVICE_URL = env('TM_MANAGER_SERVICE_URL', default="")
 
 # BANK_FLEX
-BANK_FLEX_BASE_URL = env('BANK_FLEX_BASE_URL')
+BANK_FLEX_BASE_URL = env('BANK_FLEX_BASE_URL', default="")
 
 # BANK_ONE BANKS
-BANK_ONE_BANKS = env('BANK_ONE_BANKS')
+BANK_ONE_BANKS = env('BANK_ONE_BANKS', default="")
 
 # Activate Django-Heroku.
 django_heroku.settings(locals())
