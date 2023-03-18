@@ -307,6 +307,19 @@ class CorporateUserAPIView(views.APIView, CustomPagination):
         serializer = MandateSerializerOut(queryset, many=True).data
         return Response(self.get_paginated_response(serializer).data)
 
+    def put(self, request, pk):
+        try:
+            mandate_status = request.data.get("active", bool)
+        except Exception as err:
+            log_request(err)
+            return Response({"detail": "Active status is either True or False"}, status=status.HTTP_400_BAD_REQUEST)
+        admin_bank = request.user.customer.bank
+        mandate = get_object_or_404(Mandate, id=pk, institution__bank=admin_bank)
+        mandate.active = mandate_status
+        mandate.save()
+        serializer = MandateSerializerOut(mandate, context={"request": request}).data
+        return Response({"detail": "Mandate status changed successfully", "data": serializer})
+
 
 class InstitutionAPIView(views.APIView, CustomPagination):
     permission_classes = [IsAdminUser]
