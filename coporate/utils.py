@@ -180,7 +180,6 @@ def verify_approve_transfer(request, tran_req, mandate):
 def generate_and_send_otp(mandate):
     # Generate random Token
     otp = str(uuid.uuid4().int)[:6]
-    print(otp)
     token = encrypt_text(otp)
     next_15_min = timezone.now() + timezone.timedelta(minutes=15)
     mandate.otp = token
@@ -188,7 +187,8 @@ def generate_and_send_otp(mandate):
     mandate.save()
     # Send Token to mandate
     Thread(target=send_token_to_mandate, args=[mandate, otp]).start()
-    return True
+    # return True
+    return otp
 
 
 def change_password(mandate, data):

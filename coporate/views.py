@@ -135,8 +135,8 @@ class SendOTPAPIView(APIView):
 
     def get(self, request):
         mandate = get_object_or_404(Mandate, user=request.user)
-        generate_and_send_otp(mandate)
-        return Response({"detail": "Token has been sent to your email"})
+        token = generate_and_send_otp(mandate)
+        return Response({"detail": "Token has been sent to your email", "otp": token})
 
 
 class MandateChangePasswordAPIView(APIView):
