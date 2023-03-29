@@ -12,10 +12,10 @@ from django.urls import reverse
 from django.utils import timezone
 
 from account.models import Transaction
-from account.utils import get_account_balance, decrypt_text, log_request, encrypt_text
+from account.utils import get_account_balance, decrypt_text, log_request, encrypt_text, get_next_date, get_next_weekday
 from bankone.api import bankone_get_details_by_customer_id
 from citbank.exceptions import InvalidRequestException
-from coporate.models import Mandate
+from coporate.models import Mandate, TransferScheduler
 from coporate.notifications import send_approval_notification_request, send_token_to_mandate, \
     send_successful_transfer_email
 
@@ -142,7 +142,7 @@ def transfer_validation(mandate, amount, account_number):
     return True
 
 
-def verify_approve_transfer(request, tran_req, mandate):
+def verify_approve_transfer(request, tran_req, mandate, action=None, reject_reason=None):
     if mandate.role.mandate_type == "uploader":
         if tran_req.verified or tran_req.approved:
             raise InvalidRequestException({"detail": "Request has recently been verified or approved"})
@@ -156,22 +156,41 @@ def verify_approve_transfer(request, tran_req, mandate):
             raise InvalidRequestException({"detail": "Cannot verify, request is awaiting check"})
         if tran_req.verified or tran_req.approved:
             raise InvalidRequestException({"detail": "Cannot verify, request has recently been verified or approved"})
-        tran_req.verified = True
-        # Send email to authorizers
-        for _mandate in Mandate.objects.filter(institution=mandate.institution, role__mandate_type="authorizer"):
-            Thread(target=send_approval_notification_request, args=[_mandate]).start()
+
+        if action == "approve":
+            tran_req.verified = True
+            # Send email to authorizers
+            for _mandate in Mandate.objects.filter(institution=mandate.institution, role__mandate_type="authorizer"):
+                Thread(target=send_approval_notification_request, args=[_mandate]).start()
+        if action == "decline":
+            # Set rejection reason
+            tran_req.decline_reason = reject_reason
+            tran_req.status = "declined"
 
     if mandate.role.mandate_type == "authorizer":
         if not tran_req.verified or not tran_req.checked:
             raise InvalidRequestException({"detail": "Cannot approve, request is awaiting check or verification"})
         if tran_req.approved:
             raise InvalidRequestException({"detail": "Cannot approve, request has recently been approved"})
-        tran_req.approved = True
-        # Perform Transfer
-        Thread(target=perform_corporate_transfer, args=[request, tran_req]).start()
-        # Send email to all mandate
-        for _mandates in Mandate.objects.filter(institution=mandate.institution):
-            Thread(target=send_successful_transfer_email, args=[_mandates, tran_req]).start()
+
+        if action == "approve":
+            tran_req.approved = True
+            tran_req.status = "approved"
+            # Send email to all mandate
+            for _mandates in Mandate.objects.filter(institution=mandate.institution):
+                Thread(target=send_successful_transfer_email, args=[_mandates, tran_req]).start()
+            if tran_req.scheduled:
+                # update transfer scheduler
+                scheduler = tran_req.scheduler
+                scheduler.status = "active"
+                scheduler.save()
+            else:
+                # Perform Transfer
+                Thread(target=perform_corporate_transfer, args=[request, tran_req]).start()
+
+        if action == "decline":
+            tran_req.status = "declined"
+            tran_req.decline_reason = reject_reason
 
     tran_req.save()
     return tran_req
@@ -231,6 +250,38 @@ def perform_corporate_transfer(request, trans_req):
     return True
 
 
+def scheduler_next_job(scheduler):
+    present_time = timezone.datetime.now()
+    next_month = get_next_date(present_time, 30)
+
+    if scheduler.schedule_type == "daily":
+        scheduler.next_job_date = get_next_date(present_time, 1)
+    elif scheduler.schedule_type == "weekly":
+        scheduler.next_job_date = get_next_date(present_time, 7)
+        if scheduler.day_of_the_week:
+            scheduler.next_job_date = get_next_weekday(present_time, scheduler.day_of_the_week)
+    elif scheduler.schedule_type == "monthly":
+        scheduler.next_job_date = get_next_date(present_time, 30)
+        if scheduler.day_of_the_month:
+            _year, _month = next_month.year, next_month.month
+            try:
+                day_to_run = timezone.datetime(_year, _month, scheduler.day_of_the_month)
+            except Exception:
+                day_to_run = timezone.datetime(_year, _month, 28)
+
+            scheduler.next_job_date = day_to_run
+    elif scheduler.schedule_type == "quarterly":
+        scheduler.next_job_date = get_next_date(present_time, 90)
+    elif scheduler.schedule_type == "bi-annually":
+        scheduler.next_job_date = get_next_date(present_time, 180)
+    elif scheduler.schedule_type == "yearly":
+        scheduler.next_job_date = get_next_date(present_time, 360)
+    else:
+        scheduler.completed = True
+    scheduler.last_job_date = present_time
+    scheduler.save()
+
+    return scheduler
 
 
 

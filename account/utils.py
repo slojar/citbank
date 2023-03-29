@@ -240,7 +240,6 @@ def get_account_balance(customer):
 
 
 def update_customer_account(customer, account_balances):
-
     for account in account_balances:
         account_no = account["account_no"]
         bank_acct_no = account["bank_acct_no"]
@@ -256,6 +255,18 @@ def update_customer_account(customer, account_balances):
 def get_previous_date(date, delta):
     previous_date = date - datetime.timedelta(days=delta)
     return previous_date
+
+
+def get_next_date(date, delta):
+    next_date = date + datetime.timedelta(days=delta)
+    return next_date
+
+
+def get_next_weekday(date, weekday):
+    days_ahead = weekday - date.weekday()
+    if days_ahead <= 0:
+        days_ahead += 7
+    return date + datetime.timedelta(days_ahead)
 
 
 def get_week_start_and_end_datetime(date_time):
@@ -453,7 +464,8 @@ def perform_bank_transfer(bank, request):
             log_request(f"Amount to transfer:{amount}, Total Transferred today: {today_trans}, Exceed: {current_limit}")
             return False, f"Your current daily transfer limit is NGN{customer.daily_limit}, please contact the bank"
 
-        month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__bank=bank).count()
+        month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date),
+                                                       customer__bank=bank).count()
 
     if sender_type == 'corporate':
         institution = Institution.objects.get(mandate__user=request.user)
@@ -472,7 +484,8 @@ def perform_bank_transfer(bank, request):
         nip_session_id = trans_req.nip_session_id
         bank_name = trans_req.bank_name
 
-        month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date), institution__bank=bank).count()
+        month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date),
+                                                       institution__bank=bank).count()
 
     # Narration max is 100 char, Reference max is 12 char, amount should be in kobo (i.e multiply by 100)
     narration = ""
@@ -536,6 +549,8 @@ def perform_bank_transfer(bank, request):
 
             if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
                 transfer.status = "success"
+            trans_req.response_message = str(response["ResponseMessage"])[:298]
+            trans_req.save()
             transfer.save()
 
         elif transfer_type == "other_bank":
@@ -575,6 +590,8 @@ def perform_bank_transfer(bank, request):
             if response["IsSuccessFul"] is True and response["ResponseCode"] == "00":
                 transfer.status = "success"
             transfer.save()
+            trans_req.response_message = str(response["ResponseMessage"])[:298]
+            trans_req.save()
 
         else:
             return False, "Invalid transfer type selected"
@@ -824,7 +841,3 @@ def create_or_update_bank(request, bank):
     bank.save()
 
     return True
-
-
-
-

@@ -12,4 +12,8 @@ urlpatterns = [
     path('send-token/', views.SendOTPAPIView.as_view(), name="send-otp"),
     path('transfer-request/', views.TransferRequestAPIView.as_view(), name="transfer-request"),
     path('transfer-request/<int:pk>/', views.TransferRequestAPIView.as_view(), name="transfer-request-detail"),
+
+    # CRON-JOBS
+    path('transfer-cron/', views.TransferRequestCronView.as_view(), name="transfer-cron"),
+
 ]

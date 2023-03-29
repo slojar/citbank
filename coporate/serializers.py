@@ -9,7 +9,7 @@ from rest_framework import serializers
 from account.models import Bank
 from account.utils import decrypt_text, encrypt_text
 from citbank.exceptions import InvalidRequestException
-from .models import Mandate, Institution, Role, Limit, TransferRequest
+from .models import Mandate, Institution, Role, Limit, TransferRequest, TransferScheduler
 from .notifications import send_username_password_to_mandate
 from .utils import transfer_validation
 
@@ -191,6 +191,13 @@ class TransferRequestSerializerIn(serializers.Serializer):
     nip_session_id = serializers.CharField(required=False)
     beneficiary_bank_name = serializers.CharField(required=False)
     beneficiary_acct_type = serializers.CharField(required=False)
+    schedule = serializers.BooleanField(required=False)
+
+    schedule_type = serializers.CharField(required=False)
+    day_of_the_month = serializers.CharField(required=False)
+    day_of_the_week = serializers.CharField(required=False)
+    start_date = serializers.DateTimeField(required=False)
+    end_date = serializers.DateTimeField(required=False)
 
     def create(self, validated_data):
         user = validated_data.get('current_user')
@@ -205,6 +212,13 @@ class TransferRequestSerializerIn(serializers.Serializer):
         bank_name = validated_data.get("beneficiary_bank_name")
         beneficiary_acct_type = validated_data.get("beneficiary_acct_type")
 
+        schedule = validated_data.get('schedule', False)
+        schedule_type = validated_data.get("schedule_type")
+        day_of_the_month = validated_data.get("day_of_the_month")
+        day_of_the_week = validated_data.get("day_of_the_week")
+        start_date = validated_data.get("start_date")
+        end_date = validated_data.get("end_date")
+
         mandate = get_object_or_404(Mandate, user=user)
         transfer_validation(mandate, amount, account_number)
 
@@ -215,6 +229,18 @@ class TransferRequestSerializerIn(serializers.Serializer):
             bank_code=bank_code, nip_session_id=nip_session_id, bank_name=bank_name,
             beneficiary_acct_type=beneficiary_acct_type
         )
+
+        if schedule:
+            if not all([schedule_type, start_date, end_date]):
+                raise InvalidRequestException({"detail": "schedule type, start date and end date are not selected"})
+            # Create TransferScheduler
+            scheduler = TransferScheduler.objects.create(
+                schedule_type=schedule_type, day_of_the_month=day_of_the_month, day_of_the_week=day_of_the_week,
+                start_date=start_date, end_date=end_date
+            )
+            trans_req.scheduled = True
+            trans_req.scheduler = scheduler
+            trans_req.save()
 
         return TransferRequestSerializerOut(trans_req, context={"request": self.context.get("request")}).data
 

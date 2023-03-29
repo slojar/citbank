@@ -2,7 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 
 from account.models import Bank
-from coporate.choices import MANDATE_TYPE_CHOICES
+from coporate.choices import MANDATE_TYPE_CHOICES, TRANSFER_REQUEST_STATUS, SCHEDULE_TYPE, \
+    DAYS_OF_THE_MONTH_CHOICES, DAY_OF_THE_WEEK_CHOICES, TRANSFER_SCHEDULE_STATUS
 
 
 class Role(models.Model):
@@ -61,6 +62,23 @@ class Mandate(models.Model):
         return f"{self.user}: {self.role.mandate_type}"
 
 
+class TransferScheduler(models.Model):
+    schedule_type = models.CharField(max_length=100, choices=SCHEDULE_TYPE, default="once")
+    day_of_the_month = models.CharField(max_length=200, choices=DAYS_OF_THE_MONTH_CHOICES, blank=True, null=True)
+    day_of_the_week = models.CharField(max_length=100, choices=DAY_OF_THE_WEEK_CHOICES, blank=True, null=True)
+    status = models.CharField(max_length=50, choices=TRANSFER_SCHEDULE_STATUS, default="inactive")
+    completed = models.BooleanField(default=False)
+    start_date = models.DateTimeField(null=True)
+    end_date = models.DateTimeField(null=True)
+    last_job_date = models.DateTimeField(null=True, blank=True)
+    next_job_date = models.DateTimeField(null=True, blank=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.schedule_type}: {self.completed}"
+
+
 class TransferRequest(models.Model):
     institution = models.ForeignKey(Institution, on_delete=models.SET_NULL, null=True)
     account_number = models.CharField(max_length=20)
@@ -73,6 +91,11 @@ class TransferRequest(models.Model):
     nip_session_id = models.CharField(max_length=200, blank=True, null=True)
     bank_name = models.CharField(max_length=100, blank=True, null=True)
     beneficiary_acct_type = models.CharField(max_length=20, blank=True, null=True)
+    scheduled = models.BooleanField(default=False)
+    scheduler = models.ForeignKey(TransferScheduler, on_delete=models.SET_NULL, null=True, blank=True)
+    status = models.CharField(max_length=100, choices=TRANSFER_REQUEST_STATUS, default="pending")
+    decline_reason = models.CharField(max_length=250, blank=True, null=True)
+    response_message = models.CharField(max_length=300, blank=True, null=True)
     checked = models.BooleanField(default=False)
     verified = models.BooleanField(default=False)
     approved = models.BooleanField(default=False)

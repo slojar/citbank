@@ -10,6 +10,7 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from account.paginations import CustomPagination
 from account.utils import get_account_officer
 from citbank.exceptions import raise_serializer_error_msg, InvalidRequestException
+from coporate.cron import transfer_scheduler_job
 from coporate.models import Mandate, TransferRequest
 from coporate.permissions import IsVerifier, IsUploader, IsAuthorizer
 from coporate.serializers import MandateSerializerOut, LimitSerializerOut, TransferRequestSerializerOut, \
@@ -122,10 +123,22 @@ class TransferRequestAPIView(APIView, CustomPagination):
 
     def put(self, request, pk):
         otp = request.data.get("otp")
+        action = request.data.get("action")
+        reject_reason = request.data.get("reason")
+        accepted_action = ["approve", "decline"]
+
         mandate = get_object_or_404(Mandate, user=request.user)
-        trans_req = get_object_or_404(TransferRequest, id=pk, institution=mandate.institution)
         check_mandate_password_pin_otp(mandate, otp=otp)
-        trans_request = verify_approve_transfer(request, trans_req, mandate)
+
+        if mandate.role != "uploader":
+            if action not in accepted_action:
+                return Response({"detail": "Selected action is not valid"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if action == "decline" and not reject_reason:
+                return Response({"detail": "Rejection reason is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        trans_req = get_object_or_404(TransferRequest, id=pk, institution=mandate.institution)
+        trans_request = verify_approve_transfer(request, trans_req, mandate, action, reject_reason)
         serializer = TransferRequestSerializerOut(trans_request, context={"request": request}).data
         return Response({"detail": "Transfer updated successfully", "data": serializer})
 
@@ -152,5 +165,11 @@ class MandateChangePasswordAPIView(APIView):
         return Response({"detail": "Password changed successfully"})
 
 
+class TransferRequestCronView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        response = transfer_scheduler_job(request)
+        return Response({"detail": response})
 
 
