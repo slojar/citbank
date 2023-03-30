@@ -199,7 +199,7 @@ class CustomerProfileView(APIView):
 
     def get(self, request):
         customer = Customer.objects.get(user=request.user)
-        data = get_account_balance(customer, request)
+        data = get_account_balance(customer)
         data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
         return Response(data)
 
