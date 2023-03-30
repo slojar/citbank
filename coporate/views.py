@@ -11,10 +11,10 @@ from account.paginations import CustomPagination
 from account.utils import get_account_officer
 from citbank.exceptions import raise_serializer_error_msg, InvalidRequestException
 from coporate.cron import transfer_scheduler_job
-from coporate.models import Mandate, TransferRequest
+from coporate.models import Mandate, TransferRequest, TransferScheduler
 from coporate.permissions import IsVerifier, IsUploader, IsAuthorizer
 from coporate.serializers import MandateSerializerOut, LimitSerializerOut, TransferRequestSerializerOut, \
-    TransferRequestSerializerIn
+    TransferRequestSerializerIn, TransferSchedulerSerializerOut
 from coporate.utils import get_dashboard_data, check_mandate_password_pin_otp, \
     update_transaction_limits, verify_approve_transfer, generate_and_send_otp, change_password
 
@@ -163,6 +163,46 @@ class MandateChangePasswordAPIView(APIView):
         check_mandate_password_pin_otp(mandate, otp=otp)
         change_password(mandate, data=request.data)
         return Response({"detail": "Password changed successfully"})
+
+
+class TransferSchedulerAPIView(APIView, CustomPagination):
+    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
+
+    def get(self, request, pk=None):
+        result = list()
+        mandate = get_object_or_404(Mandate, user=request.user)
+        if pk:
+            if not TransferRequest.objects.filter(scheduler_id=pk, institution=mandate.institution).exists():
+                return Response({"detail": "Selected scheduler is not valid"}, status=status.HTTP_400_BAD_REQUEST)
+            data = TransferSchedulerSerializerOut(TransferScheduler.objects.get(id=pk)).data
+        else:
+            status_query = request.GET.get("status")
+            query = Q(institution=mandate.institution, scheduled=True)
+            if status_query:
+                query &= Q(status=status_query)
+            transfer_request = TransferRequest.objects.filter(query)
+            schedulers = [transfer.scheduler for transfer in transfer_request]
+            for item in schedulers:
+                if item not in result:
+                    result.append(item)
+            queryset = self.paginate_queryset(result, request)
+            serializer = TransferSchedulerSerializerOut(queryset, many=True).data
+            data = self.get_paginated_response(serializer).data
+        return Response(data)
+
+    def put(self, request, pk):
+        update_status = request.data.get("status")
+        mandate = get_object_or_404(Mandate, user=request.user)
+        if not update_status or (update_status != "active" and update_status != "inactive"):
+            return Response({"detail": "Kindly select a valid status"}, status=status.HTTP_400_BAD_REQUEST)
+        if not TransferRequest.objects.filter(scheduler_id=pk, institution=mandate.institution).exists():
+            return Response({"detail": "Selected scheduler is not valid"}, status=status.HTTP_400_BAD_REQUEST)
+
+        scheduler = TransferScheduler.objects.get(id=pk)
+        scheduler.status = update_status
+        scheduler.save()
+        data = TransferSchedulerSerializerOut(scheduler).data
+        return Response({"detail": "Scheduler status changed successfully", "data": data})
 
 
 class TransferRequestCronView(APIView):

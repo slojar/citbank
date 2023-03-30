@@ -245,5 +245,14 @@ class TransferRequestSerializerIn(serializers.Serializer):
         return TransferRequestSerializerOut(trans_req, context={"request": self.context.get("request")}).data
 
 
+class TransferSchedulerSerializerOut(serializers.ModelSerializer):
+    transfers = serializers.SerializerMethodField()
+
+    def get_transfers(self, obj):
+        return TransferRequestSerializerOut(TransferRequest.objects.filter(scheduler=obj), many=True).data
+
+    class Meta:
+        model = TransferScheduler
+        exclude = []
 
 

@@ -13,6 +13,10 @@ urlpatterns = [
     path('transfer-request/', views.TransferRequestAPIView.as_view(), name="transfer-request"),
     path('transfer-request/<int:pk>/', views.TransferRequestAPIView.as_view(), name="transfer-request-detail"),
 
+    # SCHEDULED JOBS
+    path('scheduler/', views.TransferSchedulerAPIView.as_view(), name="transfer-scheduler"),
+    path('scheduler/<int:pk>/', views.TransferSchedulerAPIView.as_view(), name="transfer-scheduler"),
+
     # CRON-JOBS
     path('transfer-cron/', views.TransferRequestCronView.as_view(), name="transfer-cron"),
 
