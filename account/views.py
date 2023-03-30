@@ -893,6 +893,7 @@ class TransferAPIView(APIView):
             data = TransferSerializer(detail).data
             return Response({"detail": "Transfer successful", "data": data})
         except Exception as ex:
+            log_request(f"Transfer Error: {ex}")
             return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
