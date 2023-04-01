@@ -141,8 +141,8 @@ def vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_n
     if provider_status == "ACCEPTED":
         status = "success"
 
-    if response["data"]["providerResponse"]["creditToken"]:
-        token = response["data"]["providerResponse"]["creditToken"]
+    # if response["data"]["providerResponse"]["creditToken"]:
+    #     token = response["data"]["providerResponse"]["creditToken"]
 
     if response["data"]["providerResponse"]["token"]:
         token = response["data"]["providerResponse"]["token"]

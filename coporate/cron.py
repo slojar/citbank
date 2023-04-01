@@ -1,7 +1,7 @@
 from threading import Thread
 from django.utils import timezone
 
-from coporate.models import TransferScheduler, TransferRequest
+from coporate.models import TransferScheduler, TransferRequest, BulkUploadFile
 from coporate.utils import perform_corporate_transfer, scheduler_next_job
 
 present_time = timezone.datetime.now()
@@ -21,3 +21,8 @@ def transfer_scheduler_job(request):
 
     return "Transfer Scheduler Job ran successfully"
 
+
+def delete_uploaded_files():
+    # Get all used uploads
+    BulkUploadFile.objects.filter(used=True).delete()
+    return "Upload deletion job ran successfully"

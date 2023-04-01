@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 
 from account.models import Bank
 from coporate.choices import MANDATE_TYPE_CHOICES, TRANSFER_REQUEST_STATUS, SCHEDULE_TYPE, \
-    DAYS_OF_THE_MONTH_CHOICES, DAY_OF_THE_WEEK_CHOICES, TRANSFER_SCHEDULE_STATUS
+    DAYS_OF_THE_MONTH_CHOICES, DAY_OF_THE_WEEK_CHOICES, TRANSFER_SCHEDULE_STATUS, TRANSFER_REQUEST_OPTION
 
 
 class Role(models.Model):
@@ -79,8 +79,27 @@ class TransferScheduler(models.Model):
         return f"{self.schedule_type}: {self.completed}"
 
 
+class BulkTransferRequest(models.Model):
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE)
+    scheduled = models.BooleanField(default=False)
+    scheduler = models.ForeignKey(TransferScheduler, on_delete=models.SET_NULL, null=True, blank=True)
+    description = models.CharField(max_length=200)
+    checked = models.BooleanField(default=False)
+    verified = models.BooleanField(default=False)
+    approved = models.BooleanField(default=False)
+    status = models.CharField(max_length=100, choices=TRANSFER_REQUEST_STATUS, default="pending")
+    decline_reason = models.CharField(max_length=250, blank=True, null=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.id}: {self.checked} - InstitutionID: {self.institution_id}"
+
+
 class TransferRequest(models.Model):
     institution = models.ForeignKey(Institution, on_delete=models.SET_NULL, null=True)
+    bulk_transfer = models.ForeignKey(BulkTransferRequest, on_delete=models.SET_NULL, null=True, blank=True)
+    transfer_option = models.CharField(max_length=50, choices=TRANSFER_REQUEST_OPTION, default="single")
     account_number = models.CharField(max_length=20)
     amount = models.FloatField()
     description = models.CharField(max_length=60)
@@ -106,6 +125,13 @@ class TransferRequest(models.Model):
         return f"{self.institution.name} - {self.beneficiary_name}: {self.beneficiary_acct}, {self.amount}"
 
 
+class BulkUploadFile(models.Model):
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE)
+    file = models.FileField(upload_to="bulk-upload")
+    used = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.institution} - {self.file}"
 
 
 

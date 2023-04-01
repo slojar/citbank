@@ -1,6 +1,10 @@
+import csv
+import json
 import uuid
+from io import StringIO
 from threading import Thread
 
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
@@ -8,10 +12,12 @@ from rest_framework import serializers
 
 from account.models import Bank
 from account.utils import decrypt_text, encrypt_text
+from bankone.api import bankone_others_name_query, bankone_get_account_by_account_no
 from citbank.exceptions import InvalidRequestException
-from .models import Mandate, Institution, Role, Limit, TransferRequest, TransferScheduler
+from .models import Mandate, Institution, Role, Limit, TransferRequest, TransferScheduler, BulkUploadFile, \
+    BulkTransferRequest
 from .notifications import send_username_password_to_mandate
-from .utils import transfer_validation
+from .utils import transfer_validation, create_bulk_transfer
 
 
 class MandateSerializerIn(serializers.Serializer):
@@ -254,5 +260,150 @@ class TransferSchedulerSerializerOut(serializers.ModelSerializer):
     class Meta:
         model = TransferScheduler
         exclude = []
+
+
+class BulkUploadFileSerializerIn(serializers.Serializer):
+    current_user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    file = serializers.FileField()
+
+    def create(self, validated_data):
+        user = validated_data.get('current_user')
+        file = validated_data.get("file")
+
+        institution = user.mandate.institution
+        upload = BulkUploadFile.objects.create(institution=institution, file=file)
+        file = upload.file.read().decode('utf-8', 'ignore')
+        read = csv.reader(StringIO(file), delimiter=",")
+        next(read)
+
+        bank = institution.bank
+        bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
+        short_name = bank.short_name
+        decrypted_token = decrypt_text(bank.auth_token)
+
+        ne_success = list()
+        ne_failed = list()
+
+        for row in read:
+            try:
+                debit_account_number = row[0]
+                amount = row[1]
+                description = row[2]
+                credit_account_number = row[3]
+                credit_bank_code = row[4]
+                credit_bank_name = row[5]
+                transfer_type = str(row[6]).lower()
+                credit_account_type = row[7]
+                # schedule = row[8]
+                # schedule_type = row[9]
+                # day_in_month = row[10]
+                # day_in_week = row[11]
+                # start_date = row[12]
+                # end_date = row[13]
+
+                data = dict()
+                data["account_no"] = debit_account_number
+                data["amount"] = amount
+                data["narration"] = description
+                data["beneficiary_acct_no"] = credit_account_number
+                data["beneficiary_acct_type"] = credit_account_type
+                # data["schedule"] = schedule
+                # data["schedule_type"] = schedule_type
+                # data["day_of_the_month"] = day_in_month
+                # data["day_of_the_week"] = day_in_week
+                # data["start_date"] = start_date
+                # data["end_date"] = end_date
+
+                if transfer_type == "samebank":
+                    # Do local name enquiry
+                    if short_name in bank_one_banks:
+                        response = bankone_get_account_by_account_no(credit_account_number, decrypted_token).json()
+                        if "CustomerDetails" in response:
+                            customer_detail = response["CustomerDetails"]
+                            data["beneficiary_name"] = customer_detail["Name"]
+                            data["transfer_type"] = "same_bank"
+                            ne_success.append(data)
+                        else:
+                            ne_failed.append(data)
+                else:
+                    # Do external name enquiry
+                    if short_name in bank_one_banks:
+                        response = bankone_others_name_query(credit_account_number, credit_bank_code, decrypted_token)
+                        if "IsSuccessful" in response and response["IsSuccessful"] is True:
+                            data["beneficiary_name"] = response["Name"]
+                            data["nip_session_id"] = response["SessionID"]
+                            data["transfer_type"] = "other_bank"
+                            data["beneficiary_bank_code"] = credit_bank_code
+                            data["beneficiary_bank_name"] = credit_bank_name
+                            ne_success.append(data)
+                        else:
+                            ne_failed.append(data)
+
+            except Exception as ex:
+                print(f"Error while reading bulk upload file: {ex}")
+
+        # Update uploaded file
+        upload.used = True
+        upload.save()
+
+        return {"success": ne_success, "failed": ne_failed}
+
+
+class BulkTransferSerializerOut(serializers.ModelSerializer):
+    class Meta:
+        model = BulkTransferRequest
+        exclude = []
+
+
+class BulkTransferSerializerIn(serializers.Serializer):
+    current_user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    data = serializers.ListField(child=serializers.DictField())
+    schedule = serializers.BooleanField(required=False)
+    description = serializers.CharField(max_length=190)
+
+    schedule_type = serializers.CharField(required=False)
+    day_of_the_month = serializers.CharField(required=False)
+    day_of_the_week = serializers.CharField(required=False)
+    start_date = serializers.DateTimeField(required=False)
+    end_date = serializers.DateTimeField(required=False)
+
+    def create(self, validated_data):
+        user = validated_data.get('current_user')
+        data = validated_data.get("data")
+        description = validated_data.get("description")
+        schedule = validated_data.get("schedule", False)
+
+        schedule_type = validated_data.get("schedule_type")
+        day_of_the_month = validated_data.get("day_of_the_month")
+        day_of_the_week = validated_data.get("day_of_the_week")
+        start_date = validated_data.get("start_date")
+        end_date = validated_data.get("end_date")
+
+        if user.mandate.role.mandate_type != "uploader":
+            raise InvalidRequestException({"detail": "You are not permitted to perform this action"})
+
+        institution = user.mandate.institution
+        scheduler = None
+        # Create Bulk Transfer Request
+        bulk_trans = BulkTransferRequest.objects.create(institution=institution, description=description)
+
+        if schedule and not all([schedule_type, start_date, end_date]):
+            raise InvalidRequestException({"detail": "schedule type, start date and end date are not selected"})
+
+        if schedule:
+            # Create TransferScheduler
+            scheduler = TransferScheduler.objects.create(
+                schedule_type=schedule_type, day_of_the_month=day_of_the_month, day_of_the_week=day_of_the_week,
+                start_date=start_date, end_date=end_date
+            )
+            bulk_trans.scheduler = scheduler
+            bulk_trans.save()
+        # Create Transfer Requests
+        Thread(target=create_bulk_transfer, args=[data, institution, bulk_trans, schedule, scheduler]).start()
+
+        return BulkTransferSerializerOut(bulk_trans).data
+
+
+
 
 

@@ -199,7 +199,7 @@ class CustomerProfileView(APIView):
 
     def get(self, request):
         customer = Customer.objects.get(user=request.user)
-        data = get_account_balance(customer, request)
+        data = get_account_balance(customer)
         data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
         return Response(data)
 
@@ -649,7 +649,7 @@ class FeedbackView(APIView):
         else:
             subject, receiver = f"ENQUIRY FROM {name}", enquiry_email
 
-        Thread(target=bankone_send_email, args=[request.user.email, receiver, subject, message, institution_code, mfb_code])
+        Thread(target=bankone_send_email, args=[request.user.email, receiver, subject, message, institution_code, mfb_code]).start()
 
         return Response({"detail": "Message sent successfully"})
 

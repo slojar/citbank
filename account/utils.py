@@ -502,7 +502,7 @@ def perform_bank_transfer(bank, request):
         for acct in account["Accounts"]:
             if acct["NUBAN"] == account_number:
                 withdraw_able = str(acct["withdrawableAmount"]).replace(",", "")
-                app_zone_acct = str(acct["AccountNumber"])
+                app_zone_acct = str(acct["accountNumber"])
                 balance = decimal.Decimal(withdraw_able)
 
         if balance <= 0:

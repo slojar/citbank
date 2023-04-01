@@ -6,6 +6,10 @@ TRANSFER_REQUEST_STATUS = (
     ("pending", "Pending"), ("approved", "Approved"), ("declined", "Declined")
 )
 
+TRANSFER_REQUEST_OPTION = (
+    ("single", "Single"), ("bulk", "Bulk")
+)
+
 SCHEDULE_TYPE = (
     ("daily", "Daily"), ("weekly", "Weekly"), ("monthly", "Monthly"), ("quarterly", "Quarterly"),
     ("bi-annually", "Bi-annually"), ("yearly", "Yearly"), ("once", "One Time")

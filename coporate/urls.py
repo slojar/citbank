@@ -17,7 +17,13 @@ urlpatterns = [
     path('scheduler/', views.TransferSchedulerAPIView.as_view(), name="transfer-scheduler"),
     path('scheduler/<int:pk>/', views.TransferSchedulerAPIView.as_view(), name="transfer-scheduler"),
 
+    # Bulk Operations
+    path('upload/', views.BulkUploadAPIView.as_view(), name="bulk-transfer-upload"),
+    path('bulk-transfer/', views.BulkTransferAPIView.as_view(), name="bulk-transfer"),
+    path('bulk-transfer/<int:pk>/', views.BulkTransferAPIView.as_view(), name="bulk-transfer-detail"),
+
     # CRON-JOBS
     path('transfer-cron/', views.TransferRequestCronView.as_view(), name="transfer-cron"),
+    path('delete-upload/', views.DeleteUploadedFiles.as_view(), name="delete-upload"),
 
 ]

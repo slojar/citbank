@@ -15,7 +15,7 @@ from account.models import Transaction
 from account.utils import get_account_balance, decrypt_text, log_request, encrypt_text, get_next_date, get_next_weekday
 from bankone.api import bankone_get_details_by_customer_id
 from citbank.exceptions import InvalidRequestException
-from coporate.models import Mandate, TransferScheduler
+from coporate.models import Mandate, TransferScheduler, TransferRequest
 from coporate.notifications import send_approval_notification_request, send_token_to_mandate, \
     send_successful_transfer_email
 
@@ -284,5 +284,27 @@ def scheduler_next_job(scheduler):
     return scheduler
 
 
+def create_bulk_transfer(data, institution, bulk_trans, schedule, scheduler):
+
+    for item in data:
+        account_no = item["account_no"]
+        amount = item["amount"]
+        narration = item["narration"]
+        ben_name = item["beneficiary_name"]
+        trans_type = item["transfer_type"]
+        ben_acct_no = item["beneficiary_acct_no"]
+        bank_code = item["beneficiary_bank_code"] if "beneficiary_bank_code" in item else ""
+        nip_id = item["nip_session_id"] if "nip_session_id" in item else ""
+        bank_name = item["beneficiary_bank_name"] if "beneficiary_bank_name" in item else ""
+        ben_acct_type = item["beneficiary_acct_type"]
+
+        TransferRequest.objects.create(
+            institution=institution, bulk_transfer=bulk_trans, transfer_option="bulk", account_number=account_no,
+            amount=amount, description=narration, beneficiary_name=ben_name, transfer_type=trans_type,
+            beneficiary_acct=ben_acct_no, bank_code=bank_code, nip_session_id=nip_id, bank_name=bank_name,
+            beneficiary_acct_type=ben_acct_type, scheduled=schedule, scheduler=scheduler
+        )
+
+    ...
 
 

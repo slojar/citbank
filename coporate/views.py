@@ -10,11 +10,12 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from account.paginations import CustomPagination
 from account.utils import get_account_officer
 from citbank.exceptions import raise_serializer_error_msg, InvalidRequestException
-from coporate.cron import transfer_scheduler_job
-from coporate.models import Mandate, TransferRequest, TransferScheduler
+from coporate.cron import transfer_scheduler_job, delete_uploaded_files
+from coporate.models import Mandate, TransferRequest, TransferScheduler, BulkTransferRequest
 from coporate.permissions import IsVerifier, IsUploader, IsAuthorizer
 from coporate.serializers import MandateSerializerOut, LimitSerializerOut, TransferRequestSerializerOut, \
-    TransferRequestSerializerIn, TransferSchedulerSerializerOut
+    TransferRequestSerializerIn, TransferSchedulerSerializerOut, BulkUploadFileSerializerIn, BulkTransferSerializerIn, \
+    BulkTransferSerializerOut
 from coporate.utils import get_dashboard_data, check_mandate_password_pin_otp, \
     update_transaction_limits, verify_approve_transfer, generate_and_send_otp, change_password
 
@@ -88,7 +89,7 @@ class TransferRequestAPIView(APIView, CustomPagination):
     def get(self, request, pk=None):
         mandate = get_object_or_404(Mandate, user=request.user)
         if pk:
-            req = get_object_or_404(TransferRequest, id=pk, institution=mandate.institution)
+            req = get_object_or_404(TransferRequest, id=pk, institution=mandate.institution, transfer_option="single")
             data = TransferRequestSerializerOut(req, context={"request": request}).data
         else:
             approval_status = request.GET.get("status")  # checked, verified, approved
@@ -96,7 +97,7 @@ class TransferRequestAPIView(APIView, CustomPagination):
             date_to = request.GET.get("date_to")
             search = request.GET.get("search")
 
-            query = Q(institution=mandate.institution)
+            query = Q(institution=mandate.institution, transfer_option="single")
             if search:
                 query &= Q(account_number__iexact=search) | Q(beneficiary_acct__iexact=search) | \
                          Q(bank_name__iexact=search) | Q(transfer_type__iexact=search) | Q(beneficiary_acct_type__iexact=search)
@@ -137,7 +138,7 @@ class TransferRequestAPIView(APIView, CustomPagination):
             if action == "decline" and not reject_reason:
                 return Response({"detail": "Rejection reason is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        trans_req = get_object_or_404(TransferRequest, id=pk, institution=mandate.institution)
+        trans_req = get_object_or_404(TransferRequest, id=pk, institution=mandate.institution, transfer_option="single")
         trans_request = verify_approve_transfer(request, trans_req, mandate, action, reject_reason)
         serializer = TransferRequestSerializerOut(trans_request, context={"request": request}).data
         return Response({"detail": "Transfer updated successfully", "data": serializer})
@@ -205,6 +206,54 @@ class TransferSchedulerAPIView(APIView, CustomPagination):
         return Response({"detail": "Scheduler status changed successfully", "data": data})
 
 
+class BulkUploadAPIView(APIView):
+    permission_classes = [IsUploader]
+
+    def post(self, request):
+        serializer = BulkUploadFileSerializerIn(data=request.data, context={"request": request})
+        serializer.is_valid() or raise_serializer_error_msg(errors=serializer.errors)
+        response = serializer.save()
+        return Response({"detail": "File uploaded successfully", "data": response})
+
+
+class BulkTransferAPIView(APIView, CustomPagination):
+    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
+
+    def get(self, request, pk=None):
+        mandate = get_object_or_404(Mandate, user=request.user)
+        if pk:
+            req = get_object_or_404(BulkTransferRequest, id=pk, institution=mandate.institution)
+            data = BulkTransferSerializerOut(req, context={"request": request}).data
+        else:
+            date_from = request.GET.get("date_from")
+            approval_status = request.GET.get("status")  # checked, verified, approved
+            date_to = request.GET.get("date_to")
+
+            query = Q(institution=mandate.institution)
+
+            if date_from and date_to:
+                query &= Q(created_on__range=[date_from, date_to])
+            if approval_status:
+                if approval_status == "checked":
+                    query &= Q(checked=True)
+                if approval_status == "verified":
+                    query &= Q(verified=True)
+                if approval_status == "approved":
+                    query &= Q(approved=True)
+
+            queryset = self.paginate_queryset(BulkTransferRequest.objects.filter(query), request)
+            serializer = BulkTransferSerializerOut(queryset, many=True, context={"request": request}).data
+            data = self.get_paginated_response(serializer).data
+        return Response(data)
+
+    def post(self, request):
+        serializer = BulkTransferSerializerIn(data=request.data, context={"request": request})
+        serializer.is_valid() or raise_serializer_error_msg(errors=serializer.errors)
+        response = serializer.save()
+        return Response({"detail": "Bulk Transfer saved successfully", "data": response})
+
+
+# CRON-JOBs
 class TransferRequestCronView(APIView):
     permission_classes = []
 
@@ -212,4 +261,11 @@ class TransferRequestCronView(APIView):
         response = transfer_scheduler_job(request)
         return Response({"detail": response})
 
+
+class DeleteUploadedFiles(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        response = delete_uploaded_files()
+        return Response({"detail": response})
 

@@ -24,10 +24,6 @@ account-opening/
 cit_venv/
 cit_venv
 .env.sample
-<<<<<<< HEAD
 statements/
+bulk-upload/
 
-=======
-
-statements/
->>>>>>> 6c352fec3d64e2f59105de1e67a931b2519194b4
