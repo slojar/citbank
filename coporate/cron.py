@@ -17,7 +17,7 @@ def transfer_scheduler_job(request):
         scheduler_next_job(scheduler)
         transfer_requests = TransferRequest.objects.filter(scheduler=scheduler, approved=True, status="approved")
         for trans_req in transfer_requests:
-            Thread(target=perform_corporate_transfer, args=[request, trans_req]).start()
+            Thread(target=perform_corporate_transfer, args=[request, trans_req, "single"]).start()
 
     return "Transfer Scheduler Job ran successfully"
 

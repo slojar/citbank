@@ -100,7 +100,8 @@ class TransferRequestAPIView(APIView, CustomPagination):
             query = Q(institution=mandate.institution, transfer_option="single")
             if search:
                 query &= Q(account_number__iexact=search) | Q(beneficiary_acct__iexact=search) | \
-                         Q(bank_name__iexact=search) | Q(transfer_type__iexact=search) | Q(beneficiary_acct_type__iexact=search)
+                         Q(bank_name__iexact=search) | Q(transfer_type__iexact=search) | Q(
+                    beneficiary_acct_type__iexact=search)
             if date_from and date_to:
                 query &= Q(created_on__range=[date_from, date_to])
             if approval_status:
@@ -125,6 +126,7 @@ class TransferRequestAPIView(APIView, CustomPagination):
     def put(self, request, pk):
         otp = request.data.get("otp")
         action = request.data.get("action")
+        request_type = request.data.get("transfer_type", "single")  # single or bulk
         reject_reason = request.data.get("reason")
         accepted_action = ["approve", "decline"]
 
@@ -138,9 +140,17 @@ class TransferRequestAPIView(APIView, CustomPagination):
             if action == "decline" and not reject_reason:
                 return Response({"detail": "Rejection reason is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        trans_req = get_object_or_404(TransferRequest, id=pk, institution=mandate.institution, transfer_option="single")
-        trans_request = verify_approve_transfer(request, trans_req, mandate, action, reject_reason)
-        serializer = TransferRequestSerializerOut(trans_request, context={"request": request}).data
+        if request_type == "single":
+            trans_req = get_object_or_404(TransferRequest, id=pk, institution=mandate.institution,
+                                          transfer_option="single")
+            trans_request = verify_approve_transfer(request, trans_req, mandate, request_type, action, reject_reason)
+            serializer = TransferRequestSerializerOut(trans_request, context={"request": request}).data
+        elif request_type == "bulk":
+            trans_req = get_object_or_404(BulkTransferRequest, id=pk, institution=mandate.institution)
+            trans_request = verify_approve_transfer(request, trans_req, mandate, request_type, action, reject_reason)
+            serializer = BulkTransferSerializerOut(trans_request, context={"request": request}).data
+        else:
+            return Response({"detail": "Transfer type can either be single or bulk"}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"detail": "Transfer updated successfully", "data": serializer})
 
 
@@ -268,4 +278,3 @@ class DeleteUploadedFiles(APIView):
     def get(self, request):
         response = delete_uploaded_files()
         return Response({"detail": response})
-

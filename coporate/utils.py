@@ -142,7 +142,7 @@ def transfer_validation(mandate, amount, account_number):
     return True
 
 
-def verify_approve_transfer(request, tran_req, mandate, action=None, reject_reason=None):
+def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=None, reject_reason=None):
     if mandate.role.mandate_type == "uploader":
         if tran_req.verified or tran_req.approved:
             raise InvalidRequestException({"detail": "Request has recently been verified or approved"})
@@ -186,7 +186,7 @@ def verify_approve_transfer(request, tran_req, mandate, action=None, reject_reas
                 scheduler.save()
             else:
                 # Perform Transfer
-                Thread(target=perform_corporate_transfer, args=[request, tran_req]).start()
+                Thread(target=perform_corporate_transfer, args=[request, tran_req, transfer_type]).start()
 
         if action == "decline":
             tran_req.status = "declined"
@@ -239,7 +239,20 @@ def change_password(mandate, data):
     return True
 
 
-def perform_corporate_transfer(request, trans_req):
+def perform_corporate_transfer(request, trans_req, transfer_type):
+    if transfer_type == "bulk":
+        transfer_requests = TransferRequest.objects.filter(bulk_transfer=trans_req, transfer_option="bulk")
+        for trans_request in transfer_requests:
+            url = request.build_absolute_uri(
+                reverse('account:transfer', kwargs={'bank_id': trans_req.institution.bank_id}))
+            payload = json.dumps({
+                "sender_type": "corporate",
+                "transfer_id": trans_request.id
+            })
+            response = requests.post(url=url, data=payload)
+            log_request(f"Transfer from corporate account ---->>> {response}")
+        return True
+
     host = request.build_absolute_uri(reverse('account:transfer', kwargs={'bank_id': trans_req.institution.bank_id}))
     payload = json.dumps({
         "sender_type": "corporate",
