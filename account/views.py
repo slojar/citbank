@@ -128,15 +128,14 @@ class LoginView(APIView):
                 if not version or version < customer.bank.app_version:
                     return Response({"detail": "Please download the latest version from your store"},
                                     status=status.HTTP_400_BAD_REQUEST)
+                data = get_account_balance(customer)
+                data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
+                return Response({
+                    "detail": detail, "access_token": str(AccessToken.for_user(request.user)),
+                    "refresh_token": str(RefreshToken.for_user(request.user)), 'data': data})
             except Exception as ex:
                 log_request(f"error-message: {ex}")
                 return Response({"detail": "An error occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
-            data = get_account_balance(customer)
-            data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
-            return Response({
-                "detail": detail, "access_token": str(AccessToken.for_user(request.user)),
-                "refresh_token": str(RefreshToken.for_user(request.user)), 'data': data})
-        log_request(f"error-message: {detail}")
         return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
 
 
