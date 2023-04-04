@@ -2,18 +2,18 @@ import datetime
 import decimal
 import json
 import uuid
-from threading import Thread
 
 from django.conf import settings
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from account.models import Customer, CustomerAccount
+from account.models import Customer
 from account.utils import confirm_trans_pin, log_request
 from billpayment.cron import retry_eko_elect_cron, bill_payment_reversal_cron, check_tm_saas_wallet_balance_cron
 from billpayment.models import Airtime, Data, CableTV, BillPaymentReversal
 from billpayment.utils import check_balance_and_charge, vend_electricity
+from coporate.models import Mandate
 from tm_saas.api import get_networks, get_data_plan, purchase_airtime, purchase_data, get_services, \
     get_service_products, validate_scn, cable_tv_sub, validate_meter_no, get_discos
 
@@ -26,7 +26,14 @@ class GetNetworksAPIView(APIView):
         try:
             data = None
             network = request.GET.get("network")
-            customer = Customer.objects.get(user=request.user)
+            account_type = request.GET.get("account_type", "individual")
+
+            if account_type == "individual":
+                customer = Customer.objects.get(user=request.user)
+            elif account_type == "corporate":
+                customer = Mandate.objects.get(user=request.user).institution
+            else:
+                return Response({"detail": "Invalid account type selected"}, status=status.HTTP_400_BAD_REQUEST)
 
             if customer.bank.tm_service_id:
                 if network:
@@ -177,10 +184,17 @@ class CableTVAPIView(APIView):
 
         service_type = request.GET.get("service_type")
         product_code = request.GET.get("product_code")
+        account_type = request.GET.get("account_type", "individual")
         data = ""
 
         try:
-            customer = Customer.objects.get(user=request.user)
+            if account_type == "individual":
+                customer = Customer.objects.get(user=request.user)
+            elif account_type == "corporate":
+                customer = Mandate.objects.get(user=request.user).institution
+            else:
+                return Response({"detail": "Invalid account type selected"}, status=status.HTTP_400_BAD_REQUEST)
+
             if customer.bank.short_name in bank_one_banks:
                 if service_name:
                     response = get_service_products(customer.bank, service_name, product_code)
@@ -310,13 +324,20 @@ class ValidateAPIView(APIView):
         smart_card_no = request.data.get("smart_card_no")
         service_name = request.data.get("service_name")
         disco_type = request.data.get("disco_type")
+        account_type = request.data.get("account_type", "individual")
         meter_no = request.data.get("meter_no")
         data = ""
 
         validate_type = request.data.get("validate_type")
 
         try:
-            customer = Customer.objects.get(user=request.user)
+            if account_type == "individual":
+                customer = Customer.objects.get(user=request.user)
+            elif account_type == "corporate":
+                customer = Mandate.objects.get(user=request.user).institution
+            else:
+                return Response({"detail": "Invalid account type selected"}, status=status.HTTP_400_BAD_REQUEST)
+
             if customer.bank.short_name in bank_one_banks:
 
                 if validate_type == "smart_card":
@@ -355,8 +376,15 @@ class ValidateAPIView(APIView):
 class ElectricityAPIView(APIView):
 
     def get(self, request):
+        account_type = request.GET.get("account_type", "individual")
+
         try:
-            customer = Customer.objects.get(user=request.user)
+            if account_type == "individual":
+                customer = Customer.objects.get(user=request.user)
+            elif account_type == "corporate":
+                customer = Mandate.objects.get(user=request.user).institution
+            else:
+                return Response({"detail": "Invalid account type selected"}, status=status.HTTP_400_BAD_REQUEST)
 
             if customer.bank.short_name in bank_one_banks:
                 response = get_discos(customer.bank)

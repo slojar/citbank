@@ -208,7 +208,7 @@ def open_account_with_banks(bank, request):
     return True, "Your request is submitted for review. You will get a response soon"
 
 
-def get_account_balance(customer):
+def get_account_balance(customer, customer_type):
     from bankone.api import bankone_get_details_by_customer_id
 
     data = dict()
@@ -234,21 +234,28 @@ def get_account_balance(customer):
                 account_detail["bank_acct_no"] = account["accountNumber"]
                 customer_account.append(account_detail)
         data["account_balances"] = customer_account
-        Thread(target=update_customer_account, args=[customer, customer_account]).start()
+        Thread(target=update_customer_account, args=[customer, customer_account, customer_type]).start()
 
     return data
 
 
-def update_customer_account(customer, account_balances):
+def update_customer_account(customer, account_balances, customer_type):
     for account in account_balances:
         account_no = account["account_no"]
         bank_acct_no = account["bank_acct_no"]
         account_type = account["account_type"]
 
-        if not CustomerAccount.objects.filter(customer=customer, account_no=account_no).exists():
-            CustomerAccount.objects.create(
-                customer=customer, account_no=account_no, bank_acct_number=bank_acct_no, account_type=account_type
-            )
+        if customer_type == "individual":
+            if not CustomerAccount.objects.filter(customer=customer, account_no=account_no).exists():
+                CustomerAccount.objects.create(
+                    customer=customer, account_no=account_no, bank_acct_number=bank_acct_no, account_type=account_type
+                )
+        else:
+            if not CustomerAccount.objects.filter(institution=customer, account_no=account_no).exists():
+                CustomerAccount.objects.create(
+                    institution=customer, account_no=account_no, bank_acct_number=bank_acct_no, account_type=account_type
+                )
+
     return True
 
 

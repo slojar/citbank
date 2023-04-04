@@ -1,6 +1,7 @@
 from django.db import models
 
 from account.models import Bank
+from coporate.choices import TRANSFER_REQUEST_OPTION, TRANSFER_REQUEST_STATUS, TRANSACTION_TYPE
 
 REVERSAL_STATUS = (
     ("completed", "Completed"), ("pending", "Pending")
@@ -9,6 +10,9 @@ REVERSAL_STATUS = (
 
 class Airtime(models.Model):
     bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True, blank=True)
+    institution = models.ForeignKey("coporate.Institution", on_delete=models.SET_NULL, null=True, blank=True)
+    transaction_option = models.CharField(max_length=20, choices=TRANSFER_REQUEST_OPTION, default="single")
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE, default="individual")
     account_no = models.CharField(max_length=10)
     beneficiary = models.CharField(max_length=13)
     network = models.CharField(max_length=20)
@@ -17,6 +21,12 @@ class Airtime(models.Model):
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
     reference = models.CharField(max_length=100, blank=True, null=True)
     bill_id = models.CharField(max_length=100, blank=True, null=True)
+    transaction_status = models.CharField(max_length=20, choices=TRANSFER_REQUEST_STATUS, default="pending")
+    decline_reason = models.CharField(max_length=250, blank=True, null=True)
+    response_message = models.CharField(max_length=300, blank=True, null=True)
+    checked = models.BooleanField(default=False)
+    verified = models.BooleanField(default=False)
+    approved = models.BooleanField(default=False)
     created_on = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -25,6 +35,9 @@ class Airtime(models.Model):
 
 class Data(models.Model):
     bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True, blank=True)
+    institution = models.ForeignKey("coporate.Institution", on_delete=models.SET_NULL, null=True, blank=True)
+    transaction_option = models.CharField(max_length=20, choices=TRANSFER_REQUEST_OPTION, default="single")
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE, default="individual")
     plan_id = models.CharField(max_length=100)
     account_no = models.CharField(max_length=10)
     beneficiary = models.CharField(max_length=13)
@@ -34,6 +47,12 @@ class Data(models.Model):
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
     reference = models.CharField(max_length=100, blank=True, null=True)
     bill_id = models.CharField(max_length=100, blank=True, null=True)
+    transaction_status = models.CharField(max_length=20, choices=TRANSFER_REQUEST_STATUS, default="pending")
+    decline_reason = models.CharField(max_length=250, blank=True, null=True)
+    response_message = models.CharField(max_length=300, blank=True, null=True)
+    checked = models.BooleanField(default=False)
+    verified = models.BooleanField(default=False)
+    approved = models.BooleanField(default=False)
     created_on = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -42,6 +61,9 @@ class Data(models.Model):
 
 class CableTV(models.Model):
     bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True, blank=True)
+    institution = models.ForeignKey("coporate.Institution", on_delete=models.SET_NULL, null=True, blank=True)
+    transaction_option = models.CharField(max_length=20, choices=TRANSFER_REQUEST_OPTION, default="single")
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE, default="individual")
     service_name = models.CharField(max_length=100)
     account_no = models.CharField(max_length=10)
     smart_card_no = models.CharField(max_length=100)
@@ -53,6 +75,12 @@ class CableTV(models.Model):
     status = models.CharField(max_length=20, default="pending")
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
     reference = models.CharField(max_length=100, blank=True, null=True)
+    transaction_status = models.CharField(max_length=20, choices=TRANSFER_REQUEST_STATUS, default="pending")
+    decline_reason = models.CharField(max_length=250, blank=True, null=True)
+    response_message = models.CharField(max_length=300, blank=True, null=True)
+    checked = models.BooleanField(default=False)
+    verified = models.BooleanField(default=False)
+    approved = models.BooleanField(default=False)
     created_on = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -61,6 +89,9 @@ class CableTV(models.Model):
 
 class Electricity(models.Model):
     bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True, blank=True)
+    institution = models.ForeignKey("coporate.Institution", on_delete=models.SET_NULL, null=True, blank=True)
+    transaction_option = models.CharField(max_length=20, choices=TRANSFER_REQUEST_OPTION, default="single")
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE, default="individual")
     account_no = models.CharField(max_length=10)
     disco_type = models.CharField(max_length=50)
     meter_number = models.CharField(max_length=100)
@@ -72,6 +103,12 @@ class Electricity(models.Model):
     reference = models.CharField(max_length=100, blank=True, null=True)
     bill_id = models.CharField(max_length=100, blank=True, null=True)
     token_sent = models.BooleanField(default=False)
+    transaction_status = models.CharField(max_length=20, choices=TRANSFER_REQUEST_STATUS, default="pending")
+    decline_reason = models.CharField(max_length=250, blank=True, null=True)
+    response_message = models.CharField(max_length=300, blank=True, null=True)
+    checked = models.BooleanField(default=False)
+    verified = models.BooleanField(default=False)
+    approved = models.BooleanField(default=False)
     created_on = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

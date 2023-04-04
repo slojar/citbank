@@ -24,7 +24,7 @@ bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
 def get_dashboard_data(mandate):
     institution = mandate.institution
-    data = get_account_balance(institution)
+    data = get_account_balance(institution, "corporate")
     data.update({
         "institution_name": mandate.institution.name,
         "primary_account": mandate.institution.account_no,

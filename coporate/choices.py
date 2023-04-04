@@ -31,4 +31,7 @@ TRANSFER_SCHEDULE_STATUS = (
     ("active", "Active"), ("inactive", "Inactive")
 )
 
+TRANSACTION_TYPE = (
+    ("individual", "Individual"), ("corporate", "Corporate")
+)
 

@@ -47,44 +47,6 @@ class RerouteView(APIView):
 
     def post(self, request):
         return Response({"detail": "A new version of the app is available on the store, please download"}, status=status.HTTP_400_BAD_REQUEST)
-        # try:
-        #     url = request.data.get("url", "")
-        #     verb = request.data.get("method", "GET")
-        #     header = request.data.get("header", {})
-        #     payload = request.data.get("payload", {})
-        #
-        #     header = json.dumps(header)
-        #     payload = json.dumps(payload)
-        #
-        #     response = {}
-        #
-        #     if str("live_token") in url:
-        #         url = str(url).replace("live_token", bankOneToken)
-        #     if str("live_token") in header:
-        #         header = str(header).replace("live_token", bankOneToken)
-        #     if str("live_token") in payload:
-        #         payload = str(payload).replace("live_token", bankOneToken)
-        #
-        #     header = json.loads(header)
-        #     payload = json.loads(payload)
-        #
-        #     if verb == "GET":
-        #         response = requests.request("GET", url, params=payload, headers=header)
-        #     if verb == "POST":
-        #         response = requests.request("POST", url, data=payload, headers=header)
-        #
-        #     log_request(
-        #         "CALLING BANKONE_API FROM MOBILE ||", f"URL: {url}", f"headers: {header}",
-        #         f"payload: {payload}", f"response: {response.json()}, response_code: {response.status_code}"
-        #     )
-        #     request.graylog.info(
-        #         "API Call was successful \n url: {url} \n headers: {headers} \n payload: {payload} \n "
-        #         "response: {response}", url=url, payload=payload, headers=header, response=response.json()
-        #     )
-        #     return Response(response.json(), status=response.status_code)
-        # except Exception as err:
-        #     log_request("An error has occurred", f"error: {err}")
-        #     return Response({"detail": "An error has occurred, please try again later"})
 
 
 class SignupView(APIView):
@@ -128,7 +90,7 @@ class LoginView(APIView):
                 if not version or version < customer.bank.app_version:
                     return Response({"detail": "Please download the latest version from your store"},
                                     status=status.HTTP_400_BAD_REQUEST)
-                data = get_account_balance(customer)
+                data = get_account_balance(customer, "individual")
                 data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
                 return Response({
                     "detail": detail, "access_token": str(AccessToken.for_user(request.user)),
@@ -198,7 +160,7 @@ class CustomerProfileView(APIView):
 
     def get(self, request):
         customer = Customer.objects.get(user=request.user)
-        data = get_account_balance(customer)
+        data = get_account_balance(customer, "individual")
         data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
         return Response(data)
 
@@ -482,15 +444,22 @@ class BeneficiaryView(APIView, CustomPagination):
         try:
             beneficiary_type = request.GET.get("beneficiary_type")
             search = request.GET.get("search")
+            account_type = request.GET.get("account_type", "individual")
 
             if "search" in request.GET and "beneficiary_type" not in request.GET:
                 log_request(f"error-message: beneficiary type not selected")
                 return Response({"detail": "beneficiary type is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            customer = Customer.objects.get(user=request.user)
+            if account_type == "individual":
+                customer = Customer.objects.get(user=request.user)
+                query = Q(customer=customer)
+            elif account_type == "corporate":
+                institution = Mandate.objects.get(user=request.user).institution
+                query = Q(institution=institution)
+            else:
+                return Response({"detail": "Invalid account type selected"}, status=status.HTTP_400_BAD_REQUEST)
 
             # To be removed when Mobile APP update beneficiary type
-            query = Q(customer=customer)
             if beneficiary_type == "local_transfer" or beneficiary_type == "cit_bank_transfer":
                 query &= Q(beneficiary_type="local_transfer") | Q(beneficiary_type="cit_bank_transfer")
 
@@ -513,24 +482,9 @@ class BeneficiaryView(APIView, CustomPagination):
 
             beneficiaries = Beneficiary.objects.filter(query)
 
-            # if beneficiary_type and search:
-            #     query = Q(beneficiary_name__icontains=search)
-            #     query |= Q(beneficiary_bank__icontains=search)
-            #     query |= Q(beneficiary_acct_no__icontains=search)
-            #     query |= Q(beneficiary_number__icontains=search)
-            #     query |= Q(biller_name__icontains=search)
-            #     beneficiaries = Beneficiary.objects.filter(query, customer=customer, beneficiary_type=beneficiary_type)
-            #
-            # if beneficiary_type and not search:
-            #     beneficiaries = Beneficiary.objects.filter(customer=customer, beneficiary_type=beneficiary_type)
-
             paginate = self.paginate_queryset(beneficiaries, request)
             paginated_query = self.get_paginated_response(BeneficiarySerializer(paginate, many=True).data).data
             return Response({"detail": paginated_query})
-
-        except KeyError as err:
-            log_request(f"error-message: {err}")
-            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as err:
             log_request(f"error-message: {err}")
@@ -545,6 +499,7 @@ class BeneficiaryView(APIView, CustomPagination):
             beneficiary_acct_no: str = data.get('beneficiary_acct_no')
             beneficiary_number: str = data.get('beneficiary_number')
             biller_name: str = data.get('biller_name')
+            account_type = data.get('account_type', 'individual')
 
             if not beneficiary_type or beneficiary_type is None:
                 log_request(f"error-message: beneficiary type is not selected")
@@ -566,27 +521,36 @@ class BeneficiaryView(APIView, CustomPagination):
                     log_request(f"error-message: beneficiary number and biller name is required")
                     raise KeyError("Beneficiary Number and Biller's Name are required")
 
-            customer = Customer.objects.get(user=request.user)
-            beneficiary_instance, success = Beneficiary.objects.get_or_create(
-                customer=customer,
-                beneficiary_type=beneficiary_type,
-                beneficiary_name=beneficiary_name,
-                beneficiary_bank=beneficiary_bank,
-                beneficiary_acct_no=beneficiary_acct_no,
-                beneficiary_number=beneficiary_number,
-                biller_name=biller_name
-            )
+            if account_type == "individual":
+                customer = Customer.objects.get(user=request.user)
+                beneficiary_instance, success = Beneficiary.objects.get_or_create(
+                    customer=customer,
+                    beneficiary_type=beneficiary_type,
+                    beneficiary_name=beneficiary_name,
+                    beneficiary_bank=beneficiary_bank,
+                    beneficiary_acct_no=beneficiary_acct_no,
+                    beneficiary_number=beneficiary_number,
+                    biller_name=biller_name
+                )
+
+            elif account_type == "corporate":
+                institution = Mandate.objects.get(user=request.user).institution
+                beneficiary_instance, success = Beneficiary.objects.get_or_create(
+                    institution=institution,
+                    beneficiary_type=beneficiary_type,
+                    beneficiary_name=beneficiary_name,
+                    beneficiary_bank=beneficiary_bank,
+                    beneficiary_acct_no=beneficiary_acct_no,
+                    beneficiary_number=beneficiary_number,
+                    biller_name=biller_name
+                )
+
+            else:
+                return Response({"detail": "Invalid account type selected"}, status=status.HTTP_400_BAD_REQUEST)
+
             if not success:
                 log_request(f"error-message: beneficiary already added")
                 return Response({"detail": "Already a beneficiary"}, status=status.HTTP_302_FOUND)
-
-        except KeyError as err:
-            log_request(f"error-message: {err}")
-            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
-
-        except Customer.DoesNotExist as err:
-            log_request(f"error-message: {err}")
-            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
         except (Exception,) as err:
             log_request(f"error-message: {err}")

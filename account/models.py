@@ -3,8 +3,6 @@ import uuid
 from django.db import models
 from django.contrib.auth.models import User
 
-# from coporate.models import Institution
-
 STATUS_CHOICES = (
     ('pending', 'Pending'), ('failed', 'Failed'), ('success', 'Success')
 )
@@ -105,7 +103,8 @@ class Customer(models.Model):
 
 
 class CustomerAccount(models.Model):
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, blank=True, null=True)
+    institution = models.ForeignKey("coporate.Institution", on_delete=models.SET_NULL, blank=True, null=True)
     account_no = models.CharField(max_length=10, null=True, blank=True)
     bank_acct_number = models.CharField(max_length=200, blank=True, null=True)
     account_type = models.CharField(max_length=200, blank=True, null=True)
@@ -114,7 +113,7 @@ class CustomerAccount(models.Model):
     active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.customer.user} - {self.account_no}"
+        return f"{self.account_type} - {self.account_no}"
 
 
 class CustomerOTP(models.Model):
@@ -149,7 +148,8 @@ class Transaction(models.Model):
 
 
 class Beneficiary(models.Model):
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True)
+    institution = models.ForeignKey("coporate.Institution", on_delete=models.SET_NULL, null=True, blank=True)
     beneficiary_type = models.CharField(max_length=200, choices=BENEFICIARY_TYPE_CHOICES, default='')
     beneficiary_name = models.CharField(max_length=200, blank=True, null=True)
     beneficiary_bank = models.CharField(max_length=200, blank=True, null=True)

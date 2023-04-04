@@ -1,3 +1,7 @@
+import json
+import uuid
+
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -7,8 +11,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
+from account.models import CustomerAccount
 from account.paginations import CustomPagination
-from account.utils import get_account_officer
+from account.utils import get_account_officer, log_request, get_account_balance, decrypt_text
+from bankone.api import bankone_get_details_by_customer_id
+from billpayment.utils import check_balance_and_charge
 from citbank.exceptions import raise_serializer_error_msg, InvalidRequestException
 from coporate.cron import transfer_scheduler_job, delete_uploaded_files
 from coporate.models import Mandate, TransferRequest, TransferScheduler, BulkTransferRequest
@@ -18,6 +25,8 @@ from coporate.serializers import MandateSerializerOut, LimitSerializerOut, Trans
     BulkTransferSerializerOut
 from coporate.utils import get_dashboard_data, check_mandate_password_pin_otp, \
     update_transaction_limits, verify_approve_transfer, generate_and_send_otp, change_password
+
+bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
 
 class MandateLoginAPIView(APIView):
@@ -41,10 +50,11 @@ class MandateLoginAPIView(APIView):
         if mandate.institution.customerID != customer_id:
             return Response({"detail": "Invalid Customer ID"})
         check_mandate_password_pin_otp(mandate, active=1)
-        serializer = MandateSerializerOut(mandate, context={"request": request}).data
+        data = get_account_balance(mandate.institution, "corporate")
+        data.update({"mandate": MandateSerializerOut(mandate, context={"request": request}).data})
         return Response({
             "detail": "Login Successful", "access_token": str(AccessToken.for_user(user)),
-            "refresh_token": str(RefreshToken.for_user(user)), "data": serializer
+            "refresh_token": str(RefreshToken.for_user(user)), "data": data
         })
 
 
@@ -150,7 +160,8 @@ class TransferRequestAPIView(APIView, CustomPagination):
             trans_request = verify_approve_transfer(request, trans_req, mandate, request_type, action, reject_reason)
             serializer = BulkTransferSerializerOut(trans_request, context={"request": request}).data
         else:
-            return Response({"detail": "Transfer type can either be single or bulk"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Transfer type can either be single or bulk"},
+                            status=status.HTTP_400_BAD_REQUEST)
         return Response({"detail": "Transfer updated successfully", "data": serializer})
 
 
@@ -261,6 +272,66 @@ class BulkTransferAPIView(APIView, CustomPagination):
         serializer.is_valid() or raise_serializer_error_msg(errors=serializer.errors)
         response = serializer.save()
         return Response({"detail": "Bulk Transfer saved successfully", "data": response})
+
+
+class CorporateBillPaymentAPIView(APIView):
+    def post(self, request):
+        phone_number = request.data.get("phone_number")
+        network = request.data.get("network")
+        amount = request.data.get("amount")
+        account_no = request.data.get("account_no")
+
+        if not all([phone_number, network, amount]):
+            log_request(f"error-message: number, amount, network, and purchase type are required fields")
+            return Response(
+                {"detail": "phone_number, network, and amount are required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        mandate = get_object_or_404(Mandate, user=request.user)
+        institution = mandate.institution
+
+        phone_number = f"234{phone_number[-10:]}"
+        token = decrypt_text(institution.bank.auth_token)
+        settlement_acct_no = institution.bank.settlement_acct_no
+
+        payment_type = request.data.get("payment_type")  # airtime, data, cable_tv, electricity
+        narration = f"{payment_type} purchase for {phone_number}"
+        code = str(uuid.uuid4().int)[:5]
+
+        if institution.bank.short_name in bank_one_banks:
+            bank_s_name = str(institution.bank.short_name).upper()
+            ref_no = f"{bank_s_name}-{code}"
+
+            if not CustomerAccount.objects.filter(institution=institution, account_no=account_no).exists():
+                return Response(
+                    {"Account is not found, or does not belong to institution"}, status=status.HTTP_400_BAD_REQUEST
+                )
+            # Check available balance
+            balance = 0
+            response = bankone_get_details_by_customer_id(institution.customerID, token).json()
+            accounts = response["Accounts"]
+
+            for account in accounts:
+                if account["NUBAN"] == str(account_no):
+                    balance = str(account["withdrawableAmount"]).replace(",", "")
+
+            if float(balance) <= 0:
+                return Response({"Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if float(amount) > float(balance):
+                return Response({"Amount cannot be greater than current balance"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if payment_type == "airtime":
+            ...
+        elif payment_type == "data":
+            ...
+        elif payment_type == "cable_tv":
+            ...
+        elif payment_type == "electricity":
+            ...
+        else:
+            return Response({"detail": "Please select a valid payement type"}, status=status.HTTP_400_BAD_REQUEST)
+
+        ...
 
 
 # CRON-JOBs
