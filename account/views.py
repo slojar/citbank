@@ -160,7 +160,11 @@ class CustomerProfileView(APIView):
 
     def get(self, request):
         customer = Customer.objects.get(user=request.user)
+<<<<<<< HEAD
         data = get_account_balance(customer, "individual")
+=======
+        data = get_account_balance(customer)
+>>>>>>> b22e678e6beb158d2a4efdc213d3b0cac55387a7
         data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
         return Response(data)
 
@@ -856,7 +860,8 @@ class TransferAPIView(APIView):
             data = TransferSerializer(detail).data
             return Response({"detail": "Transfer successful", "data": data})
         except Exception as ex:
-            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+            log_request(f"Transfer Error: {ex}")
+        return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class NameEnquiryAPIView(APIView):
