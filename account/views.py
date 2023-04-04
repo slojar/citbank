@@ -946,7 +946,8 @@ class ValidateBVNAPIView(APIView):
 
         bank = get_object_or_404(Bank, id=bank_id)
 
-        success, response = perform_bvn_validation(bank, bvn)
+        # success, response = perform_bvn_validation(bank, bvn)
+        success, response = False, "Error while fetching BVN details"
         if success is False:
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"detail": response})
