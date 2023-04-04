@@ -940,16 +940,29 @@ class ValidateBVNAPIView(APIView):
 
     def post(self, request, bank_id):
         bvn = request.data.get("bvn")
+        phone_number = request.data.get("phone_number")
 
-        if not bvn:
-            return Response({"detail": "BVN is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not (phone_number and bvn):
+            return Response({"detail": "BVN and phone number are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if Customer.objects.filter(phone_number=phone_number).exists():
+            return Response({"detail": "Account with provided detail already exist"})
 
         bank = get_object_or_404(Bank, id=bank_id)
 
-        # success, response = perform_bvn_validation(bank, bvn)
-        success, response = False, "Error while fetching BVN details"
+        success, response = perform_bvn_validation(bank, bvn)
         if success is False:
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+
+        phone_no = ""
+        if "phoneNumber" in response:
+            phone_no = response["phoneNumber"]
+
+        if phone_no != phone_number:
+            return Response(
+                {"detail": "Could not get BVN corresponding to inputs, please try again later"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         return Response({"detail": response})
 
 
