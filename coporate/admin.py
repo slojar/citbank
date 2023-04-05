@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from account.models import CustomerAccount
-from .models import Mandate, Institution, Role, TransferRequest, TransferScheduler, BulkUploadFile
+from .models import Mandate, Institution, Role, TransferRequest, TransferScheduler, BulkUploadFile, BulkTransferRequest
 
 
 class MandateInlineAdmin(admin.TabularInline):
@@ -22,5 +22,6 @@ admin.site.register(Role)
 admin.site.register(TransferRequest)
 admin.site.register(TransferScheduler)
 admin.site.register(BulkUploadFile)
+admin.site.register(BulkTransferRequest)
 admin.site.register(Institution, InstitutionModelAdmin)
 

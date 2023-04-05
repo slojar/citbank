@@ -7,13 +7,16 @@ from threading import Thread
 import requests
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
-from django.db.models import Sum
+from django.db.models import Sum, Q
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 
 from account.models import Transaction, CustomerAccount
 from account.utils import get_account_balance, decrypt_text, log_request, encrypt_text, get_next_date, get_next_weekday
 from bankone.api import bankone_get_details_by_customer_id
+from billpayment.models import Airtime, Data, CableTV, Electricity
+from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
 from citbank.exceptions import InvalidRequestException
 from coporate.models import Mandate, TransferScheduler, TransferRequest
 from coporate.notifications import send_approval_notification_request, send_token_to_mandate, \
@@ -298,6 +301,7 @@ def scheduler_next_job(scheduler):
 
 
 def create_bulk_transfer(data, institution, bulk_trans, schedule, scheduler):
+    total_amount = 0
 
     for item in data:
         account_no = item["account_no"]
@@ -317,6 +321,10 @@ def create_bulk_transfer(data, institution, bulk_trans, schedule, scheduler):
             beneficiary_acct=ben_acct_no, bank_code=bank_code, nip_session_id=nip_id, bank_name=bank_name,
             beneficiary_acct_type=ben_acct_type, scheduled=schedule, scheduler=scheduler
         )
+        total_amount += float(amount)
+    bulk_trans.amount = total_amount
+    bulk_trans.save()
+    return True
 
 
 def check_balance_for_bill_payment(institution, account_no, amount, payment_type):
@@ -351,3 +359,122 @@ def check_balance_for_bill_payment(institution, account_no, amount, payment_type
     return True, "Success", ref_no
 
 
+def create_bill_payment(data, acct_no, phone, amount, payment_type, company, ref_no, option=None, bulk_instance=None):
+    network = data.get("network")
+    phone = f"234{phone[-10:]}"
+
+    if payment_type == "airtime":
+        if not network:
+            raise InvalidRequestException({"detail": "Please select a mobile network"})
+
+        instance = Airtime.objects.create(
+            institution=company, account_no=acct_no, beneficiary=phone, network=network,
+            amount=amount, reference=ref_no, transaction_type="corporate", bank=company.bank
+        )
+        serializer = AirtimeSerializer(instance).data
+
+    elif payment_type == "data":
+        plan_id = data.get("plan_id")
+        if not (plan_id and network):
+            raise InvalidRequestException({"detail": "Please select valid network and plan"})
+
+        instance = Data.objects.create(
+            institution=company, account_no=acct_no, beneficiary=phone, network=network,
+            amount=amount, reference=ref_no, transaction_type="corporate", plan_id=plan_id, bank=company.bank
+        )
+        serializer = DataSerializer(instance).data
+
+    elif payment_type == "cable_tv":
+        service_name = data.get("service_name")
+        duration = data.get("duration")
+        customer_name = data.get("customer_name", "")
+        product_codes = data.get("product_codes")
+        smart_card_no = data.get("smart_card_no")
+
+        if not all([service_name, duration, product_codes, smart_card_no]):
+            raise InvalidRequestException(
+                {"detail": "Service name, duration, product code and smart cart number are required"}
+            )
+
+        instance = CableTV.objects.create(
+            bank=company.bank, institution=company, transaction_type="corporate", service_name=service_name,
+            account_no=acct_no, smart_card_no=smart_card_no, customer_name=customer_name,
+            phone_number=phone, product=product_codes, months=duration, amount=amount, reference=ref_no
+        )
+        serializer = CableTVSerializer(instance).data
+
+    elif payment_type == "electricity":
+        disco_type = data.get("disco_type")
+        meter_no = data.get("meter_no")
+
+        if not all([disco_type, meter_no]):
+            raise InvalidRequestException({"detail": "Disco type and meter number are required"})
+
+        instance = Electricity.objects.create(
+            bank=company.bank, institution=company, transaction_type="corporate", account_no=acct_no,
+            disco_type=disco_type, meter_number=meter_no, amount=amount, phone_number=phone, reference=ref_no
+        )
+        serializer = ElectricitySerializer(instance).data
+
+    else:
+        raise InvalidRequestException({"detail": "Please select a valid payment type"})
+
+    if option == "bulk":
+        instance.transaction_option = "bulk"
+        instance.bulk_payment = bulk_instance
+        instance.save()
+
+    return serializer
+
+
+def retrieve_bill_payment(payment_type, company, pk=None):
+    option = "single"
+    trans_type = "corporate"
+    if payment_type == "airtime":
+        if pk:
+            instance = get_object_or_404(
+                Airtime, id=pk, institution=company, transaction_option=option, transaction_type=trans_type
+            )
+            serializer = AirtimeSerializer(instance).data
+        else:
+            serializer = AirtimeSerializer(
+                Airtime.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type
+                                       ), many=True).data
+
+    elif payment_type == "data":
+        if pk:
+            instance = get_object_or_404(
+                Data, id=pk, institution=company, transaction_option=option, transaction_type=trans_type
+            )
+            serializer = DataSerializer(instance).data
+        else:
+            serializer = DataSerializer(
+                Data.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type
+                                    ), many=True).data
+
+    elif payment_type == "cable_tv":
+        if pk:
+            instance = get_object_or_404(
+                CableTV, id=pk, institution=company, transaction_option=option, transaction_type=trans_type
+            )
+            serializer = CableTVSerializer(instance).data
+        else:
+            serializer = CableTVSerializer(
+                CableTV.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type
+                                       ), many=True).data
+
+    elif payment_type == "electricity":
+        if pk:
+            instance = get_object_or_404(
+                Electricity, id=pk, institution=company, transaction_option=option, transaction_type=trans_type
+            )
+            serializer = ElectricitySerializer(instance).data
+        else:
+            serializer = ElectricitySerializer(
+                Electricity.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type
+                                           ), many=True).data
+
+    else:
+        raise InvalidRequestException({"detail": "Please select a valid payment type"})
+
+    return serializer

@@ -11,23 +11,18 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
-from account.models import CustomerAccount
 from account.paginations import CustomPagination
 from account.utils import get_account_officer, log_request, get_account_balance, decrypt_text
-from bankone.api import bankone_get_details_by_customer_id
-from billpayment.models import Airtime, Data, CableTV, Electricity
-from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
-from billpayment.utils import check_balance_and_charge
 from citbank.exceptions import raise_serializer_error_msg, InvalidRequestException
 from coporate.cron import transfer_scheduler_job, delete_uploaded_files
 from coporate.models import Mandate, TransferRequest, TransferScheduler, BulkTransferRequest
 from coporate.permissions import IsVerifier, IsUploader, IsAuthorizer
 from coporate.serializers import MandateSerializerOut, LimitSerializerOut, TransferRequestSerializerOut, \
     TransferRequestSerializerIn, TransferSchedulerSerializerOut, BulkUploadFileSerializerIn, BulkTransferSerializerIn, \
-    BulkTransferSerializerOut
+    BulkTransferSerializerOut, BulkUploadBillSerializerIn
 from coporate.utils import get_dashboard_data, check_mandate_password_pin_otp, \
     update_transaction_limits, verify_approve_transfer, generate_and_send_otp, change_password, \
-    check_balance_for_bill_payment
+    check_balance_for_bill_payment, create_bill_payment, retrieve_bill_payment
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
@@ -278,13 +273,19 @@ class BulkTransferAPIView(APIView, CustomPagination):
 
 
 class CorporateBillPaymentAPIView(APIView):
+    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
+
+    def get(self, request, pk=None):
+        mandate = get_object_or_404(Mandate, user=request.user)
+        payment_type = request.GET.get("payment_type")
+        data = retrieve_bill_payment(payment_type, mandate.institution, pk)
+        return Response(data)
+
     def post(self, request):
         phone_number = request.data.get("phone_number")
         amount = request.data.get("amount")
         account_no = request.data.get("account_no")
         payment_type = request.data.get("payment_type")  # airtime, data, cable_tv, electricity
-
-        network = request.data.get("network")
 
         if not all([phone_number, amount, payment_type, account_no]):
             log_request(f"error-message: source account, phone number, amount, and payment type are required fields")
@@ -294,70 +295,24 @@ class CorporateBillPaymentAPIView(APIView):
             )
         mandate = get_object_or_404(Mandate, user=request.user)
         institution = mandate.institution
-        phone_number = f"234{phone_number[-10:]}"
 
         success, message, ref_no = check_balance_for_bill_payment(institution, account_no, amount, payment_type)
         if success is False:
             return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
 
-        if payment_type == "airtime":
-            if not network:
-                return Response({"detail": "Please select a mobile network"}, status=status.HTTP_400_BAD_REQUEST)
-            airtime = Airtime.objects.create(
-                institution=institution, account_no=account_no, beneficiary=phone_number, network=network,
-                amount=amount, reference=ref_no, transaction_type="corporate", bank=institution.bank
-            )
-            serializer = AirtimeSerializer(airtime).data
-
-        elif payment_type == "data":
-            plan_id = request.data.get("plan_id")
-            if not (plan_id and network):
-                return Response({"detail": "Please select valid network and plan"}, status=status.HTTP_400_BAD_REQUEST)
-            data = Data.objects.create(
-                institution=institution, account_no=account_no, beneficiary=phone_number, network=network,
-                amount=amount, reference=ref_no, transaction_type="corporate", plan_id=plan_id, bank=institution.bank
-            )
-            serializer = DataSerializer(data).data
-
-        elif payment_type == "cable_tv":
-            service_name = request.data.get("service_name")
-            duration = request.data.get("duration")
-            customer_name = request.data.get("customer_name", "")
-            product_codes = request.data.get("product_codes")
-            smart_card_no = request.data.get("smart_card_no")
-
-            if not all([service_name, duration, product_codes, smart_card_no]):
-                return Response(
-                    {"detail": "Service name, duration, product code and smart cart number are required"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            cable = CableTV.objects.create(
-                bank=institution.bank, institution=institution, transaction_type="corporate", service_name=service_name,
-                account_no=account_no, smart_card_no=smart_card_no, customer_name=customer_name,
-                phone_number=phone_number, product=product_codes, months=duration, amount=amount, reference=ref_no
-            )
-            serializer = CableTVSerializer(cable).data
-
-        elif payment_type == "electricity":
-            disco_type = request.data.get("disco_type")
-            meter_no = request.data.get("meter_no")
-
-            if not all([disco_type, meter_no]):
-                return Response(
-                    {"detail": "Disco type and meter number are required"}, status=status.HTTP_400_BAD_REQUEST
-                )
-
-            elect = Electricity.objects.create(
-                bank=institution.bank, institution=institution, transaction_type="corporate", account_no=account_no,
-                disco_type=disco_type, meter_number=meter_no, amount=amount, phone_number=phone_number, reference=ref_no
-            )
-            serializer = ElectricitySerializer(elect).data
-
-        else:
-            return Response({"detail": "Please select a valid payement type"}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = create_bill_payment(request.data, account_no, phone_number, amount, payment_type, institution, ref_no)
 
         return Response({"detail": "Payment created successfully", "data": serializer})
+
+
+class BulkBillPaymentAPIView(APIView):
+    permission_classes = [IsAuthenticated & IsUploader]
+
+    def post(self, request):
+        serializer = BulkUploadBillSerializerIn(data=request.data, context={"request": request})
+        serializer.is_valid() or raise_serializer_error_msg(errors=serializer.errors)
+        response = serializer.save()
+        return Response({"detail": "Bulk Payments saved successfully", "data": response})
 
 
 # CRON-JOBs

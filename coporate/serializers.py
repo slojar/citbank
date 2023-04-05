@@ -11,13 +11,14 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 
 from account.models import Bank
-from account.utils import decrypt_text, encrypt_text
+from account.utils import decrypt_text, encrypt_text, log_request
 from bankone.api import bankone_others_name_query, bankone_get_account_by_account_no
+from billpayment.models import BulkBillPayment
 from citbank.exceptions import InvalidRequestException
 from .models import Mandate, Institution, Role, Limit, TransferRequest, TransferScheduler, BulkUploadFile, \
     BulkTransferRequest
 from .notifications import send_username_password_to_mandate
-from .utils import transfer_validation, create_bulk_transfer
+from .utils import transfer_validation, create_bulk_transfer, create_bill_payment
 
 
 class MandateSerializerIn(serializers.Serializer):
@@ -294,12 +295,6 @@ class BulkUploadFileSerializerIn(serializers.Serializer):
                 credit_bank_name = row[5]
                 transfer_type = str(row[6]).lower()
                 credit_account_type = row[7]
-                # schedule = row[8]
-                # schedule_type = row[9]
-                # day_in_month = row[10]
-                # day_in_week = row[11]
-                # start_date = row[12]
-                # end_date = row[13]
 
                 data = dict()
                 data["account_no"] = debit_account_number
@@ -307,12 +302,6 @@ class BulkUploadFileSerializerIn(serializers.Serializer):
                 data["narration"] = description
                 data["beneficiary_acct_no"] = credit_account_number
                 data["beneficiary_acct_type"] = credit_account_type
-                # data["schedule"] = schedule
-                # data["schedule_type"] = schedule_type
-                # data["day_of_the_month"] = day_in_month
-                # data["day_of_the_week"] = day_in_week
-                # data["start_date"] = start_date
-                # data["end_date"] = end_date
 
                 if transfer_type == "samebank":
                     # Do local name enquiry
@@ -340,13 +329,75 @@ class BulkUploadFileSerializerIn(serializers.Serializer):
                             ne_failed.append(data)
 
             except Exception as ex:
-                print(f"Error while reading bulk upload file: {ex}")
+                log_request(f"Error while reading bulk upload file: {ex}")
 
         # Update uploaded file
         upload.used = True
         upload.save()
 
         return {"success": ne_success, "failed": ne_failed}
+
+
+class BulkUploadBillSerializerIn(serializers.Serializer):
+    file = serializers.FileField()
+    narration = serializers.CharField(max_length=198)
+    current_user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    def create(self, validated_data):
+        user = validated_data.get('current_user')
+        file = validated_data.get("file")
+        narration = validated_data.get("narration")
+
+        upload = BulkUploadFile.objects.create(institution=user.mandate.institution, file=file)
+        file = upload.file.read().decode('utf-8', 'ignore')
+        read = csv.reader(StringIO(file), delimiter=",")
+        next(read)
+
+        institution = user.mandate.institution
+        bank = institution.bank
+        bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
+        short_name = bank.short_name
+        ref_no = ""
+
+        # create BulkBillPayment
+        bulk_bill = BulkBillPayment.objects.create(institution=institution, description=narration)
+        total_amount = 0
+        for row in read:
+            try:
+                debit_account_number = row[0]
+                amount = row[1]
+                network = row[2]
+                phone_number = row[2]
+
+                data = {"network": network}
+                code = str(uuid.uuid4().int)[:5]
+                if short_name in bank_one_banks:
+                    bank_s_name = str(short_name).upper()
+                    ref_no = f"{bank_s_name}-{code}"
+
+                # create airtime instances
+                create_bill_payment(
+                    data, debit_account_number, phone_number, amount, "airtime", institution, ref_no, option="bulk",
+                    bulk_instance=bulk_bill
+                )
+                total_amount += amount
+
+            except Exception as ex:
+                log_request(f"Error while reading bulk upload file: {ex}")
+
+        # Update uploaded file
+        bulk_bill.amount = total_amount
+        bulk_bill.save()
+        upload.used = True
+        upload.save()
+
+        return BulkPaymentSerializerOut(bulk_bill).data
+
+
+class BulkPaymentSerializerOut(serializers.ModelSerializer):
+    class Meta:
+        model = BulkBillPayment
+        exclude = []
 
 
 class BulkTransferSerializerOut(serializers.ModelSerializer):
