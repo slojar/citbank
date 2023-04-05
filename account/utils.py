@@ -702,7 +702,7 @@ def perform_bvn_validation(bank, bvn):
             if response["RequestStatus"] is True and response["isBvnValid"] is True:
                 success, detail = True, response["bvnDetails"]
             else:
-                success, detail = False, response["ResponseMessage"]
+                success, detail = False, "Validation error. Please enter correct phone number and BVN"
 
     return success, detail
 
