@@ -11,7 +11,7 @@ from django.db.models import Sum
 from django.urls import reverse
 from django.utils import timezone
 
-from account.models import Transaction
+from account.models import Transaction, CustomerAccount
 from account.utils import get_account_balance, decrypt_text, log_request, encrypt_text, get_next_date, get_next_weekday
 from bankone.api import bankone_get_details_by_customer_id
 from citbank.exceptions import InvalidRequestException
@@ -318,6 +318,36 @@ def create_bulk_transfer(data, institution, bulk_trans, schedule, scheduler):
             beneficiary_acct_type=ben_acct_type, scheduled=schedule, scheduler=scheduler
         )
 
-    ...
+
+def check_balance_for_bill_payment(institution, account_no, amount, payment_type):
+    code = str(uuid.uuid4().int)[:5]
+    ref_no = ""
+    if institution.bank.short_name in bank_one_banks:
+        bank_s_name = str(institution.bank.short_name).upper()
+        token = decrypt_text(institution.bank.auth_token)
+        ref_no = f"{bank_s_name}-{code}"
+
+        if not CustomerAccount.objects.filter(institution=institution, account_no=account_no).exists():
+            return False, "Account is not found, or does not belong to institution", ""
+
+        # Check available balance
+        if payment_type == ("cable_tv" or "electricity"):
+            amount = decimal.Decimal(amount) + institution.bank.bill_payment_charges
+
+        balance = 0
+        response = bankone_get_details_by_customer_id(institution.customerID, token).json()
+        accounts = response["Accounts"]
+
+        for account in accounts:
+            if account["NUBAN"] == str(account_no):
+                balance = str(account["withdrawableAmount"]).replace(",", "")
+
+        if float(balance) <= 0:
+            return False, "Insufficient balance", ""
+
+        if float(amount) > float(balance):
+            return False, "Amount cannot be greater than current balance", ""
+
+    return True, "Success", ref_no
 
 

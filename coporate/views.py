@@ -15,6 +15,8 @@ from account.models import CustomerAccount
 from account.paginations import CustomPagination
 from account.utils import get_account_officer, log_request, get_account_balance, decrypt_text
 from bankone.api import bankone_get_details_by_customer_id
+from billpayment.models import Airtime, Data, CableTV, Electricity
+from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
 from billpayment.utils import check_balance_and_charge
 from citbank.exceptions import raise_serializer_error_msg, InvalidRequestException
 from coporate.cron import transfer_scheduler_job, delete_uploaded_files
@@ -24,7 +26,8 @@ from coporate.serializers import MandateSerializerOut, LimitSerializerOut, Trans
     TransferRequestSerializerIn, TransferSchedulerSerializerOut, BulkUploadFileSerializerIn, BulkTransferSerializerIn, \
     BulkTransferSerializerOut
 from coporate.utils import get_dashboard_data, check_mandate_password_pin_otp, \
-    update_transaction_limits, verify_approve_transfer, generate_and_send_otp, change_password
+    update_transaction_limits, verify_approve_transfer, generate_and_send_otp, change_password, \
+    check_balance_for_bill_payment
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
@@ -277,61 +280,84 @@ class BulkTransferAPIView(APIView, CustomPagination):
 class CorporateBillPaymentAPIView(APIView):
     def post(self, request):
         phone_number = request.data.get("phone_number")
-        network = request.data.get("network")
         amount = request.data.get("amount")
         account_no = request.data.get("account_no")
+        payment_type = request.data.get("payment_type")  # airtime, data, cable_tv, electricity
 
-        if not all([phone_number, network, amount]):
-            log_request(f"error-message: number, amount, network, and purchase type are required fields")
+        network = request.data.get("network")
+
+        if not all([phone_number, amount, payment_type, account_no]):
+            log_request(f"error-message: source account, phone number, amount, and payment type are required fields")
             return Response(
-                {"detail": "phone_number, network, and amount are required"}, status=status.HTTP_400_BAD_REQUEST
+                {"detail": "source account, phone number, payment type, and amount are required"},
+                status=status.HTTP_400_BAD_REQUEST
             )
         mandate = get_object_or_404(Mandate, user=request.user)
         institution = mandate.institution
-
         phone_number = f"234{phone_number[-10:]}"
-        token = decrypt_text(institution.bank.auth_token)
-        settlement_acct_no = institution.bank.settlement_acct_no
 
-        payment_type = request.data.get("payment_type")  # airtime, data, cable_tv, electricity
-        narration = f"{payment_type} purchase for {phone_number}"
-        code = str(uuid.uuid4().int)[:5]
-
-        if institution.bank.short_name in bank_one_banks:
-            bank_s_name = str(institution.bank.short_name).upper()
-            ref_no = f"{bank_s_name}-{code}"
-
-            if not CustomerAccount.objects.filter(institution=institution, account_no=account_no).exists():
-                return Response(
-                    {"Account is not found, or does not belong to institution"}, status=status.HTTP_400_BAD_REQUEST
-                )
-            # Check available balance
-            balance = 0
-            response = bankone_get_details_by_customer_id(institution.customerID, token).json()
-            accounts = response["Accounts"]
-
-            for account in accounts:
-                if account["NUBAN"] == str(account_no):
-                    balance = str(account["withdrawableAmount"]).replace(",", "")
-
-            if float(balance) <= 0:
-                return Response({"Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
-
-            if float(amount) > float(balance):
-                return Response({"Amount cannot be greater than current balance"}, status=status.HTTP_400_BAD_REQUEST)
+        success, message, ref_no = check_balance_for_bill_payment(institution, account_no, amount, payment_type)
+        if success is False:
+            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
 
         if payment_type == "airtime":
-            ...
+            if not network:
+                return Response({"detail": "Please select a mobile network"}, status=status.HTTP_400_BAD_REQUEST)
+            airtime = Airtime.objects.create(
+                institution=institution, account_no=account_no, beneficiary=phone_number, network=network,
+                amount=amount, reference=ref_no, transaction_type="corporate", bank=institution.bank
+            )
+            serializer = AirtimeSerializer(airtime).data
+
         elif payment_type == "data":
-            ...
+            plan_id = request.data.get("plan_id")
+            if not (plan_id and network):
+                return Response({"detail": "Please select valid network and plan"}, status=status.HTTP_400_BAD_REQUEST)
+            data = Data.objects.create(
+                institution=institution, account_no=account_no, beneficiary=phone_number, network=network,
+                amount=amount, reference=ref_no, transaction_type="corporate", plan_id=plan_id, bank=institution.bank
+            )
+            serializer = DataSerializer(data).data
+
         elif payment_type == "cable_tv":
-            ...
+            service_name = request.data.get("service_name")
+            duration = request.data.get("duration")
+            customer_name = request.data.get("customer_name", "")
+            product_codes = request.data.get("product_codes")
+            smart_card_no = request.data.get("smart_card_no")
+
+            if not all([service_name, duration, product_codes, smart_card_no]):
+                return Response(
+                    {"detail": "Service name, duration, product code and smart cart number are required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            cable = CableTV.objects.create(
+                bank=institution.bank, institution=institution, transaction_type="corporate", service_name=service_name,
+                account_no=account_no, smart_card_no=smart_card_no, customer_name=customer_name,
+                phone_number=phone_number, product=product_codes, months=duration, amount=amount, reference=ref_no
+            )
+            serializer = CableTVSerializer(cable).data
+
         elif payment_type == "electricity":
-            ...
+            disco_type = request.data.get("disco_type")
+            meter_no = request.data.get("meter_no")
+
+            if not all([disco_type, meter_no]):
+                return Response(
+                    {"detail": "Disco type and meter number are required"}, status=status.HTTP_400_BAD_REQUEST
+                )
+
+            elect = Electricity.objects.create(
+                bank=institution.bank, institution=institution, transaction_type="corporate", account_no=account_no,
+                disco_type=disco_type, meter_number=meter_no, amount=amount, phone_number=phone_number, reference=ref_no
+            )
+            serializer = ElectricitySerializer(elect).data
+
         else:
             return Response({"detail": "Please select a valid payement type"}, status=status.HTTP_400_BAD_REQUEST)
 
-        ...
+        return Response({"detail": "Payment created successfully", "data": serializer})
 
 
 # CRON-JOBs
