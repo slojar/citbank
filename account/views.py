@@ -18,6 +18,7 @@ from rest_framework import status, generics
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from billpayment.models import Airtime, Data, CableTV, Electricity
+from citbank.throttle import AnonymousThrottle
 from coporate.models import Mandate
 from .paginations import CustomPagination
 from .serializers import CustomerSerializer, TransferSerializer, BeneficiarySerializer, BankSerializer
@@ -937,6 +938,7 @@ class CardOperationAPIView(APIView):
 
 class ValidateBVNAPIView(APIView):
     permission_classes = []
+    throttle_classes = [AnonymousThrottle]
 
     def post(self, request, bank_id):
         bvn = request.data.get("bvn")
