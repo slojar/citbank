@@ -396,52 +396,52 @@ class ElectricityAPIView(APIView):
         code = str(uuid.uuid4().int)[:5]
         user = request.user
 
-        try:
-            customer = Customer.objects.get(user=user)
-            if customer.bank.short_name in bank_one_banks:
-                sh_name = str(customer.bank.short_name).upper()
-                ref_code = f"{sh_name}-{code}"
-                amount = decimal.Decimal(amount) + customer.bank.bill_payment_charges
+    # try:
+        customer = Customer.objects.get(user=user)
+        if customer.bank.short_name in bank_one_banks:
+            sh_name = str(customer.bank.short_name).upper()
+            ref_code = f"{sh_name}-{code}"
+            amount = decimal.Decimal(amount) + customer.bank.bill_payment_charges
 
-                success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
+            success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
+            if success is False:
+                log_request(f"error-message: {response}")
+                return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+
+            if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+
+                # remove service charge from amount
+                amount -= 100
+
+                success, detail, token = vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_number, ref_code)
                 if success is False:
-                    log_request(f"error-message: {response}")
-                    return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
-
-                if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
-
-                    # remove service charge from amount
-                    amount -= 100
-
-                    success, detail, token = vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_number, ref_code)
-                    if success is False:
-                        # LOG REVERSAL
-                        date_today = datetime.datetime.now().date()
-                        BillPaymentReversal.objects.create(
-                            transaction_reference=ref_code, transaction_date=str(date_today),
-                            payment_type="electricity", bank=customer.bank
-                        )
-                        return Response(
-                            {"detail": "An error while vending electricity, please try again later"},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-
-                elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
-                    return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
-
-                else:
+                    # LOG REVERSAL
+                    date_today = datetime.datetime.now().date()
+                    BillPaymentReversal.objects.create(
+                        transaction_reference=ref_code, transaction_date=str(date_today),
+                        payment_type="electricity", bank=customer.bank
+                    )
                     return Response(
-                        {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
+                        {"detail": "An error while vending electricity, please try again later"},
+                        status=status.HTTP_400_BAD_REQUEST
                     )
 
-                return Response({"detail": f"{disco_type} payment for meter: {meter_no} was successful",
-                                 "credit_token": token})
+            elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
+                return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
+
             else:
-                return Response({"detail": "No bank available for authenticated user"},
-                                status=status.HTTP_400_BAD_REQUEST)
-        except Exception as ex:
-            return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
+                )
+
+            return Response({"detail": f"{disco_type} payment for meter: {meter_no} was successful",
+                             "credit_token": token})
+        else:
+            return Response({"detail": "No bank available for authenticated user"},
+                            status=status.HTTP_400_BAD_REQUEST)
+    # except Exception as ex:
+    #     return Response({"detail": "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class RetryElectricityCronView(APIView):
