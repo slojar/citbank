@@ -18,9 +18,8 @@ from bankone.api import bankone_get_details_by_customer_id
 from billpayment.models import Airtime, Data, CableTV, Electricity
 from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
 from citbank.exceptions import InvalidRequestException
-from coporate.models import Mandate, TransferScheduler, TransferRequest
-from coporate.notifications import send_approval_notification_request, send_token_to_mandate, \
-    send_successful_transfer_email
+from coporate.models import Mandate, TransferRequest
+# from coporate.notifications import send_token_to_mandate, send_successful_transfer_email
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
@@ -68,12 +67,15 @@ def check_mandate_password_pin_otp(mandate, **kwargs):
 
 
 def update_transaction_limits(request, mandate):
+    from .notifications import send_approval_notification_request
     daily_limit = request.data.get("daily_limit")
     transfer_limit = request.data.get("transfer_limit")
 
     limit = mandate.institution.limit
+    # get next_level
+    next_level = Mandate.objects.filter(institution=mandate.institution, level__gt=mandate.level).first().level
 
-    if mandate.role.mandate_type == "uploader":
+    if mandate.level == 1:
         if daily_limit:
             limit.daily_limit = daily_limit
         if transfer_limit:
@@ -81,18 +83,16 @@ def update_transaction_limits(request, mandate):
         limit.checked = True
         limit.verified = False
         limit.approved = False
-        # Send email to verifiers
-        for mandate_ in Mandate.objects.filter(institution=mandate.institution, role__mandate_type="verifier"):
-            Thread(target=send_approval_notification_request, args=[mandate_]).start()
-    if mandate.role.mandate_type == "verifier":
-        limit.verified = True
-        # Send email to authorizers
-        for _mandate in Mandate.objects.filter(institution=mandate.institution, role__mandate_type="authorizer"):
-            Thread(target=send_approval_notification_request, args=[_mandate]).start()
+        limit.save()
+        return limit
 
-    if mandate.role.mandate_type == "authorizer":
-        if not limit.verified:
-            raise InvalidRequestException({"detail": "Limit is yet to be verified"})
+    upper_level = check_upper_level_exist(mandate)
+    # Send email to next authorizer
+    if upper_level:
+        limit.verified = True
+        for mandate_ in Mandate.objects.filter(institution=mandate.institution, level=next_level):
+            Thread(target=send_approval_notification_request, args=[mandate_]).start()
+    else:
         limit.approved = True
 
     limit.save()
@@ -107,8 +107,8 @@ def transfer_validation(mandate, amount, account_number):
     customer_id = institution.customerID
 
     # Check if role_type is uploader
-    if mandate.role.mandate_type != "uploader":
-        raise InvalidRequestException({"detail": "Permission denied, only uploader can perform this action"})
+    if mandate.level != 1:
+        raise InvalidRequestException({"detail": "Permission denied, only lowest level can perform this action"})
 
     # Check Transfer Limit
     if decimal.Decimal(amount) > institution.limit.transfer_limit:
@@ -146,15 +146,22 @@ def transfer_validation(mandate, amount, account_number):
 
 
 def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=None, reject_reason=None):
-    if mandate.role.mandate_type == "uploader":
-        if tran_req.verified or tran_req.approved:
-            raise InvalidRequestException({"detail": "Request has recently been verified or approved"})
+    from .notifications import send_approval_notification_request, send_successful_transfer_email
+    current_level = mandate.level
+    next_level = None
+    if Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).exists():
+        next_level = Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).order_by("-level").first().level
+    if current_level == 1:
         tran_req.checked = True
         # Send email to verifiers
-        for mandate_ in Mandate.objects.filter(institution=mandate.institution, role__mandate_type="verifier"):
+        for mandate_ in Mandate.objects.filter(institution=mandate.institution, level=next_level):
             Thread(target=send_approval_notification_request, args=[mandate_]).start()
+        tran_req.save()
+        return tran_req
 
-    if mandate.role.mandate_type == "verifier":
+    upper_level = check_upper_level_exist(mandate)
+
+    if upper_level:
         if not tran_req.checked:
             raise InvalidRequestException({"detail": "Cannot verify, request is awaiting check"})
         if tran_req.verified or tran_req.approved:
@@ -163,14 +170,14 @@ def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=No
         if action == "approve":
             tran_req.verified = True
             # Send email to authorizers
-            for _mandate in Mandate.objects.filter(institution=mandate.institution, role__mandate_type="authorizer"):
+            for _mandate in Mandate.objects.filter(institution=mandate.institution, level=next_level):
                 Thread(target=send_approval_notification_request, args=[_mandate]).start()
         if action == "decline":
             # Set rejection reason
             tran_req.decline_reason = reject_reason
             tran_req.status = "declined"
 
-    if mandate.role.mandate_type == "authorizer":
+    else:
         if not tran_req.verified or not tran_req.checked:
             raise InvalidRequestException({"detail": "Cannot approve, request is awaiting check or verification"})
         if tran_req.approved:
@@ -200,6 +207,7 @@ def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=No
 
 
 def generate_and_send_otp(mandate):
+    from .notifications import send_token_to_mandate
     # Generate random Token
     otp = str(uuid.uuid4().int)[:6]
     token = encrypt_text(otp)
@@ -478,3 +486,11 @@ def retrieve_bill_payment(payment_type, company, pk=None):
         raise InvalidRequestException({"detail": "Please select a valid payment type"})
 
     return serializer
+
+
+def check_upper_level_exist(mandate):
+    if Mandate.objects.filter(institution=mandate.institution, level__gt=mandate.level).exists():
+        return True
+    else:
+        return False
+

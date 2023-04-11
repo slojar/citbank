@@ -1,5 +1,4 @@
 import json
-import uuid
 
 from django.conf import settings
 from django.contrib.auth import authenticate
@@ -12,11 +11,11 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from account.paginations import CustomPagination
-from account.utils import get_account_officer, log_request, get_account_balance, decrypt_text
+from account.utils import get_account_officer, log_request, get_account_balance
 from citbank.exceptions import raise_serializer_error_msg, InvalidRequestException
 from coporate.cron import transfer_scheduler_job, delete_uploaded_files
 from coporate.models import Mandate, TransferRequest, TransferScheduler, BulkTransferRequest
-from coporate.permissions import IsVerifier, IsUploader, IsAuthorizer
+from coporate.permissions import IsUploader, IsMandate
 from coporate.serializers import MandateSerializerOut, LimitSerializerOut, TransferRequestSerializerOut, \
     TransferRequestSerializerIn, TransferSchedulerSerializerOut, BulkUploadFileSerializerIn, BulkTransferSerializerIn, \
     BulkTransferSerializerOut, BulkUploadBillSerializerIn
@@ -57,7 +56,7 @@ class MandateLoginAPIView(APIView):
 
 
 class MandateDashboardAPIView(APIView):
-    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
+    permission_classes = [IsMandate]
 
     def get(self, request):
         mandate = get_object_or_404(Mandate, user=request.user)
@@ -66,7 +65,7 @@ class MandateDashboardAPIView(APIView):
 
 
 class InstitutionAccountOfficer(APIView):
-    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
+    permission_classes = [IsMandate]
 
     def get(self, request):
         mandate = get_object_or_404(Mandate, user=request.user)
@@ -77,7 +76,7 @@ class InstitutionAccountOfficer(APIView):
 
 
 class TransferLimitAPIView(APIView):
-    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
+    permission_classes = [IsMandate]
 
     def put(self, request):
         otp = request.data.get("otp")
@@ -92,7 +91,7 @@ class TransferLimitAPIView(APIView):
 
 
 class TransferRequestAPIView(APIView, CustomPagination):
-    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
+    permission_classes = [IsMandate]
 
     def get(self, request, pk=None):
         mandate = get_object_or_404(Mandate, user=request.user)
@@ -141,7 +140,7 @@ class TransferRequestAPIView(APIView, CustomPagination):
         mandate = get_object_or_404(Mandate, user=request.user)
         check_mandate_password_pin_otp(mandate, otp=otp)
 
-        if mandate.role != "uploader":
+        if mandate.level != 1:
             if action not in accepted_action:
                 return Response({"detail": "Selected action is not valid"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -164,7 +163,7 @@ class TransferRequestAPIView(APIView, CustomPagination):
 
 
 class SendOTPAPIView(APIView):
-    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
+    permission_classes = [IsMandate]
 
     def get(self, request):
         mandate = get_object_or_404(Mandate, user=request.user)
@@ -173,8 +172,7 @@ class SendOTPAPIView(APIView):
 
 
 class MandateChangePasswordAPIView(APIView):
-    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
-
+    permission_classes = [IsMandate]
     def post(self, request):
         otp = request.data.get("otp")
         if not otp:
@@ -186,8 +184,7 @@ class MandateChangePasswordAPIView(APIView):
 
 
 class TransferSchedulerAPIView(APIView, CustomPagination):
-    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
-
+    permission_classes = [IsMandate]
     def get(self, request, pk=None):
         result = list()
         mandate = get_object_or_404(Mandate, user=request.user)
@@ -236,7 +233,7 @@ class BulkUploadAPIView(APIView):
 
 
 class BulkTransferAPIView(APIView, CustomPagination):
-    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
+    permission_classes = [IsMandate]
 
     def get(self, request, pk=None):
         mandate = get_object_or_404(Mandate, user=request.user)
@@ -273,7 +270,7 @@ class BulkTransferAPIView(APIView, CustomPagination):
 
 
 class CorporateBillPaymentAPIView(APIView):
-    permission_classes = [IsAuthenticated & (IsVerifier | IsUploader | IsAuthorizer)]
+    permission_classes = [IsMandate]
 
     def get(self, request, pk=None):
         mandate = get_object_or_404(Mandate, user=request.user)
@@ -287,13 +284,16 @@ class CorporateBillPaymentAPIView(APIView):
         account_no = request.data.get("account_no")
         payment_type = request.data.get("payment_type")  # airtime, data, cable_tv, electricity
 
+        mandate = get_object_or_404(Mandate, user=request.user)
+        if mandate.level != 1:
+            return Response({"detail": "You are not permitted to perform this action"})
+
         if not all([phone_number, amount, payment_type, account_no]):
             log_request(f"error-message: source account, phone number, amount, and payment type are required fields")
             return Response(
                 {"detail": "source account, phone number, payment type, and amount are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        mandate = get_object_or_404(Mandate, user=request.user)
         institution = mandate.institution
 
         success, message, ref_no = check_balance_for_bill_payment(institution, account_no, amount, payment_type)

@@ -5,17 +5,15 @@ from io import StringIO
 from threading import Thread
 
 from django.conf import settings
-from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 
-from account.models import Bank
 from account.utils import decrypt_text, encrypt_text, log_request
 from bankone.api import bankone_others_name_query, bankone_get_account_by_account_no
 from billpayment.models import BulkBillPayment
 from citbank.exceptions import InvalidRequestException
-from .models import Mandate, Institution, Role, Limit, TransferRequest, TransferScheduler, BulkUploadFile, \
+from .models import Mandate, Institution, Limit, TransferRequest, TransferScheduler, BulkUploadFile, \
     BulkTransferRequest
 from .notifications import send_username_password_to_mandate
 from .utils import transfer_validation, create_bulk_transfer, create_bill_payment
@@ -23,7 +21,7 @@ from .utils import transfer_validation, create_bulk_transfer, create_bill_paymen
 
 class MandateSerializerIn(serializers.Serializer):
     institution_id = serializers.IntegerField()
-    role_id = serializers.IntegerField()
+    level = serializers.IntegerField()
     bvn = serializers.CharField(min_length=11, max_length=11)
     first_name = serializers.CharField()
     last_name = serializers.CharField()
@@ -32,7 +30,7 @@ class MandateSerializerIn(serializers.Serializer):
 
     def create(self, validated_data):
         institution_id = validated_data.get("institution_id")
-        role_id = validated_data.get("role_id")
+        level = validated_data.get("level")
         bvn = validated_data.get("bvn")
         first_name = validated_data.get("first_name")
         last_name = validated_data.get("last_name")
@@ -50,12 +48,7 @@ class MandateSerializerIn(serializers.Serializer):
         if not Institution.objects.filter(id=institution_id, bank=admin_bank).exists():
             raise InvalidRequestException({"detail": "Selected institution is not valid"})
 
-        # Check if role is valid
-        if not Role.objects.filter(id=role_id).exists():
-            raise InvalidRequestException({"detail": "Please select a valid role"})
-
         institution = Institution.objects.get(id=institution_id)
-        role = Role.objects.get(id=role_id)
 
         # Generate username from institution code
         inst_code = institution.code
@@ -72,7 +65,7 @@ class MandateSerializerIn(serializers.Serializer):
 
         # Create mandate
         mandate = Mandate.objects.create(
-            user=user, institution=institution, bvn=encrypted_bvn, role=role, phone_number=phone_no,
+            user=user, institution=institution, bvn=encrypted_bvn, level=level, phone_number=phone_no,
             added_by=request.user
         )
 
@@ -89,7 +82,7 @@ class MandateSerializerOut(serializers.ModelSerializer):
     first_name = serializers.CharField(source="user.first_name")
     last_name = serializers.CharField(source="user.last_name")
     email = serializers.CharField(source="user.email")
-    role = serializers.CharField(source="role.mandate_type")
+    # role = serializers.CharField(source="role.mandate_type")
     added_by = serializers.CharField(source="added_by.last_name")
     bvn = serializers.SerializerMethodField()
     other_signatories = serializers.SerializerMethodField()
@@ -99,7 +92,7 @@ class MandateSerializerOut(serializers.ModelSerializer):
         if Mandate.objects.filter(institution=obj.institution).exists():
             data = [{
                 "name": mandate.user.get_full_name(),
-                "role": mandate.role.mandate_type,
+                "level": mandate.level,
                 "email": mandate.user.email,
                 "phone_number": mandate.phone_number,
                 "active": mandate.active
@@ -113,18 +106,18 @@ class MandateSerializerOut(serializers.ModelSerializer):
 
     class Meta:
         model = Mandate
-        exclude = ["user"]
+        exclude = ["user", "otp", "otp_expiry"]
         depth = 1
 
 
-class RoleSerializerIn(serializers.Serializer):
-    mandate_type = serializers.CharField()
+# class RoleSerializerIn(serializers.Serializer):
+#     mandate_type = serializers.CharField()
 
 
-class RoleSerializerOut(serializers.ModelSerializer):
-    class Meta:
-        model = Role
-        exclude = []
+# class RoleSerializerOut(serializers.ModelSerializer):
+#     class Meta:
+#         model = Role
+#         exclude = []
 
 
 class InstitutionSerializerIn(serializers.Serializer):
@@ -430,7 +423,7 @@ class BulkTransferSerializerIn(serializers.Serializer):
         start_date = validated_data.get("start_date")
         end_date = validated_data.get("end_date")
 
-        if user.mandate.role.mandate_type != "uploader":
+        if user.mandate.level != 1:
             raise InvalidRequestException({"detail": "You are not permitted to perform this action"})
 
         institution = user.mandate.institution

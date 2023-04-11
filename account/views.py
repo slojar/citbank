@@ -911,7 +911,9 @@ class ValidateBVNAPIView(APIView):
             return Response({"detail": "BVN and phone number are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         if Customer.objects.filter(phone_number=phone_number).exists():
-            return Response({"detail": "Account with provided detail already exist"})
+            return Response(
+                {"detail": "Account with provided detail already exist"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         bank = get_object_or_404(Bank, id=bank_id)
 

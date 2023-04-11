@@ -6,13 +6,13 @@ from coporate.choices import MANDATE_TYPE_CHOICES, TRANSFER_REQUEST_STATUS, SCHE
     DAYS_OF_THE_MONTH_CHOICES, DAY_OF_THE_WEEK_CHOICES, TRANSFER_SCHEDULE_STATUS, TRANSFER_REQUEST_OPTION
 
 
-class Role(models.Model):
-    mandate_type = models.CharField(max_length=100, choices=MANDATE_TYPE_CHOICES, default="uploader")
-    created_on = models.DateTimeField(auto_now_add=True)
-    updated_on = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"{self.mandate_type}"
+# class Role(models.Model):
+#     mandate_type = models.CharField(max_length=100, choices=MANDATE_TYPE_CHOICES, default="uploader")
+#     created_on = models.DateTimeField(auto_now_add=True)
+#     updated_on = models.DateTimeField(auto_now=True)
+#
+#     def __str__(self):
+#         return f"{self.mandate_type}"
 
 
 class Institution(models.Model):
@@ -47,7 +47,8 @@ class Limit(models.Model):
 class Mandate(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     institution = models.ForeignKey(Institution, on_delete=models.SET_NULL, null=True)
-    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True)
+    # role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True)
+    level = models.IntegerField(default=1)
     phone_number = models.CharField(max_length=11)
     bvn = models.TextField()
     password_changed = models.BooleanField(default=False)
@@ -59,7 +60,7 @@ class Mandate(models.Model):
     update_on = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user}: {self.role.mandate_type}"
+        return f"{self.user}: {self.level}"
 
 
 class TransferScheduler(models.Model):

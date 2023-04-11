@@ -15,9 +15,9 @@ from bankone.api import bankone_send_otp_message
 from billpayment.models import Airtime, CableTV, Data, Electricity
 from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
 from citbank.exceptions import raise_serializer_error_msg
-from coporate.models import Institution, Role, Mandate
+from coporate.models import Institution, Mandate
 from coporate.serializers import MandateSerializerIn, InstitutionSerializerIn, InstitutionSerializerOut, \
-    RoleSerializerOut, MandateSerializerOut
+    MandateSerializerOut
 
 
 class Homepage(views.APIView):
@@ -340,7 +340,7 @@ class InstitutionAPIView(views.APIView, CustomPagination):
         return Response(self.get_paginated_response(serializer).data)
 
 
-class CorporateRoleListAPIView(generics.ListAPIView):
-    permission_classes = [IsAdminUser]
-    queryset = Role.objects.all().order_by("-id")
-    serializer_class = RoleSerializerOut
+# class CorporateRoleListAPIView(generics.ListAPIView):
+#     permission_classes = [IsAdminUser]
+#     queryset = Role.objects.all().order_by("-id")
+#     serializer_class = RoleSerializerOut

@@ -3,6 +3,8 @@ from account.utils import decrypt_text
 from bankone.api import bankone_send_email
 from django.conf import settings
 
+from coporate.utils import check_upper_level_exist
+
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
 
@@ -50,8 +52,9 @@ def send_otp_to_mandate(mandate):
 
 
 def send_approval_notification_request(mandate):
+    upper_level = check_upper_level_exist(mandate)
     action = "authorize"
-    if mandate.role.mandate_type == "verifier":
+    if not upper_level:
         action = "verify"
     subject = "Transaction Approval Request"
     first_name = mandate.user.first_name

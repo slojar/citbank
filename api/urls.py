@@ -12,7 +12,7 @@ urlpatterns = [
     path('<str:bank_id>/account-request/<int:pk>/', views.AdminAccountRequestAPIView.as_view(), name="acct-req-detail"),
 
     # Corporate Account
-    path('roles/', views.CorporateRoleListAPIView.as_view(), name="roles"),
+    # path('roles/', views.CorporateRoleListAPIView.as_view(), name="roles"),
     path('mandate/', views.CorporateUserAPIView.as_view(), name="corporate-user"),
     path('mandate/<int:pk>/', views.CorporateUserAPIView.as_view(), name="corporate-user-detail"),
     path('institution/', views.InstitutionAPIView.as_view(), name="institution"),

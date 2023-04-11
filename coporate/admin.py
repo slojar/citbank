@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from account.models import CustomerAccount
-from .models import Mandate, Institution, Role, TransferRequest, TransferScheduler, BulkUploadFile, BulkTransferRequest
+from .models import Mandate, Institution, TransferRequest, TransferScheduler, BulkUploadFile, BulkTransferRequest
 
 
 class MandateInlineAdmin(admin.TabularInline):
@@ -18,7 +18,7 @@ class InstitutionModelAdmin(admin.ModelAdmin):
     search_fields = ["name", "code", "account_no"]
 
 
-admin.site.register(Role)
+# admin.site.register(Role)
 admin.site.register(TransferRequest)
 admin.site.register(TransferScheduler)
 admin.site.register(BulkUploadFile)
