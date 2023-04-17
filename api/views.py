@@ -10,8 +10,8 @@ from rest_framework import status, views, generics
 from account.models import Customer, Transaction, AccountRequest
 from account.serializers import CustomerSerializer, TransferSerializer, AccountRequestSerializer
 from account.paginations import CustomPagination
-from account.utils import review_account_request, log_request
-from bankone.api import bankone_send_otp_message
+from account.utils import review_account_request, log_request, format_phone_number
+from bankone.api import bankone_send_otp_message, bankone_check_phone_no
 from billpayment.models import Airtime, CableTV, Data, Electricity
 from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
 from citbank.exceptions import raise_serializer_error_msg
@@ -117,6 +117,7 @@ class AdminCustomerAPIView(views.APIView, CustomPagination):
         staff_status = request.data.get("staff_status")
         daily_limit = request.data.get("daily_limit")
         transfer_limit = request.data.get("transfer_limit")
+        phone_number = request.data.get("phone_number")
         try:
             customer = get_object_or_404(Customer, id=pk, bank_id=bank_id)
             if account_status is True:
@@ -131,11 +132,15 @@ class AdminCustomerAPIView(views.APIView, CustomPagination):
                 customer.user.is_staff = True
             if staff_status is False:
                 customer.user.is_staff = False
+            if phone_number:
+                # Confirm phone number exist
+                phone_no = format_phone_number(phone_number)
+                customer.phone_number = phone_no if bankone_check_phone_no else None
             customer.user.save()
             customer.save()
         except Exception as ex:
             return Response({"detail": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"detail": "Account status/limit changed successfully"})
+        return Response({"detail": "Account updated successfully"})
 
 
 class AdminTransferAPIView(views.APIView, CustomPagination):

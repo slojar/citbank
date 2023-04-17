@@ -577,7 +577,6 @@ def bankone_get_fixed_deposit(phone_no, auth_token):
     payload['authtoken'] = auth_token
 
     response = requests.request('GET', url=url, params=payload)
-    print(response.status_code)
     log_request(url, payload, response)
     return response
 
@@ -607,5 +606,12 @@ def bankone_send_statement(request, bank, response):
 
     return result
 
+
+def bankone_check_phone_no(phone_no, auth_token):
+    from account.utils import log_request
+    url = f"{base_url}/Customer/PhoneNumberExist/{version}?phoneNumber={phone_no}&authtoken={auth_token}"
+    response = requests.request('GET', url=url).json()
+    log_request(url, response)
+    return response
 
 
