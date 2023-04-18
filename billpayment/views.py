@@ -220,11 +220,13 @@ class CableTVAPIView(APIView):
         product_codes = request.data.get("product_codes")
         smart_card_no = request.data.get("smart_card_no")
 
-        if not all([account_no, service_name, smart_card_no, phone_number, amount, product_codes, duration]):
+        if not all([
+            account_no, service_name, smart_card_no, phone_number, amount, product_codes, duration, customer_name
+        ]):
             return Response(
                 {
-                    "detail": "account_no, service_name, smart_card_no, customer_number, amount, product_codes, "
-                              "and duration are required"},
+                    "detail": "account_no, service name, smart card_no, customer number, amount, product codes, "
+                              "customer name, and duration are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
