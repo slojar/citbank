@@ -360,7 +360,7 @@ class BulkUploadBillSerializerIn(serializers.Serializer):
                 debit_account_number = row[0]
                 amount = row[1]
                 network = row[2]
-                phone_number = row[2]
+                phone_number = row[3]
 
                 data = {"network": network}
                 code = str(uuid.uuid4().int)[:5]
