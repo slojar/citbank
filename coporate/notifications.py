@@ -108,3 +108,24 @@ def send_successful_transfer_email(mandate, trans_req):
     return True
 
 
+def send_successful_bill_payment_email(mandate, trans_req):
+    first_name = mandate.user.first_name
+    bank = mandate.institution.bank
+    subject = "Transaction Processed"
+    bank_name = bank.name
+    email = mandate.user.email
+    sender = bank.support_email
+    short_name = bank.short_name
+    content = f"Dear {first_name},<br><br>A bill payment transaction has been approved, please login to your " \
+              f"dashboard to see details <br><br>Regards, <br>{bank_name} Team."
+              # f"<br><strong>SENT FROM: {trans_req.account_number}</strong>" \
+              # f"<br><strong>BENEFICIARY NAME: {trans_req.beneficiary_name}</strong>" \
+              # f"<br><strong>BENEFICIARY ACCOUNT NUMBER: {trans_req.beneficiary_acct}</strong>" \
+              # f"<br><strong>BENEFICIARY BANK: {trans_req.bank_name}</strong>" \
+              # f"<br><strong>AMOUNT: {trans_req.amount}</strong>" \
+              # f"<br><strong>NARRATION: {trans_req.description}</strong><br>" \
+              # f"<br>Regards, <br>{bank_name} Team."
+    if short_name in bank_one_banks:
+        send_email_to_bankone_mandates(bank, sender, email, subject, content)
+    return True
+

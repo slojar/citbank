@@ -15,7 +15,7 @@ from django.utils import timezone
 from account.models import Transaction, CustomerAccount
 from account.utils import get_account_balance, decrypt_text, log_request, encrypt_text, get_next_date, get_next_weekday
 from bankone.api import bankone_get_details_by_customer_id
-from billpayment.models import Airtime, Data, CableTV, Electricity
+from billpayment.models import Airtime, Data, CableTV, Electricity, BulkBillPayment
 from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
 from citbank.exceptions import InvalidRequestException
 from coporate.models import Mandate, TransferRequest
@@ -435,8 +435,10 @@ def create_bill_payment(data, acct_no, phone, amount, payment_type, company, ref
     return serializer
 
 
-def retrieve_bill_payment(payment_type, company, pk=None):
+def retrieve_bill_payment(self, payment_type, company, bill_type, pk=None):
     option = "single"
+    if bill_type == "bulk":
+        option = "bulk"
     trans_type = "corporate"
     if payment_type == "airtime":
         if pk:
@@ -445,9 +447,10 @@ def retrieve_bill_payment(payment_type, company, pk=None):
             )
             serializer = AirtimeSerializer(instance).data
         else:
-            serializer = AirtimeSerializer(
-                Airtime.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type
-                                       ), many=True).data
+            query = Airtime.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type)
+            queryset = self.paginate_queryset(query, self.request)
+            data = AirtimeSerializer(queryset, many=True).data
+            serializer = self.get_paginated_response(data).data
 
     elif payment_type == "data":
         if pk:
@@ -456,9 +459,10 @@ def retrieve_bill_payment(payment_type, company, pk=None):
             )
             serializer = DataSerializer(instance).data
         else:
-            serializer = DataSerializer(
-                Data.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type
-                                    ), many=True).data
+            query = Data.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type)
+            queryset = self.paginate_queryset(query, self.request)
+            data = DataSerializer(queryset, many=True).data
+            serializer = self.get_paginated_response(data).data
 
     elif payment_type == "cable_tv":
         if pk:
@@ -467,9 +471,10 @@ def retrieve_bill_payment(payment_type, company, pk=None):
             )
             serializer = CableTVSerializer(instance).data
         else:
-            serializer = CableTVSerializer(
-                CableTV.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type
-                                       ), many=True).data
+            query = CableTV.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type)
+            queryset = self.paginate_queryset(query, self.request)
+            data = CableTVSerializer(queryset, many=True).data
+            serializer = self.get_paginated_response(data).data
 
     elif payment_type == "electricity":
         if pk:
@@ -478,9 +483,10 @@ def retrieve_bill_payment(payment_type, company, pk=None):
             )
             serializer = ElectricitySerializer(instance).data
         else:
-            serializer = ElectricitySerializer(
-                Electricity.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type
-                                           ), many=True).data
+            query = Electricity.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type)
+            queryset = self.paginate_queryset(query, self.request)
+            data = ElectricitySerializer(queryset, many=True).data
+            serializer = self.get_paginated_response(data).data
 
     else:
         raise InvalidRequestException({"detail": "Please select a valid payment type"})
@@ -493,4 +499,76 @@ def check_upper_level_exist(mandate):
         return True
     else:
         return False
+
+
+def verify_approve_bill_payment(payment_req, mandate, bill_type, action=None, reject_reason=None):
+    from .notifications import send_approval_notification_request, send_successful_bill_payment_email
+
+    next_level = None
+    current_level = mandate.level
+    if Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).exists():
+        next_level = Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).order_by("-level").first().level
+    if current_level == 1:
+        payment_req.checked = True
+        # Send email to verifiers
+        for mandate_ in Mandate.objects.filter(institution=mandate.institution, level=next_level):
+            Thread(target=send_approval_notification_request, args=[mandate_]).start()
+        payment_req.save()
+        return payment_req
+
+    upper_level = check_upper_level_exist(mandate)
+
+    if upper_level:
+        if not payment_req.checked:
+            raise InvalidRequestException({"detail": "Cannot verify, request is awaiting check"})
+        if payment_req.verified or payment_req.approved:
+            raise InvalidRequestException({"detail": "Cannot verify, request has recently been verified or approved"})
+
+        if action == "approve":
+            payment_req.verified = True
+            # Send email to authorizers
+            for _mandate in Mandate.objects.filter(institution=mandate.institution, level=next_level):
+                Thread(target=send_approval_notification_request, args=[_mandate]).start()
+        if action == "decline":
+            # Set rejection reason
+            payment_req.decline_reason = reject_reason
+            payment_req.status = "declined"
+
+    else:
+        if not payment_req.verified or not payment_req.checked:
+            raise InvalidRequestException({"detail": "Cannot approve, request is awaiting check or verification"})
+        if payment_req.approved:
+            raise InvalidRequestException({"detail": "Cannot approve, request has recently been approved"})
+
+        if action == "approve":
+            payment_req.approved = True
+            payment_req.status = "approved"
+            # Send email to all mandate
+            for _mandates in Mandate.objects.filter(institution=mandate.institution):
+                Thread(target=send_successful_bill_payment_email, args=[_mandates, payment_req]).start()
+            # Perform Bill Payment
+            Thread(target=perform_corporate_bill_payment, args=[payment_req, bill_type]).start()
+
+        if action == "decline":
+            payment_req.status = "declined"
+            payment_req.decline_reason = reject_reason
+
+    payment_req.save()
+    return True
+
+
+def perform_corporate_bill_payment(payment_req, payment_type):
+    if payment_type == "bulk":
+        bill_payment_requests = Airtime.objects.filter(bulk_payment=payment_req, transaction_option="bulk")
+        for bill_payment_request in bill_payment_requests:
+            ...
+            # success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
+
+            # log_request(f"Transfer from corporate account ---->>> {response}")
+        return True
+
+    # log_request(f"Transfer from corporate account ---->>> {response}")
+    return True
+
+
 

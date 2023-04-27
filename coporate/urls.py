@@ -12,7 +12,7 @@ urlpatterns = [
     path('send-token/', views.SendOTPAPIView.as_view(), name="send-otp"),
     path('transfer-request/', views.TransferRequestAPIView.as_view(), name="transfer-request"),
     path('transfer-request/<int:pk>/', views.TransferRequestAPIView.as_view(), name="transfer-request-detail"),
-    path('bill-payment', views.CorporateBillPaymentAPIView.as_view(), name='bill-payment'),
+    path('bill-payment/', views.CorporateBillPaymentAPIView.as_view(), name='bill-payment'),
     path('bill-payment/<int:pk>/', views.CorporateBillPaymentAPIView.as_view(), name='bill-payment-detail'),
 
     # SCHEDULED JOBS

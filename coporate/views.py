@@ -12,6 +12,7 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from account.paginations import CustomPagination
 from account.utils import get_account_officer, log_request, get_account_balance
+from billpayment.models import Airtime, Data, CableTV, Electricity, BulkBillPayment
 from citbank.exceptions import raise_serializer_error_msg, InvalidRequestException
 from coporate.cron import transfer_scheduler_job, delete_uploaded_files
 from coporate.models import Mandate, TransferRequest, TransferScheduler, BulkTransferRequest
@@ -21,7 +22,7 @@ from coporate.serializers import MandateSerializerOut, LimitSerializerOut, Trans
     BulkTransferSerializerOut, BulkUploadBillSerializerIn
 from coporate.utils import get_dashboard_data, check_mandate_password_pin_otp, \
     update_transaction_limits, verify_approve_transfer, generate_and_send_otp, change_password, \
-    check_balance_for_bill_payment, create_bill_payment, retrieve_bill_payment
+    check_balance_for_bill_payment, create_bill_payment, retrieve_bill_payment, verify_approve_bill_payment
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
@@ -269,13 +270,14 @@ class BulkTransferAPIView(APIView, CustomPagination):
         return Response({"detail": "Bulk Transfer saved successfully", "data": response})
 
 
-class CorporateBillPaymentAPIView(APIView):
+class CorporateBillPaymentAPIView(APIView, CustomPagination):
     permission_classes = [IsMandate]
 
     def get(self, request, pk=None):
         mandate = get_object_or_404(Mandate, user=request.user)
         payment_type = request.GET.get("payment_type")
-        data = retrieve_bill_payment(payment_type, mandate.institution, pk)
+        bulk_payment = request.GET.get("bill_option")
+        data = retrieve_bill_payment(self, payment_type, mandate.institution, bulk_payment, pk)
         return Response(data)
 
     def post(self, request):
@@ -303,6 +305,45 @@ class CorporateBillPaymentAPIView(APIView):
         serializer = create_bill_payment(request.data, account_no, phone_number, amount, payment_type, institution, ref_no)
 
         return Response({"detail": "Payment created successfully", "data": serializer})
+
+    def put(self, request, pk):
+        action = request.data.get("action")
+        otp = request.data.get("otp")
+        reject_reason = request.data.get("reason")
+        accepted_action = ["approve", "decline"]
+        payment_type = request.data.get("payment_type", "airtime")  # airtime, data, electricity, cable_tv
+        bill_type = request.data.get("bill_option", "single")  # single or bulk
+
+        mandate = get_object_or_404(Mandate, user=request.user)
+        check_mandate_password_pin_otp(mandate, otp=otp)
+
+        if mandate.level != 1:
+            if action not in accepted_action:
+                return Response({"detail": "Selected action is not valid"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if action == "decline" and not reject_reason:
+                return Response({"detail": "Rejection reason is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if bill_type == "single":
+            payment = None
+            if payment_type == "airtime":
+                payment = get_object_or_404(Airtime, id=pk, institution=mandate.institution, transaction_option="single")
+            if payment_type == "data":
+                payment = get_object_or_404(Data, id=pk, institution=mandate.institution, transaction_option="single")
+            if payment_type == "cable_tv":
+                payment = get_object_or_404(CableTV, id=pk, institution=mandate.institution, transaction_option="single")
+            if payment_type == "electricity":
+                payment = get_object_or_404(Electricity, id=pk, institution=mandate.institution, transaction_option="single")
+
+            verify_approve_bill_payment(payment, mandate, bill_type, action, reject_reason)
+        elif bill_type == "bulk":
+            payment = get_object_or_404(BulkBillPayment, id=pk, institution=mandate.institution)
+            verify_approve_bill_payment(payment, mandate, bill_type, action, reject_reason)
+        else:
+            return Response({"detail": "Bill type can either be single or bulk"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "Bill payment updated successfully"})
+
 
 
 class BulkBillPaymentAPIView(APIView):
