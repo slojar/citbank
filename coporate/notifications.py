@@ -96,7 +96,7 @@ def send_successful_transfer_email(mandate, trans_req):
     sender = bank.support_email
     short_name = bank.short_name
     content = f"Dear {first_name},<br><br>A transaction has been approved, please see details below: <br>" \
-              f"<br><strong>SENT FROM: {trans_req.account_number}</strong>" \
+              f"<br><strong>SENT FROM: {trans_req.account_no}</strong>" \
               f"<br><strong>BENEFICIARY NAME: {trans_req.beneficiary_name}</strong>" \
               f"<br><strong>BENEFICIARY ACCOUNT NUMBER: {trans_req.beneficiary_acct}</strong>" \
               f"<br><strong>BENEFICIARY BANK: {trans_req.bank_name}</strong>" \

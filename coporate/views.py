@@ -22,7 +22,8 @@ from coporate.serializers import MandateSerializerOut, LimitSerializerOut, Trans
     BulkTransferSerializerOut, BulkUploadBillSerializerIn, BulkPaymentSerializerOut
 from coporate.utils import get_dashboard_data, check_mandate_password_pin_otp, \
     update_transaction_limits, verify_approve_transfer, generate_and_send_otp, change_password, \
-    check_balance_for_bill_payment, create_bill_payment, retrieve_bill_payment, verify_approve_bill_payment
+    check_balance_for_bill_payment, create_bill_payment, retrieve_bill_payment, verify_approve_bill_payment, \
+    get_institution_balance
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
@@ -151,6 +152,8 @@ class TransferRequestAPIView(APIView, CustomPagination):
         if request_type == "single":
             trans_req = get_object_or_404(TransferRequest, id=pk, institution=mandate.institution,
                                           transfer_option="single")
+            # GET Balance
+            get_institution_balance(trans_req)
             trans_request = verify_approve_transfer(request, trans_req, mandate, request_type, action, reject_reason)
             serializer = TransferRequestSerializerOut(trans_request, context={"request": request}).data
         elif request_type == "bulk":
@@ -335,6 +338,8 @@ class CorporateBillPaymentAPIView(APIView, CustomPagination):
             if payment_type == "electricity":
                 payment = get_object_or_404(Electricity, id=pk, institution=mandate.institution, transaction_option="single")
 
+            # GET Balance
+            get_institution_balance(payment)
             verify_approve_bill_payment(payment, mandate, bill_type, action, reject_reason)
         elif bill_type == "bulk":
             payment = get_object_or_404(BulkBillPayment, id=pk, institution=mandate.institution)

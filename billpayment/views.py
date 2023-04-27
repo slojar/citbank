@@ -69,79 +69,165 @@ class AirtimeDataPurchaseAPIView(APIView):
         account_no = request.data.get("account_no")
         purchase_type = request.data.get("purchase_type")
 
-        if not all([phone_number, network, amount, purchase_type]):
-            log_request(f"error-message: number, amount, network, and purchase type are required fields")
-            return Response(
-                {"detail": "phone_number, network, amount, and purchase_type are required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        success, response = confirm_trans_pin(request)
-        if success is False:
-            log_request(f"error-message: {response}")
-            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+        sender_type = request.data.get('sender_type', 'individual')
+        bill_id = request.data.get('bill_id')
 
         phone_number = f"234{phone_number[-10:]}"
-
         narration = f"{purchase_type} purchase for {phone_number}"
         code = str(uuid.uuid4().int)[:5]
-        user = request.user
-        try:
-            customer = Customer.objects.get(user=user)
 
-            if customer.bank.short_name in bank_one_banks:
-                name = str(customer.bank.short_name.upper())
-                ref_code = f"{name}-{code}"
-                success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
+        if sender_type == 'individual':
+            if not all([phone_number, network, amount, purchase_type]):
+                log_request(f"error-message: number, amount, network, and purchase type are required fields")
+                return Response(
+                    {"detail": "phone_number, network, amount, and purchase_type are required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-                if success is False:
-                    log_request(f"error-message: {response}")
-                    return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+            success, response = confirm_trans_pin(request)
+            if success is False:
+                log_request(f"error-message: {response}")
+                return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
-                if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
-                    new_success = False
-                    detail = "An error occurred"
-                    if purchase_type == "airtime":
-                        response = purchase_airtime(
-                            bank=customer.bank, network=network, phone_number=phone_number, amount=amount
-                        )
+            user = request.user
+            try:
+                customer = Customer.objects.get(user=user)
 
-                        if "error" in response:
-                            # LOG REVERSAL
-                            date_today = datetime.datetime.now().date()
-                            BillPaymentReversal.objects.create(transaction_reference=ref_code, transaction_date=str(date_today), bank=customer.bank)
+                if customer.bank.short_name in bank_one_banks:
+                    name = str(customer.bank.short_name.upper())
+                    ref_code = f"{name}-{code}"
+                    success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
-                        if "data" in response:
-                            new_success = True
-                            data = response["data"]
+                    if success is False:
+                        log_request(f"error-message: {response}")
+                        return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
-                            response_status = data["status"]
-                            trans_id = data["transactionId"]
-                            bill_id = data["billId"]
-
-                            # CREATE AIRTIME INSTANCE
-                            Airtime.objects.create(
-                                account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
-                                status=response_status, transaction_id=trans_id, bill_id=bill_id, reference=ref_code,
-                                bank=customer.bank
+                    if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+                        new_success = False
+                        detail = "An error occurred"
+                        if purchase_type == "airtime":
+                            response = purchase_airtime(
+                                bank=customer.bank, network=network, phone_number=phone_number, amount=amount
                             )
 
-                    if purchase_type == "data":
-                        plan_id = request.data.get("plan_id")
-                        if not plan_id:
-                            log_request(f"error-message: no plan selected")
-                            return Response({"detail": "Please select a plan to continue"}, status=status.HTTP_400_BAD_REQUEST)
-                        response = purchase_data(
-                            bank=customer.bank, plan_id=plan_id, phone_number=phone_number, network=network,
-                            amount=amount
+                            if "error" in response:
+                                # LOG REVERSAL
+                                date_today = datetime.datetime.now().date()
+                                BillPaymentReversal.objects.create(transaction_reference=ref_code, transaction_date=str(date_today), bank=customer.bank)
+
+                            if "data" in response:
+                                new_success = True
+                                data = response["data"]
+
+                                response_status = data["status"]
+                                trans_id = data["transactionId"]
+                                bill_id = data["billId"]
+
+                                # CREATE AIRTIME INSTANCE
+                                Airtime.objects.create(
+                                    account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
+                                    status=response_status, transaction_id=trans_id, bill_id=bill_id, reference=ref_code,
+                                    bank=customer.bank
+                                )
+
+                        if purchase_type == "data":
+                            plan_id = request.data.get("plan_id")
+                            if not plan_id:
+                                log_request(f"error-message: no plan selected")
+                                return Response({"detail": "Please select a plan to continue"}, status=status.HTTP_400_BAD_REQUEST)
+                            response = purchase_data(
+                                bank=customer.bank, plan_id=plan_id, phone_number=phone_number, network=network,
+                                amount=amount
+                            )
+
+                            if "error" in response:
+                                # LOG REVERSAL
+                                date_today = datetime.datetime.now().date()
+                                BillPaymentReversal.objects.create(
+                                    transaction_reference=ref_code, transaction_date=str(date_today), payment_type="data",
+                                    bank=customer.bank
+                                )
+
+                            if "data" in response:
+                                new_success = True
+                                data = response["data"]
+
+                                response_status = data["status"]
+                                trans_id = data["transactionId"]
+                                bill_id = data["billId"]
+
+                                # CREATE DATA INSTANCE
+                                Data.objects.create(
+                                    account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
+                                    reference=ref_code, status=response_status, transaction_id=trans_id, bill_id=bill_id,
+                                    plan_id=plan_id, bank=customer.bank
+                                )
+
+                        if new_success is False:
+                            log_request(f"error-message: {detail}")
+                            return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+                        return Response({"detail": f"{purchase_type} purchase for {phone_number} was successful"})
+
+                    elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
+                        return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
+
+                    else:
+                        return Response(
+                            {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
                         )
+                else:
+                    return Response({"detail": "No bank available for authenticated user"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+            except Exception as err:
+                return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if sender_type == 'corporate':
+            try:
+                if purchase_type == "airtime":
+                    instance = Airtime.objects.get(id=bill_id, approved=True)
+                else:
+                    instance = Data.objects.get(id=bill_id, approved=True)
+
+                if instance.institution.bank.short_name in bank_one_banks:
+                    name = str(instance.institution.bank.short_name.upper())
+                    ref_code = f"{name}-{code}"
+                    success, response = check_balance_and_charge(
+                        user=None, account_no=account_no, amount=amount, ref_code=ref_code, narration=narration,
+                        inst=instance.institution
+                    )
+
+                    if success is False:
+                        instance.response_message = response
+                        instance.save()
+                        log_request(f"error-message: {response}")
+                        return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+
+                    if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+                        new_success = False
+                        detail = "An error occurred"
+                        if purchase_type == "airtime":
+                            response = purchase_airtime(
+                                bank=instance.institution.bank, network=network, phone_number=phone_number, amount=amount
+                            )
+                        else:
+                            plan_id = request.data.get("plan_id")
+                            if not plan_id:
+                                log_request(f"error-message: no plan selected")
+                                return Response({"detail": "Please select a plan to continue"},
+                                                status=status.HTTP_400_BAD_REQUEST)
+                            response = purchase_data(
+                                bank=instance.institution.bank, plan_id=plan_id, phone_number=phone_number,
+                                network=network, amount=amount
+                            )
+                            instance.plan_id = plan_id
+                            instance.save()
 
                         if "error" in response:
                             # LOG REVERSAL
                             date_today = datetime.datetime.now().date()
                             BillPaymentReversal.objects.create(
-                                transaction_reference=ref_code, transaction_date=str(date_today), payment_type="data",
-                                bank=customer.bank
+                                transaction_reference=ref_code, transaction_date=str(date_today),
+                                bank=instance.institution.bank
                             )
 
                         if "data" in response:
@@ -152,30 +238,38 @@ class AirtimeDataPurchaseAPIView(APIView):
                             trans_id = data["transactionId"]
                             bill_id = data["billId"]
 
-                            # CREATE DATA INSTANCE
-                            Data.objects.create(
-                                account_no=account_no, beneficiary=phone_number, network=network, amount=amount,
-                                reference=ref_code, status=response_status, transaction_id=trans_id, bill_id=bill_id,
-                                plan_id=plan_id, bank=customer.bank
-                            )
+                            # UPDATE AIRTIME INSTANCE
+                            instance.bank = instance.institution.bank
+                            instance.status = response_status
+                            instance.transaction_id = trans_id
+                            instance.bill_id = bill_id
+                            instance.save()
 
-                    if new_success is False:
-                        log_request(f"error-message: {detail}")
-                        return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
-                    return Response({"detail": f"{purchase_type} purchase for {phone_number} was successful"})
+                        if new_success is False:
+                            log_request(f"error-message: {detail}")
+                            return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+                        return Response({"detail": f"{purchase_type} purchase for {phone_number} was successful"})
 
-                elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
-                    return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
+                    elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
+                        instance.response_message = "Insufficient Funds"
+                        instance.save()
+                        return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
 
+                    else:
+                        return Response(
+                            {"detail": "An error has occurred, please try again later"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
                 else:
-                    return Response(
-                        {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
-                    )
-            else:
-                return Response({"detail": "No bank available for authenticated user"},
+                    return Response({"detail": "No bank available for authenticated user"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+            except Exception as err:
+                return Response({"detail": "An error has occurred", "error": str(err)},
                                 status=status.HTTP_400_BAD_REQUEST)
-        except Exception as err:
-            return Response({"detail": "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+
+        else:
+            return Response({"detail": "Invalid sender type selected"}, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class CableTVAPIView(APIView):

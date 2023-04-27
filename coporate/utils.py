@@ -557,6 +557,24 @@ def verify_approve_bill_payment(payment_req, mandate, bill_type, action=None, re
     return True
 
 
+def get_institution_balance(trans_req):
+    auth_token = decrypt_text(trans_req.institution.bank.auth_token)
+    response = bankone_get_details_by_customer_id(customer_id=trans_req.institution.customerID, token=auth_token).json()
+    balance = 0
+    accounts = response["Accounts"]
+    for account in accounts:
+        if account["NUBAN"] == str(trans_req.account_no):
+            balance = str(account["withdrawableAmount"]).replace(",", "")
+
+    if float(balance) <= 0:
+        raise InvalidRequestException({"detail": "Insufficient balance"})
+
+    if float(trans_req.amount) > float(balance):
+        raise InvalidRequestException({"detail": "Amount cannot be greater than current balance"})
+
+    return True
+
+
 def perform_corporate_bill_payment(payment_req, payment_type):
     if payment_type == "bulk":
         bill_payment_requests = Airtime.objects.filter(bulk_payment=payment_req, transaction_option="bulk")

@@ -102,7 +102,7 @@ class TransferRequest(models.Model):
     institution = models.ForeignKey(Institution, on_delete=models.SET_NULL, null=True)
     bulk_transfer = models.ForeignKey(BulkTransferRequest, on_delete=models.SET_NULL, null=True, blank=True)
     transfer_option = models.CharField(max_length=50, choices=TRANSFER_REQUEST_OPTION, default="single")
-    account_number = models.CharField(max_length=20)
+    account_no = models.CharField(max_length=20)
     amount = models.FloatField()
     description = models.CharField(max_length=60)
     beneficiary_name = models.CharField(max_length=100)

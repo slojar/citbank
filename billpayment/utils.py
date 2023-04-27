@@ -12,16 +12,20 @@ from tm_saas.api import validate_meter_no, electricity
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
 
-def check_balance_and_charge(user, account_no, amount, ref_code, narration):
+def check_balance_and_charge(user, account_no, amount, ref_code, narration, inst=None):
     # CONFIRM CUSTOMER OWNS THE ACCOUNT
-    if not CustomerAccount.objects.filter(customer__user=user, active=True, account_no=account_no).exists():
-        return False, "Account not found"
+    if user:
+        if not CustomerAccount.objects.filter(customer__user=user, active=True, account_no=account_no).exists():
+            return False, "Account not found"
 
-    # Check if customer status is active
-    customer = CustomerAccount.objects.get(customer__user=user, active=True, account_no=account_no).customer
-    check = check_account_status(customer)
-    if check is False:
-        return False, "Your account is locked, please contact the bank to unlock"
+        # Check if customer status is active
+        customer = CustomerAccount.objects.get(customer__user=user, active=True, account_no=account_no).customer
+        check = check_account_status(customer)
+        if check is False:
+            return False, "Your account is locked, please contact the bank to unlock"
+
+    else:
+        customer = inst
 
     # CHECK ACCOUNT BALANCE
     token = decrypt_text(customer.bank.auth_token)

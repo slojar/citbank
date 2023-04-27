@@ -475,13 +475,16 @@ def perform_bank_transfer(bank, request):
                                                        customer__bank=bank).count()
 
     if sender_type == 'corporate':
-        institution = Institution.objects.get(mandate__user=request.user)
+        if transfer_id:
+            trans_req = TransferRequest.objects.get(id=transfer_id, approved=True)
+            institution = trans_req.institution
+        else:
+            institution = Institution.objects.get(mandate__user=request.user)
         customer_id = institution.customerID
         sender_name = institution.name
-        trans_req = TransferRequest.objects.get(institution=institution, id=transfer_id, approved=True)
 
         transfer_type = trans_req.transfer_type  # same_bank or other_bank
-        account_number = trans_req.account_number
+        account_number = trans_req.account_no
         amount = trans_req.amount
         description = trans_req.description
         beneficiary_name = trans_req.beneficiary_name
