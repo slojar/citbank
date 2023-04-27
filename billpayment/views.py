@@ -390,6 +390,9 @@ class ElectricityAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        if amount < 1000:
+            return Response({"detail": "Minimum vendible amount is 1000"}, status=status.HTTP_400_BAD_REQUEST)
+
         success, detail = confirm_trans_pin(request)
         if success is False:
             return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
@@ -414,7 +417,7 @@ class ElectricityAPIView(APIView):
             if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
 
                 # remove service charge from amount
-                amount -= 100
+                amount -= customer.bank.bill_payment_charges
 
                 success, detail, token = vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_number, ref_code)
                 if success is False:
