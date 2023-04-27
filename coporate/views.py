@@ -352,11 +352,11 @@ class BulkBillPaymentAPIView(APIView, CustomPagination):
         mandate = get_object_or_404(Mandate, user=request.user)
         if pk:
             payment = get_object_or_404(BulkBillPayment, id=pk, institution=mandate.institution)
-            return BulkPaymentSerializerOut(payment).data
+            return Response(BulkPaymentSerializerOut(payment).data)
         else:
             queryset = self.paginate_queryset(BulkBillPayment.objects.filter(institution=mandate.institution), request)
             serializer = BulkTransferSerializerOut(queryset, many=True).data
-            return self.get_paginated_response(serializer).data
+            return Response(self.get_paginated_response(serializer).data)
 
     def post(self, request):
         if Mandate.objects.get(level__gt=1):
