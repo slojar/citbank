@@ -22,6 +22,7 @@ urlpatterns = [
     # Bulk Operations
     path('upload/', views.BulkUploadAPIView.as_view(), name="bulk-transfer-upload"),
     path('bulk-payment/', views.BulkBillPaymentAPIView.as_view(), name="bulk-payment"),
+    path('bulk-payment/<int:id>/', views.BulkBillPaymentAPIView.as_view(), name="bulk-payment-detail"),
     path('bulk-transfer/', views.BulkTransferAPIView.as_view(), name="bulk-transfer"),
     path('bulk-transfer/<int:pk>/', views.BulkTransferAPIView.as_view(), name="bulk-transfer-detail"),
 

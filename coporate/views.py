@@ -19,7 +19,7 @@ from coporate.models import Mandate, TransferRequest, TransferScheduler, BulkTra
 from coporate.permissions import IsUploader, IsMandate
 from coporate.serializers import MandateSerializerOut, LimitSerializerOut, TransferRequestSerializerOut, \
     TransferRequestSerializerIn, TransferSchedulerSerializerOut, BulkUploadFileSerializerIn, BulkTransferSerializerIn, \
-    BulkTransferSerializerOut, BulkUploadBillSerializerIn
+    BulkTransferSerializerOut, BulkUploadBillSerializerIn, BulkPaymentSerializerOut
 from coporate.utils import get_dashboard_data, check_mandate_password_pin_otp, \
     update_transaction_limits, verify_approve_transfer, generate_and_send_otp, change_password, \
     check_balance_for_bill_payment, create_bill_payment, retrieve_bill_payment, verify_approve_bill_payment
@@ -345,11 +345,24 @@ class CorporateBillPaymentAPIView(APIView, CustomPagination):
         return Response({"detail": "Bill payment updated successfully"})
 
 
+class BulkBillPaymentAPIView(APIView, CustomPagination):
+    permission_classes = [IsMandate]
 
-class BulkBillPaymentAPIView(APIView):
-    permission_classes = [IsAuthenticated & IsUploader]
+    def get(self, request, pk=None):
+        mandate = get_object_or_404(Mandate, user=request.user)
+        if pk:
+            payment = get_object_or_404(BulkBillPayment, id=pk, institution=mandate.institution)
+            return BulkPaymentSerializerOut(payment).data
+        else:
+            queryset = self.paginate_queryset(BulkBillPayment.objects.filter(institution=mandate.institution), request)
+            serializer = BulkTransferSerializerOut(queryset, many=True).data
+            return self.get_paginated_response(serializer).data
 
     def post(self, request):
+        if Mandate.objects.get(level__gt=1):
+            return Response(
+                {"detail": "Only lowest level signatory can perform this action"}, status=status.HTTP_400_BAD_REQUEST
+            )
         serializer = BulkUploadBillSerializerIn(data=request.data, context={"request": request})
         serializer.is_valid() or raise_serializer_error_msg(errors=serializer.errors)
         response = serializer.save()
