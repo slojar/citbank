@@ -340,10 +340,10 @@ class CorporateBillPaymentAPIView(APIView, CustomPagination):
 
             # GET Balance
             get_institution_balance(payment)
-            verify_approve_bill_payment(payment, mandate, bill_type, action, reject_reason)
+            verify_approve_bill_payment(request, payment, mandate, bill_type, payment_type, action, reject_reason)
         elif bill_type == "bulk":
             payment = get_object_or_404(BulkBillPayment, id=pk, institution=mandate.institution)
-            verify_approve_bill_payment(payment, mandate, bill_type, action, reject_reason)
+            verify_approve_bill_payment(request, payment, mandate, bill_type, "airtime", action, reject_reason)
         else:
             return Response({"detail": "Bill type can either be single or bulk"},
                             status=status.HTTP_400_BAD_REQUEST)

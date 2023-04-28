@@ -9,7 +9,7 @@ urlpatterns = [
     path('recharge/', views.AirtimeDataPurchaseAPIView.as_view(), name="recharge"),
 
     path('cable/', views.CableTVAPIView.as_view(), name="cable_tv"),
-    path('cable/<str:service_name>/', views.CableTVAPIView.as_view(), name="cable_tv"),
+    path('cable/<str:service_name>/', views.CableTVAPIView.as_view(), name="cable_tv_service"),
     path('validate/', views.ValidateAPIView.as_view(), name="validate"),
 
     path('electricity/', views.ElectricityAPIView.as_view(), name="electricity"),

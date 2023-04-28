@@ -54,9 +54,9 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration, inst
     return True, response
 
 
-def vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_number, ref_code):
+def vend_electricity(bank, account_no, disco_type, meter_no, amount, phone_number, ref_code, inst=None):
     token = ""
-    response = validate_meter_no(customer.bank, disco_type, meter_no)
+    response = validate_meter_no(bank, disco_type, meter_no)
     if "error" in response:
         return False, "An error occurred while trying to vend electricity", token
 
@@ -133,7 +133,7 @@ def vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_n
     else:
         return False, "disco type is not valid", token
 
-    response = electricity(customer.bank, data)
+    response = electricity(bank, data)
     if "error" in response:
         return False, response["error"], token
 
@@ -151,16 +151,22 @@ def vend_electricity(customer, account_no, disco_type, meter_no, amount, phone_n
         token = response["data"]["providerResponse"]["token"]
 
     # Create Electricity Instance
-    elect = Electricity.objects.create(
-        account_no=account_no, disco_type=disco_type, meter_number=meter_no, amount=amount, phone_number=phone_number,
-        status=status, transaction_id=transaction_id, bill_id=bill_id, token=token, reference=ref_code,
-        bank=customer.bank
-    )
+    if inst:
+        elect = inst
+    else:
+        elect = Electricity.objects.create(
+            account_no=account_no, disco_type=disco_type, meter_number=meter_no, amount=amount,
+            phone_number=phone_number, reference=ref_code, bank=bank
+        )
+    elect.status = status
+    elect.transaction_id = transaction_id
+    elect.bill_id = bill_id
+    elect.token = token
+    elect.save()
 
     if not token == "":
         # SEND TOKEN TO PHONE NUMBER
-        if customer.bank.short_name in bank_one_banks:
-            bank = customer.bank
+        if bank.short_name in bank_one_banks:
             auth_token = decrypt_text(bank.auth_token)
             code = decrypt_text(bank.institution_code)
             content = f"Your {disco_type} token is: {token}".replace("_", " ")

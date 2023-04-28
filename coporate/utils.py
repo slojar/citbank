@@ -7,7 +7,7 @@ from threading import Thread
 import requests
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
-from django.db.models import Sum, Q
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
@@ -19,7 +19,7 @@ from billpayment.models import Airtime, Data, CableTV, Electricity, BulkBillPaym
 from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
 from citbank.exceptions import InvalidRequestException
 from coporate.models import Mandate, TransferRequest
-# from coporate.notifications import send_token_to_mandate, send_successful_transfer_email
+
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
@@ -501,7 +501,7 @@ def check_upper_level_exist(mandate):
         return False
 
 
-def verify_approve_bill_payment(payment_req, mandate, bill_type, action=None, reject_reason=None):
+def verify_approve_bill_payment(request, payment_req, mandate, bill_type, payment_type, action=None, reject_reason=None):
     from .notifications import send_approval_notification_request, send_successful_bill_payment_email
 
     next_level = None
@@ -547,7 +547,7 @@ def verify_approve_bill_payment(payment_req, mandate, bill_type, action=None, re
             for _mandates in Mandate.objects.filter(institution=mandate.institution):
                 Thread(target=send_successful_bill_payment_email, args=[_mandates, payment_req]).start()
             # Perform Bill Payment
-            Thread(target=perform_corporate_bill_payment, args=[payment_req, bill_type]).start()
+            Thread(target=perform_corporate_bill_payment, args=[request, payment_req, bill_type, payment_type]).start()
 
         if action == "decline":
             payment_req.status = "declined"
@@ -575,17 +575,79 @@ def get_institution_balance(trans_req):
     return True
 
 
-def perform_corporate_bill_payment(payment_req, payment_type):
-    if payment_type == "bulk":
+def corporate_vending(request, trans_req, payment_type):
+    if payment_type == "airtime":
+        url = request.build_absolute_uri(reverse('billpayment:recharge'))
+        payload = json.dumps({
+            "sender_type": "corporate",
+            "bill_id": trans_req.id,
+            "purchase_type": "airtime",
+            "phone_number": trans_req.beneficiary,
+            "network": trans_req.network,
+            "account_no": trans_req.account_no,
+            "amount": trans_req.amount
+        })
+        response = requests.post(url=url, data=payload)
+        log_request(f"Airtime from corporate account ---->>> payload: {payload}\nresponse: {response}")
+
+    elif payment_type == "data":
+        url = request.build_absolute_uri(reverse('billpayment:recharge'))
+        payload = json.dumps({
+            "plan_id": trans_req.plan_id,
+            "sender_type": "corporate",
+            "bill_id": trans_req.id,
+            "purchase_type": "data",
+            "phone_number": trans_req.beneficiary,
+            "network": trans_req.network,
+            "account_no": trans_req.account_no,
+            "amount": trans_req.amount
+        })
+        response = requests.post(url=url, data=payload)
+        log_request(f"Data from corporate account ---->>> payload: {payload}\nresponse: {response}")
+    elif payment_type == "cable_tv":
+        url = request.build_absolute_uri(reverse('billpayment:cable_tv'))
+        payload = json.dumps({
+            "account_no": trans_req.account_no,
+            "service_name": trans_req.service_name,
+            "duration": trans_req.months,
+            "phone_number": trans_req.phone_number,
+            "amount": trans_req.amount,
+            "customer_name": trans_req.customer_name,
+            "product_codes": trans_req.product,
+            "smart_card_no": trans_req.smart_card_no,
+            "sender_type": "corporate",
+            "bill_id": trans_req.id
+        })
+        response = requests.post(url=url, data=payload)
+        log_request(f"CableTV from corporate account ---->>> payload: {payload}\nresponse: {response}")
+    elif payment_type == "electricity":
+        payload = json.dumps({
+            "disco_type": trans_req.disco_type,
+            "account_no": trans_req.account_no,
+            "meter_no": trans_req.meter_number,
+            "amount": trans_req.amount,
+            "phone_no": trans_req.phone_number,
+            "sender_type": "corporate",
+            "bill_id": trans_req.id,
+        })
+        url = request.build_absolute_uri(reverse('billpayment:electricity'))
+        response = requests.post(url=url, data=payload)
+        log_request(f"Electricity from corporate account ---->>> payload: {payload}\nresponse: {response}")
+    else:
+        log_request(f"Invalid payment type ---->> {payment_type}")
+        return True
+    return True
+
+
+def perform_corporate_bill_payment(request, payment_req, bill_type, payment_type):
+    if bill_type == "bulk":
         bill_payment_requests = Airtime.objects.filter(bulk_payment=payment_req, transaction_option="bulk")
         for bill_payment_request in bill_payment_requests:
-            ...
-            # success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
+            # Perform airtime purchase
+            corporate_vending(request, bill_payment_request, "airtime")
+    else:
+        corporate_vending(request, payment_req, payment_type)
 
-            # log_request(f"Transfer from corporate account ---->>> {response}")
-        return True
-
-    # log_request(f"Transfer from corporate account ---->>> {response}")
     return True
 
 
