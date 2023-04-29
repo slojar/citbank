@@ -372,6 +372,8 @@ def create_bill_payment(data, acct_no, phone, amount, payment_type, company, ref
     phone = f"234{phone[-10:]}"
 
     if payment_type == "airtime":
+        if not phone:
+            raise InvalidRequestException({"detail": "Phone number is required"})
         if not network:
             raise InvalidRequestException({"detail": "Please select a mobile network"})
 
@@ -382,6 +384,8 @@ def create_bill_payment(data, acct_no, phone, amount, payment_type, company, ref
         serializer = AirtimeSerializer(instance).data
 
     elif payment_type == "data":
+        if not phone:
+            raise InvalidRequestException({"detail": "Phone number is required"})
         plan_id = data.get("plan_id")
         if not (plan_id and network):
             raise InvalidRequestException({"detail": "Please select valid network and plan"})

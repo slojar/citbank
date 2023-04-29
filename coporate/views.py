@@ -293,10 +293,10 @@ class CorporateBillPaymentAPIView(APIView, CustomPagination):
         if mandate.level != 1:
             return Response({"detail": "You are not permitted to perform this action"})
 
-        if not all([phone_number, amount, payment_type, account_no]):
-            log_request(f"error-message: source account, phone number, amount, and payment type are required fields")
+        if not all([amount, payment_type, account_no]):
+            log_request(f"error-message: source account, amount, and payment type are required fields")
             return Response(
-                {"detail": "source account, phone number, payment type, and amount are required"},
+                {"detail": "source account, payment type, and amount are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         institution = mandate.institution
