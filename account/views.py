@@ -673,10 +673,9 @@ class CustomerDashboardAPIView(APIView):
     def get(self, request, bank_id):
 
         # try:
-        account_no = [
-            account.account_no for account in
-            CustomerAccount.objects.filter(customer__user=request.user, customer__bank_id=bank_id)
-        ]
+        account_no = []
+        transfer, account_number = None, None
+        account_type = request.GET.get("account_type", "individual")
 
         date_from = request.GET.get("date_from")
         date_to = request.GET.get("date_to")
@@ -706,7 +705,23 @@ class CustomerDashboardAPIView(APIView):
             start_date = date_from
             end_date = date_to
 
-        transfer = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__user=request.user)
+        if account_type == "individual":
+            transfer = Transaction.objects.filter(created_on__range=(start_date, end_date), customer__user=request.user)
+            account_number = CustomerAccount.objects.filter(customer__user=request.user).first().account_no
+            account_no = [
+                account.account_no for account in
+                CustomerAccount.objects.filter(customer__user=request.user, customer__bank_id=bank_id)
+            ]
+
+        if account_type == "corporate":
+            customer = get_object_or_404(Mandate, user=request.user)
+            transfer = Transaction.objects.filter(created_on__range=(start_date, end_date), institution=customer.institution)
+            account_number = CustomerAccount.objects.filter(institution=customer.institution).first().account_no
+            account_no = [
+                account.account_no for account in
+                CustomerAccount.objects.filter(institution=customer.institution, institution__bank_id=bank_id)
+            ]
+
         airtime = Airtime.objects.filter(
             created_on__range=(start_date, end_date), account_no__in=account_no, status__iexact="success"
         ).distinct()
@@ -719,8 +734,6 @@ class CustomerDashboardAPIView(APIView):
         electricity = Electricity.objects.filter(
             created_on__range=(start_date, end_date), account_no__in=account_no, status__iexact="success"
         ).distinct()
-
-        account_number = CustomerAccount.objects.filter(customer__user=request.user).first().account_no
 
         bank = Bank.objects.get(id=bank_id)
         last_ten_trans, pagination = get_transaction_history(bank, account_number)
