@@ -421,6 +421,9 @@ def create_bill_payment(data, acct_no, phone_, amount, payment_type, company, re
         if not all([disco_type, meter_no]):
             raise InvalidRequestException({"detail": "Disco type and meter number are required"})
 
+        if amount < 1000:
+            raise InvalidRequestException({"detail": "Vending amount is less than N1000"})
+
         instance = Electricity.objects.create(
             bank=company.bank, institution=company, transaction_type="corporate", account_no=acct_no,
             disco_type=disco_type, meter_number=meter_no, amount=amount, phone_number=phone, reference=ref_no
