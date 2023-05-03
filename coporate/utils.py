@@ -369,13 +369,12 @@ def check_balance_for_bill_payment(institution, account_no, amount, payment_type
 
 def create_bill_payment(data, acct_no, phone_, amount, payment_type, company, ref_no, option=None, bulk_instance=None):
     network = data.get("network")
-    phone = None
-    if phone_:
-        phone = f"234{phone_[-10:]}"
+    if not phone_:
+        raise InvalidRequestException({"detail": "Phone number is required"})
+
+    phone = f"234{phone_[-10:]}"
 
     if payment_type == "airtime":
-        if not phone_:
-            raise InvalidRequestException({"detail": "Phone number is required"})
         if not network:
             raise InvalidRequestException({"detail": "Please select a mobile network"})
 
@@ -386,8 +385,6 @@ def create_bill_payment(data, acct_no, phone_, amount, payment_type, company, re
         serializer = AirtimeSerializer(instance).data
 
     elif payment_type == "data":
-        if not phone_:
-            raise InvalidRequestException({"detail": "Phone number is required"})
         plan_id = data.get("plan_id")
         if not (plan_id and network):
             raise InvalidRequestException({"detail": "Please select valid network and plan"})
