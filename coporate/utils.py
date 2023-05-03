@@ -153,6 +153,7 @@ def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=No
         next_level = Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).order_by("-level").first().level
     if current_level == 1:
         tran_req.checked = True
+        tran_req.approved_by.add(mandate)
         # Send email to verifiers
         for mandate_ in Mandate.objects.filter(institution=mandate.institution, level=next_level):
             Thread(target=send_approval_notification_request, args=[mandate_]).start()
@@ -169,12 +170,14 @@ def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=No
 
         if action == "approve":
             tran_req.verified = True
+            tran_req.approved_by.add(mandate)
             # Send email to authorizers
             for _mandate in Mandate.objects.filter(institution=mandate.institution, level=next_level):
                 Thread(target=send_approval_notification_request, args=[_mandate]).start()
         if action == "decline":
             # Set rejection reason
             tran_req.decline_reason = reject_reason
+            tran_req.declined_by.add(mandate)
             tran_req.status = "declined"
 
     else:
@@ -185,6 +188,7 @@ def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=No
 
         if action == "approve":
             tran_req.approved = True
+            tran_req.approved_by.add(mandate)
             tran_req.status = "approved"
             # Send email to all mandate
             for _mandates in Mandate.objects.filter(institution=mandate.institution):
@@ -200,6 +204,7 @@ def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=No
 
         if action == "decline":
             tran_req.status = "declined"
+            tran_req.declined_by.add(mandate)
             tran_req.decline_reason = reject_reason
 
     tran_req.save()

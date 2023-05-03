@@ -50,6 +50,12 @@ class MandateSerializerIn(serializers.Serializer):
 
         institution = Institution.objects.get(id=institution_id)
 
+        if Mandate.objects.filter(institution=institution, user__email__iexact=email).exists():
+            raise InvalidRequestException({"detail": "Signatory with this email already exist"})
+
+        if Mandate.objects.filter(institution=institution, phone_number=phone_no).exists():
+            raise InvalidRequestException({"detail": "Signatory with this phone number already exist"})
+
         # Generate username from institution code
         inst_code = institution.code
         num = str(uuid.uuid4().int)[:3]

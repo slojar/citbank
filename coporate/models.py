@@ -91,6 +91,8 @@ class BulkTransferRequest(models.Model):
     amount = models.FloatField(default=0.0)
     status = models.CharField(max_length=100, choices=TRANSFER_REQUEST_STATUS, default="pending")
     decline_reason = models.CharField(max_length=250, blank=True, null=True)
+    approved_by = models.ManyToManyField(Mandate, blank=True, related_name="bulk_trans_approved")
+    declined_by = models.ManyToManyField(Mandate, blank=True, related_name="bulk_trans_declined")
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
@@ -120,6 +122,8 @@ class TransferRequest(models.Model):
     checked = models.BooleanField(default=False)
     verified = models.BooleanField(default=False)
     approved = models.BooleanField(default=False)
+    approved_by = models.ManyToManyField(Mandate, blank=True, related_name="trans_approved")
+    declined_by = models.ManyToManyField(Mandate, blank=True, related_name="trans_declined")
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
