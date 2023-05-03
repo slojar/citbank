@@ -108,7 +108,7 @@ class TransferRequestAPIView(APIView, CustomPagination):
 
             query = Q(institution=mandate.institution, transfer_option="single")
             if search:
-                query &= Q(account_number__iexact=search) | Q(beneficiary_acct__iexact=search) | \
+                query &= Q(account_no__iexact=search) | Q(beneficiary_acct__iexact=search) | \
                          Q(bank_name__iexact=search) | Q(transfer_type__iexact=search) | Q(
                     beneficiary_acct_type__iexact=search)
             if date_from and date_to:

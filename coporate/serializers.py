@@ -224,7 +224,7 @@ class TransferRequestSerializerIn(serializers.Serializer):
 
         # Create Transfer Request
         trans_req = TransferRequest.objects.create(
-            institution=mandate.institution, account_number=account_number, amount=amount, description=description,
+            institution=mandate.institution, account_no=account_number, amount=amount, description=description,
             beneficiary_name=beneficiary_name, transfer_type=transfer_type, beneficiary_acct=beneficiary_acct,
             bank_code=bank_code, nip_session_id=nip_session_id, bank_name=bank_name,
             beneficiary_acct_type=beneficiary_acct_type
