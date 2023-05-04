@@ -61,26 +61,39 @@ class Homepage(views.APIView):
             status__iexact="success").aggregate(Sum("amount"))["amount__sum"] or 0
         transfer_total = transaction_queryset.aggregate(Sum("amount"))["amount__sum"] or 0
 
-        ind_airtime_purchase_total = airtime_queryset.filter(
-            status__iexact="success", institution__isnull=True).aggregate(Sum("amount"))["amount__sum"] or 0
-        ind_data_purchase_total = data_queryset.filter(
-            status__iexact="success", institution__isnull=True).aggregate(Sum("amount"))["amount__sum"] or 0
-        ind_cable_tv_purchase_total = cable_tv_queryset.filter(
-            status__iexact="success", institution__isnull=True).aggregate(Sum("amount"))["amount__sum"] or 0
-        ind_electricity_purchase_total = electricity_queryset.filter(
-            status__iexact="success", institution__isnull=True).aggregate(Sum("amount"))["amount__sum"] or 0
-        ind_transfer_total = transaction_queryset.filter(
-            customer__isnull=False).aggregate(Sum("amount"))["amount__sum"] or 0
-        corp_airtime_purchase_total = airtime_queryset.filter(
-            status__iexact="success", institution__isnull=False).aggregate(Sum("amount"))["amount__sum"] or 0
-        corp_data_purchase_total = data_queryset.filter(
-            status__iexact="success", institution__isnull=False).aggregate(Sum("amount"))["amount__sum"] or 0
-        corp_cable_tv_purchase_total = cable_tv_queryset.filter(
-            status__iexact="success", institution__isnull=False).aggregate(Sum("amount"))["amount__sum"] or 0
-        corp_transfer_total = transaction_queryset.filter(
-            status__iexact="success", institution__isnull=False).aggregate(Sum("amount"))["amount__sum"] or 0
-        corp_electricity_purchase_total = electricity_queryset.filter(
-            status__iexact="success", institution__isnull=False).aggregate(Sum("amount"))["amount__sum"] or 0
+        ind_airtime_purchase = airtime_queryset.filter(status__iexact="success", institution__isnull=True)
+        ind_data_purchase = data_queryset.filter(status__iexact="success", institution__isnull=True)
+        ind_cable_tv_purchase = cable_tv_queryset.filter(status__iexact="success", institution__isnull=True)
+        ind_electricity_purchase = electricity_queryset.filter(status__iexact="success", institution__isnull=True)
+        ind_transfer = transaction_queryset.filter(customer__isnull=False)
+        corp_airtime_purchase = airtime_queryset.filter(status__iexact="success", institution__isnull=False)
+        corp_data_purchase = data_queryset.filter(status__iexact="success", institution__isnull=False)
+        corp_cable_tv_purchase = cable_tv_queryset.filter(status__iexact="success", institution__isnull=False)
+        corp_transfer = transaction_queryset.filter(status__iexact="success", institution__isnull=False)
+        corp_electricity_purchase = electricity_queryset.filter(status__iexact="success", institution__isnull=False)
+
+        ind_airtime_purchase_total = ind_airtime_purchase.aggregate(Sum("amount"))["amount__sum"] or 0
+        ind_data_purchase_total = ind_data_purchase.aggregate(Sum("amount"))["amount__sum"] or 0
+        ind_cable_tv_purchase_total = ind_cable_tv_purchase.aggregate(Sum("amount"))["amount__sum"] or 0
+        ind_electricity_purchase_total = ind_electricity_purchase.aggregate(Sum("amount"))["amount__sum"] or 0
+        ind_transfer_total = ind_transfer.aggregate(Sum("amount"))["amount__sum"] or 0
+        corp_airtime_purchase_total = corp_airtime_purchase.aggregate(Sum("amount"))["amount__sum"] or 0
+        corp_data_purchase_total = corp_data_purchase.aggregate(Sum("amount"))["amount__sum"] or 0
+        corp_cable_tv_purchase_total = corp_cable_tv_purchase.aggregate(Sum("amount"))["amount__sum"] or 0
+        corp_transfer_total = corp_transfer.aggregate(Sum("amount"))["amount__sum"] or 0
+        corp_electricity_purchase_total = corp_electricity_purchase.aggregate(Sum("amount"))["amount__sum"] or 0
+
+        ind_airtime_purchase_count = ind_airtime_purchase.count()
+        ind_data_purchase_count = ind_data_purchase.count()
+        ind_cable_tv_purchase_count = ind_cable_tv_purchase.count()
+        ind_electricity_purchase_count = ind_electricity_purchase.count()
+        ind_transfer_count = ind_transfer.count()
+        corp_airtime_purchase_count = corp_airtime_purchase.count()
+        corp_data_purchase_count = corp_data_purchase.count()
+        corp_cable_tv_purchase_count = corp_cable_tv_purchase.count()
+        corp_transfer_count = corp_transfer.count()
+        corp_electricity_purchase_count = corp_electricity_purchase.count()
+
 
         data["recent_customer"] = recent
         data["total_customer_count"] = total_customer
@@ -103,7 +116,9 @@ class Homepage(views.APIView):
         data["total_transaction_amount"] = airtime_purchase_total + data_purchase_total + cable_tv_purchase_total + decimal.Decimal(transfer_total) + electricity_purchase_total
 
         data["total_individual_transaction_amount"] = ind_airtime_purchase_total + ind_data_purchase_total + ind_cable_tv_purchase_total + decimal.Decimal(ind_transfer_total) + ind_electricity_purchase_total
+        data["total_individual_transaction_count"] = ind_airtime_purchase_count + ind_data_purchase_count + ind_cable_tv_purchase_count + decimal.Decimal(ind_transfer_count) + ind_electricity_purchase_count
         data["total_corporate_transaction_amount"] = corp_airtime_purchase_total + corp_data_purchase_total + corp_cable_tv_purchase_total + decimal.Decimal(corp_transfer_total) + corp_electricity_purchase_total
+        data["total_corporate_transaction_count"] = corp_airtime_purchase_count + corp_data_purchase_count + corp_cable_tv_purchase_count + decimal.Decimal(corp_transfer_count) + corp_electricity_purchase_count
 
         data["local_transfer_chart"] = dashboard_transaction_data(bank, "local")
         data["others_transfer_chart"] = dashboard_transaction_data(bank, "others")
