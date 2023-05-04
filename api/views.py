@@ -5,12 +5,12 @@ from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
-from rest_framework import status, views, generics
+from rest_framework import status, views
 
 from account.models import Customer, Transaction, AccountRequest
 from account.serializers import CustomerSerializer, TransferSerializer, AccountRequestSerializer
 from account.paginations import CustomPagination
-from account.utils import review_account_request, log_request, format_phone_number
+from account.utils import review_account_request, log_request, format_phone_number, dashboard_transaction_data
 from bankone.api import bankone_send_otp_message, bankone_check_phone_no
 from billpayment.models import Airtime, CableTV, Data, Electricity
 from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
@@ -21,41 +21,66 @@ from coporate.serializers import MandateSerializerIn, InstitutionSerializerIn, I
 
 
 class Homepage(views.APIView):
-    permission_classes = [IsAdminUser]
+    # permission_classes = [IsAdminUser]
+    permission_classes = []
 
     def get(self, request):
-
         bank = request.GET.get("bank_id")
         if not bank:
             return Response({"detail": "Bank ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+
         data = dict()
 
-        # recent_customers = Customer.objects.filter(bank_id=bank).order_by("-created_on")[:10]
-        recent_customers = AccountRequest.objects.filter(bank_id=bank, status="pending").order_by("-created_on")[:10]
-        total_customer = Customer.objects.filter(bank_id=bank).count()
-        total_active_customer = Customer.objects.filter(bank_id=bank, active=True).count()
-        total_inactive_customer = Customer.objects.filter(bank_id=bank, active=False).count()
-        recent = list()
-        for item in recent_customers:
-            recent.append(item.get_request_detail())
+        customer_queryset = Customer.objects.filter(bank_id=bank)
+        transaction_queryset = Transaction.objects.filter(customer__bank_id=bank, status="success")
+        airtime_queryset = Airtime.objects.filter(bank_id=bank)
+        data_queryset = Data.objects.filter(bank_id=bank)
+        cable_tv_queryset = CableTV.objects.filter(bank_id=bank)
+        electricity_queryset = Electricity.objects.filter(bank_id=bank)
+        account_request_queryset = \
+            AccountRequest.objects.filter(bank_id=bank, status="pending").order_by("-created_on")[:10]
 
-        airtime_count = Airtime.objects.filter(bank_id=bank).count()
-        data_count = Data.objects.filter(bank_id=bank).count()
-        cable_tv_count = CableTV.objects.filter(bank_id=bank).count()
-        electricity_count = Electricity.objects.filter(bank_id=bank).count()
-        transfer_count = Transaction.objects.filter(customer__bank_id=bank).count()
+        # Get counts and aggregates
+        total_customer = customer_queryset.count()
+        total_active_customer = customer_queryset.filter(active=True).count()
+        total_inactive_customer = customer_queryset.filter(active=False).count()
+        # recent = account_request_queryset.values_list(get_request_detail(), flat=True)
+        recent = [item.get_request_detail() for item in account_request_queryset]
+        airtime_count = airtime_queryset.count()
+        data_count = data_queryset.count()
+        cable_tv_count = cable_tv_queryset.count()
+        electricity_count = electricity_queryset.count()
+        transfer_count = transaction_queryset.count()
+        airtime_purchase_total = airtime_queryset.filter(
+            status__iexact="success").aggregate(Sum("amount"))["amount__sum"] or 0
+        data_purchase_total = data_queryset.filter(
+            status__iexact="success").aggregate(Sum("amount"))["amount__sum"] or 0
+        cable_tv_purchase_total = cable_tv_queryset.filter(
+            status__iexact="success").aggregate(Sum("amount"))["amount__sum"] or 0
+        electricity_purchase_total = electricity_queryset.filter(
+            status__iexact="success").aggregate(Sum("amount"))["amount__sum"] or 0
+        transfer_total = transaction_queryset.aggregate(Sum("amount"))["amount__sum"] or 0
 
-        airtime_purchase_total = Airtime.objects.filter(
-            status__iexact="success", bank_id=bank).aggregate(Sum("amount"))["amount__sum"] or 0
-        data_purchase_total = Data.objects.filter(
-            status__iexact="success", bank_id=bank).aggregate(Sum("amount"))["amount__sum"] or 0
-        cable_tv_purchase_total = CableTV.objects.filter(
-            status__iexact="success", bank_id=bank).aggregate(Sum("amount"))["amount__sum"] or 0
-        electricity_purchase_total = Electricity.objects.filter(
-            status__iexact="success", bank_id=bank).aggregate(Sum("amount"))["amount__sum"] or 0
-
-        transfer_total = Transaction.objects.filter(
-            customer__bank_id=bank, status="success").aggregate(Sum("amount"))["amount__sum"] or 0
+        ind_airtime_purchase_total = airtime_queryset.filter(
+            status__iexact="success", institution__isnull=True).aggregate(Sum("amount"))["amount__sum"] or 0
+        ind_data_purchase_total = data_queryset.filter(
+            status__iexact="success", institution__isnull=True).aggregate(Sum("amount"))["amount__sum"] or 0
+        ind_cable_tv_purchase_total = cable_tv_queryset.filter(
+            status__iexact="success", institution__isnull=True).aggregate(Sum("amount"))["amount__sum"] or 0
+        ind_electricity_purchase_total = electricity_queryset.filter(
+            status__iexact="success", institution__isnull=True).aggregate(Sum("amount"))["amount__sum"] or 0
+        ind_transfer_total = transaction_queryset.filter(
+            customer__isnull=False).aggregate(Sum("amount"))["amount__sum"] or 0
+        corp_airtime_purchase_total = airtime_queryset.filter(
+            status__iexact="success", institution__isnull=False).aggregate(Sum("amount"))["amount__sum"] or 0
+        corp_data_purchase_total = data_queryset.filter(
+            status__iexact="success", institution__isnull=False).aggregate(Sum("amount"))["amount__sum"] or 0
+        corp_cable_tv_purchase_total = cable_tv_queryset.filter(
+            status__iexact="success", institution__isnull=False).aggregate(Sum("amount"))["amount__sum"] or 0
+        corp_transfer_total = transaction_queryset.filter(
+            status__iexact="success", institution__isnull=False).aggregate(Sum("amount"))["amount__sum"] or 0
+        corp_electricity_purchase_total = electricity_queryset.filter(
+            status__iexact="success", institution__isnull=False).aggregate(Sum("amount"))["amount__sum"] or 0
 
         data["recent_customer"] = recent
         data["total_customer_count"] = total_customer
@@ -70,10 +95,18 @@ class Homepage(views.APIView):
         data["cable_tv_purchase_total"] = cable_tv_purchase_total
         data["electricity_purchase_total"] = electricity_purchase_total
 
-        data["total_bill_payment_amount"] = airtime_purchase_total + data_purchase_total + cable_tv_purchase_total + electricity_purchase_total
+        data["total_bill_payment_amount"] = \
+            airtime_purchase_total + data_purchase_total + cable_tv_purchase_total + electricity_purchase_total
         data["total_bill_payment_count"] = airtime_count + data_count + cable_tv_count + electricity_count
-        data["total_transaction_count"] = airtime_count + data_count + cable_tv_count + transfer_count
-        data["total_transaction_amount"] = airtime_purchase_total + data_purchase_total + cable_tv_purchase_total + decimal.Decimal(transfer_total)
+        data["total_transaction_count"] = \
+            airtime_count + data_count + cable_tv_count + transfer_count + electricity_count
+        data["total_transaction_amount"] = airtime_purchase_total + data_purchase_total + cable_tv_purchase_total + decimal.Decimal(transfer_total) + electricity_purchase_total
+
+        data["total_individual_transaction_amount"] = ind_airtime_purchase_total + ind_data_purchase_total + ind_cable_tv_purchase_total + decimal.Decimal(ind_transfer_total) + ind_electricity_purchase_total
+        data["total_corporate_transaction_amount"] = corp_airtime_purchase_total + corp_data_purchase_total + corp_cable_tv_purchase_total + decimal.Decimal(corp_transfer_total) + corp_electricity_purchase_total
+
+        data["local_transfer_chart"] = dashboard_transaction_data(bank, "local")
+        data["others_transfer_chart"] = dashboard_transaction_data(bank, "others")
 
         return Response(data)
 
@@ -147,7 +180,7 @@ class AdminTransferAPIView(views.APIView, CustomPagination):
     permission_classes = []
 
     def get(self, request, bank_id):
-        transfer_type = request.GET.get("transfer_type")
+        transfer_type = request.GET.get("transfer_type")  # local, others
         search = request.GET.get("search")
 
         query = Q(customer__bank_id=bank_id)
@@ -157,7 +190,7 @@ class AdminTransferAPIView(views.APIView, CustomPagination):
                      Q(reference__iexact=search)
 
         if transfer_type == "local":
-            query &= Q(transfer_type="local_transfer")
+            query &= Q(transfer_type="local_transfer") | Q(transfer_type="transfer")
             transfers = Transaction.objects.filter(query).order_by('-created_on').distinct()
         elif transfer_type == "others":
             query &= Q(transfer_type="external_transfer")

@@ -13,7 +13,7 @@ from threading import Thread
 from django.conf import settings
 from django.contrib.auth import login, authenticate
 from django.core.files.base import ContentFile
-from django.db.models import Sum
+from django.db.models import Sum, Q
 
 from dateutil.relativedelta import relativedelta
 
@@ -851,3 +851,50 @@ def create_or_update_bank(request, bank):
     bank.save()
 
     return True
+
+
+def dashboard_transaction_data(bank_id, trans_type):
+    trans = dict()
+    weekly = []
+    monthly = []
+    yearly = []
+    query = Q(customer__bank_id=bank_id) | Q(institution__bank_id=bank_id)
+
+    if trans_type == "local":
+        query &= Q(transfer_type="local_transfer") | Q(transfer_type="transfer")
+    elif trans_type == "others":
+        query &= Q(transfer_type="external_transfer")
+
+    current_date = datetime.datetime.now()
+    for delta in range(6, -1, -1):
+        week_total_trans = month_total_trans = year_total_trans = week_count = month_count = year_count = 0
+        week_date = current_date - relativedelta(weeks=delta)
+        month_date = current_date - relativedelta(months=delta)
+        year_date = current_date - relativedelta(years=delta)
+        week_start, week_end = get_week_start_and_end_datetime(week_date)
+        month_start, month_end = get_month_start_and_end_datetime(month_date)
+        year_start, year_end = get_year_start_and_end_datetime(year_date)
+        # print(year_start, year_end)
+        total_trans = Transaction.objects.filter(query, created_on__range=[week_start, week_end])
+
+        if total_trans:
+            week_total_trans = total_trans.aggregate(Sum("amount"))["amount__sum"] or 0
+            week_count = total_trans.count()
+        weekly.append({"week": f'{week_start.strftime("%d %b")} - {week_end.strftime("%d %b")}',
+                       "amount": week_total_trans, "count": week_count})
+        total_trans = Transaction.objects.filter(query, created_on__range=[month_start, month_end])
+
+        if total_trans:
+            month_total_trans = total_trans.aggregate(Sum("amount"))["amount__sum"] or 0
+            month_count = total_trans.count()
+        monthly.append({"month": month_start.strftime("%b"), "amount": month_total_trans, "count": month_count})
+        total_trans = Transaction.objects.filter(query, created_on__range=[year_start, year_end])
+        if total_trans:
+            year_total_trans = total_trans.aggregate(Sum("amount"))["amount__sum"] or 0
+            year_count = total_trans.count()
+        yearly.append({"year": year_start.strftime("%Y"), "amount": year_total_trans, "count": year_count})
+    trans['weekly'] = weekly
+    trans['monthly'] = monthly
+    trans['yearly'] = yearly
+    return trans
+
