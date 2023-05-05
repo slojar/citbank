@@ -388,7 +388,7 @@ def bankone_create_new_customer(data, account_no, bank):
 
         phone_number = format_phone_number(phone_number)
 
-        if token != CustomerOTP.objects.get(phone_number=phone_number).otp:
+        if token != CustomerOTP.objects.filter(phone_number=phone_number).last().otp:
             detail = 'OTP is not valid'
             return success, detail
 

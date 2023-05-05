@@ -25,5 +25,9 @@ cit_venv/
 cit_venv
 .env.sample
 statements/
+<<<<<<< HEAD
 bulk-upload/
 
+=======
+README.md
+>>>>>>> c3bf5f92a0cf97d1d9bad7e836b26f0fb43380ab

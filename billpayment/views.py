@@ -277,15 +277,16 @@ class CableTVAPIView(APIView):
         customer_name = request.data.get("customer_name")
         product_codes = request.data.get("product_codes")
         smart_card_no = request.data.get("smart_card_no")
-
         sender_type = request.data.get('sender_type', 'individual')
         bill_id = request.data.get('bill_id')
 
-        if not all([account_no, service_name, smart_card_no, phone_number, amount, product_codes, duration]):
+        if not all([
+            account_no, service_name, smart_card_no, phone_number, amount, product_codes, duration, customer_name
+        ]):
             return Response(
                 {
-                    "detail": "account_no, service_name, smart_card_no, customer_number, amount, product_codes, "
-                              "and duration are required"},
+                    "detail": "account_no, service name, smart card_no, customer number, amount, product codes, "
+                              "customer name, and duration are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         code = str(uuid.uuid4().int)[:5]
@@ -327,6 +328,9 @@ class CableTVAPIView(APIView):
                 ref_code = f"{s_name}-{code}"
 
                 success, response = check_balance_and_charge(None, account_no, amount, ref_code, narration, inst=institution)
+
+        else:
+            return Response({"detail": "Invalid sender type selected"}, status=status.HTTP_400_BAD_REQUEST)
 
         if success is False:
             log_request(f"error-message: {response}")
@@ -487,6 +491,9 @@ class ElectricityAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        if amount < 1000:
+            return Response({"detail": "Minimum vendible amount is 1000"}, status=status.HTTP_400_BAD_REQUEST)
+
         narration = f"{disco_type} payment for meter: {meter_no}"
         code = str(uuid.uuid4().int)[:5]
         bank = success = response = ref_code = None
@@ -510,7 +517,7 @@ class ElectricityAPIView(APIView):
                 ref_code = f"{sh_name}-{code}"
                 amount = decimal.Decimal(amount) + customer.bank.bill_payment_charges
 
-                success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
+            success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
         if sender_type == "corporate":
             try:
@@ -527,41 +534,41 @@ class ElectricityAPIView(APIView):
                 ref_code = f"{s_name}-{code}"
 
                 success, response = check_balance_and_charge(None, account_no, amount, ref_code, narration, inst=institution)
-
-            if success is False:
-                log_request(f"error-message: {response}")
-                return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
-
-            if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
-
-                # remove service charge from amount
-                amount -= 100
-
-                success, detail, token = vend_electricity(bank, account_no, disco_type, meter_no, amount, phone_number, ref_code, inst=payment)
-                if success is False:
-                    # LOG REVERSAL
-                    date_today = datetime.datetime.now().date()
-                    BillPaymentReversal.objects.create(
-                        transaction_reference=ref_code, transaction_date=str(date_today),
-                        payment_type="electricity", bank=bank
-                    )
-                    return Response(
-                        {"detail": "An error while vending electricity, please try again later"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-            elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
-                return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
-
-            else:
-                return Response(
-                    {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
-                )
-
-            return Response({"detail": f"{disco_type} payment for meter: {meter_no} was successful",
-                                 "credit_token": token})
         else:
             return Response({"detail": "Invalid sender type selected"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if success is False:
+            log_request(f"error-message: {response}")
+            return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
+
+        if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+
+            # remove service charge from amount
+            amount -= 100
+
+            success, detail, token = vend_electricity(bank, account_no, disco_type, meter_no, amount, phone_number, ref_code, inst=payment)
+            if success is False:
+                # LOG REVERSAL
+                date_today = datetime.datetime.now().date()
+                BillPaymentReversal.objects.create(
+                    transaction_reference=ref_code, transaction_date=str(date_today),
+                    payment_type="electricity", bank=bank
+                )
+                return Response(
+                    {"detail": "An error while vending electricity, please try again later"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
+            return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
+
+        else:
+            return Response(
+                {"detail": "An error has occurred, please try again later"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            {"detail": f"{disco_type} payment for meter: {meter_no} was successful", "credit_token": token})
 
 
 class RetryElectricityCronView(APIView):
