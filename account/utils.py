@@ -600,7 +600,7 @@ def perform_bank_transfer(bank, request):
 
             if response["IsSuccessFul"] is True and response["ResponseCode"] == "00":
                 transfer.status = "success"
-            # transfer.save()
+            transfer.save()
             # trans_req.response_message = str(response["ResponseMessage"])[:298]
             # trans_req.save()
 
