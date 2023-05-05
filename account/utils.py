@@ -560,9 +560,9 @@ def perform_bank_transfer(bank, request):
             if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
                 transfer.status = "success"
             transfer.save()
-            # trans_req.response_message = str(response["ResponseMessage"])[:298]
-            # trans_req.save()
-            # transfer.save()
+            if transfer_id:
+                trans_req.response_message = str(response["ResponseMessage"])[:298]
+                trans_req.save()
 
         elif transfer_type == "other_bank":
             # Convert kobo amount sent on OtherBankTransfer to naira... To be removed in future update
@@ -601,8 +601,10 @@ def perform_bank_transfer(bank, request):
             if response["IsSuccessFul"] is True and response["ResponseCode"] == "00":
                 transfer.status = "success"
             transfer.save()
-            # trans_req.response_message = str(response["ResponseMessage"])[:298]
-            # trans_req.save()
+            if transfer_id:
+                trans_req.response_message = str(response["ResponseMessage"])[:298]
+                trans_req.save()
+                transfer.save()
 
         else:
             return False, "Invalid transfer type selected"
