@@ -94,7 +94,6 @@ class Homepage(views.APIView):
         corp_transfer_count = corp_transfer.count()
         corp_electricity_purchase_count = corp_electricity_purchase.count()
 
-
         data["recent_customer"] = recent
         data["total_customer_count"] = total_customer
         data["total_active_customer_count"] = total_active_customer

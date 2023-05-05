@@ -775,9 +775,19 @@ class BankHistoryAPIView(APIView):
             date_from = request.GET.get("date_from")
             date_to = request.GET.get("date_to")
             page_no = request.GET.get("page_no")
+            account_type = request.GET.get("account_type", "individual")
 
-            if not CustomerAccount.objects.filter(customer__user=request.user, account_no=account_no,
-                                                  customer__bank_id=bank_id).exists():
+            query = Q(account_no=account_no)
+
+            if account_type == "individual":
+                query &= Q(customer__user=request.user, customer__bank_id=bank_id)
+            elif account_type == "corporate":
+                mandate = get_object_or_404(Mandate, user=request.user)
+                query &= Q(institution_id=mandate.institution_id, institution__bank_id=bank_id)
+            else:
+                return Response({"detail": "Account type is not valid"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if not CustomerAccount.objects.filter(query).exists():
                 return Response({"detail": "Account number is not valid"}, status=status.HTTP_400_BAD_REQUEST)
 
             bank = Bank.objects.get(id=bank_id)

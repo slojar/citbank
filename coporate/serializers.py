@@ -56,6 +56,9 @@ class MandateSerializerIn(serializers.Serializer):
         if Mandate.objects.filter(institution=institution, phone_number=phone_no).exists():
             raise InvalidRequestException({"detail": "Signatory with this phone number already exist"})
 
+        if level not in range(1, 4):
+            raise InvalidRequestException({"detail": "Invalid level input"})
+
         # Generate username from institution code
         inst_code = institution.code
         num = str(uuid.uuid4().int)[:3]
