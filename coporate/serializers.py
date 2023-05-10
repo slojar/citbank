@@ -250,7 +250,7 @@ class TransferRequestSerializerIn(serializers.Serializer):
         trans_req = TransferRequest.objects.create(
             institution=mandate.institution, account_no=account_number, amount=amount, description=description,
             beneficiary_name=beneficiary_name, transfer_type=transfer_type, beneficiary_acct=beneficiary_acct,
-            bank_code=bank_code, nip_session_id=nip_session_id, bank_name=bank_name,
+            bank_code=bank_code, nip_session_id=nip_session_id, bank_name=bank_name, transfer_option=transfer_type,
             beneficiary_acct_type=beneficiary_acct_type
         )
 
@@ -260,7 +260,7 @@ class TransferRequestSerializerIn(serializers.Serializer):
             # Create TransferScheduler
             scheduler = TransferScheduler.objects.create(
                 schedule_type=schedule_type, day_of_the_month=day_of_the_month, day_of_the_week=day_of_the_week,
-                start_date=start_date, end_date=end_date
+                start_date=start_date, end_date=end_date, transfer_option=transfer_type
             )
             trans_req.scheduled = True
             trans_req.scheduler = scheduler

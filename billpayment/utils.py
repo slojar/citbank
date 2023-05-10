@@ -1,3 +1,4 @@
+import decimal
 import json
 from threading import Thread
 
@@ -7,7 +8,7 @@ from account.models import CustomerAccount
 from account.utils import check_account_status, decrypt_text
 from bankone.api import bankone_get_details_by_customer_id, bankone_charge_customer, bankone_send_sms
 from billpayment.models import Electricity
-from tm_saas.api import validate_meter_no, electricity
+from tm_saas.api import validate_meter_no, electricity, check_wallet_balance
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
@@ -26,6 +27,13 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration, inst
 
     else:
         customer = inst
+
+    balance_check = check_wallet_balance(customer.bank)
+    if "message" in balance_check and balance_check["message"] == "Success":
+        balance = balance_check["data"]["balance"]
+        # Check if balance is sufficient
+        if decimal.Decimal(balance) < decimal.Decimal(amount):
+            return False, "An error occurred while vending, please try again later"
 
     # CHECK ACCOUNT BALANCE
     token = decrypt_text(customer.bank.auth_token)

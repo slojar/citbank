@@ -52,7 +52,7 @@ class Mandate(models.Model):
     phone_number = models.CharField(max_length=11)
     bvn = models.TextField()
     password_changed = models.BooleanField(default=False)
-    active = models.BooleanField(default=False)
+    active = models.BooleanField(default=True)
     otp = models.TextField(blank=True, null=True)
     otp_expiry = models.DateTimeField(blank=True, null=True)
     added_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="mandate_added_by")
@@ -65,6 +65,7 @@ class Mandate(models.Model):
 
 class TransferScheduler(models.Model):
     schedule_type = models.CharField(max_length=100, choices=SCHEDULE_TYPE, default="once")
+    transfer_option = models.CharField(max_length=50, choices=TRANSFER_REQUEST_OPTION, default="single")
     day_of_the_month = models.CharField(max_length=200, choices=DAYS_OF_THE_MONTH_CHOICES, blank=True, null=True)
     day_of_the_week = models.CharField(max_length=100, choices=DAY_OF_THE_WEEK_CHOICES, blank=True, null=True)
     status = models.CharField(max_length=50, choices=TRANSFER_SCHEDULE_STATUS, default="inactive")

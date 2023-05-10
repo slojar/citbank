@@ -198,6 +198,7 @@ class TransferSchedulerAPIView(APIView, CustomPagination):
             data = TransferSchedulerSerializerOut(TransferScheduler.objects.get(id=pk)).data
         else:
             status_query = request.GET.get("status")
+            transfer_option = request.GET.get("transfer_option")
             query = Q(institution=mandate.institution, scheduled=True)
             if status_query:
                 query &= Q(status=status_query)
