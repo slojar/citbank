@@ -172,6 +172,7 @@ class SendOTPAPIView(APIView):
     def get(self, request):
         mandate = get_object_or_404(Mandate, user=request.user)
         token = generate_and_send_otp(mandate)
+        log_request(f"Token ---> {token}")
         return Response({"detail": "Token has been sent to your email", "otp": token})
 
 
