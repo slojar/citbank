@@ -206,7 +206,7 @@ class TransferRequestSerializerOut(serializers.ModelSerializer):
 class TransferRequestSerializerIn(serializers.Serializer):
     current_user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     account_no = serializers.CharField()
-    amount = serializers.FloatField()
+    amount = serializers.FloatField(required=False)
     narration = serializers.CharField(max_length=60)
     beneficiary_name = serializers.CharField(max_length=100)
     transfer_type = serializers.CharField()
@@ -245,6 +245,9 @@ class TransferRequestSerializerIn(serializers.Serializer):
 
         mandate = get_object_or_404(Mandate, user=user)
         transfer_validation(mandate, amount, account_number)
+
+        if transfer_type == "single" and not account_number:
+            raise InvalidRequestException({"detail": "Account number is required"})
 
         # Create Transfer Request
         trans_req = TransferRequest.objects.create(
