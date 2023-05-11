@@ -97,7 +97,7 @@ def cable_tv_sub(bank, **kwargs):
                 "customerName": kwargs.get("customer_name"),
                 "productCodes": kwargs.get("product_codes"),
                 "invoicePeriod": kwargs.get("duration"),
-                "smartCardNumber": kwargs.get("smart_card_no")
+                "smartcardNumber": kwargs.get("smart_card_no")
             }
 
     response = requests.request("POST", url=url, headers=header, data=payload).json()

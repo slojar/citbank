@@ -314,7 +314,7 @@ class CableTVAPIView(APIView):
 
                 success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
-        if sender_type == "corporate":
+        elif sender_type == "corporate":
             try:
                 payment = CableTV.objects.get(id=bill_id, approved=True, status="pending")
                 institution = payment.institution
@@ -519,7 +519,7 @@ class ElectricityAPIView(APIView):
 
             success, response = check_balance_and_charge(user, account_no, amount, ref_code, narration)
 
-        if sender_type == "corporate":
+        elif sender_type == "corporate":
             try:
                 payment = Electricity.objects.get(id=bill_id, approved=True, status="pending")
                 institution = payment.institution

@@ -30,6 +30,7 @@ def get_dashboard_data(mandate):
     data.update({
         "institution_name": mandate.institution.name,
         "primary_account": mandate.institution.account_no,
+        "password_changed": mandate.password_changed,
         "first_name": mandate.user.get_full_name(),
         "bvn": decrypt_text(mandate.bvn)
     })
