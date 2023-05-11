@@ -52,7 +52,7 @@ class Mandate(models.Model):
     phone_number = models.CharField(max_length=11)
     bvn = models.TextField()
     password_changed = models.BooleanField(default=False)
-    active = models.BooleanField(default=True)
+    active = models.BooleanField(default=False)
     otp = models.TextField(blank=True, null=True)
     otp_expiry = models.DateTimeField(blank=True, null=True)
     added_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="mandate_added_by")
