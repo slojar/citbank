@@ -1,3 +1,5 @@
+import json
+
 import requests
 from django.conf import settings
 from account.utils import log_request, decrypt_text
@@ -89,7 +91,7 @@ def validate_scn(bank, service_name, scn):
 def cable_tv_sub(bank, **kwargs):
     url = f"{baseUrl}/{kwargs.get('service_name')}"
     header = get_header(bank)
-    payload = {
+    payload = json.dumps({
                 "provider": "cdl",
                 "monthsPaidFor": kwargs.get("duration"),
                 "customerNumber": kwargs.get("customer_number"),
@@ -98,7 +100,7 @@ def cable_tv_sub(bank, **kwargs):
                 "productCodes": kwargs.get("product_codes"),
                 "invoicePeriod": kwargs.get("duration"),
                 "smartcardNumber": kwargs.get("smart_card_no")
-            }
+            })
 
     response = requests.request("POST", url=url, headers=header, data=payload).json()
     log_request("POST", f"url: {url}", f"header: {header}", f"payload: {payload}", f"response: {response}")
