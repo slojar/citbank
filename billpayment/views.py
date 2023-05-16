@@ -496,7 +496,7 @@ class ElectricityAPIView(APIView):
 
         narration = f"{disco_type} payment for meter: {meter_no}"
         code = str(uuid.uuid4().int)[:5]
-        bank = success = response = ref_code = None
+        bank = success = response = ref_code = payment = None
 
         if sender_type == "individual":
             success, detail = confirm_trans_pin(request)
