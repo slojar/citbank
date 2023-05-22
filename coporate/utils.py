@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from account.models import Transaction, CustomerAccount
 from account.utils import get_account_balance, decrypt_text, log_request, encrypt_text, get_next_date, get_next_weekday
-from bankone.api import bankone_get_details_by_customer_id
+from bankone.api import bankone_get_details_by_customer_id, get_corporate_acct_detail
 from billpayment.models import Airtime, Data, CableTV, Electricity, BulkBillPayment
 from billpayment.serializers import AirtimeSerializer, DataSerializer, CableTVSerializer, ElectricitySerializer
 from citbank.exceptions import InvalidRequestException
@@ -131,10 +131,11 @@ def transfer_validation(mandate, amount, account_number):
     if institution.bank.short_name in bank_one_banks:
         # Compare amount with balance
         token = decrypt_text(institution.bank.auth_token)
-        account = bankone_get_details_by_customer_id(customer_id, token).json()
-        for acct in account["Accounts"]:
+        # account = bankone_get_details_by_customer_id(customer_id, token).json()
+        account = get_corporate_acct_detail(customer_id, token)
+        for acct in account:
             if acct["NUBAN"] == account_number:
-                withdraw_able = str(acct["withdrawableAmount"]).replace(",", "")
+                withdraw_able = str(account["Balance"]["WithdrawableAmount"]).replace(",", "")
                 balance = decimal.Decimal(withdraw_able)
 
         if balance <= 0:
@@ -357,12 +358,10 @@ def check_balance_for_bill_payment(institution, account_no, amount, payment_type
             amount = decimal.Decimal(amount) + institution.bank.bill_payment_charges
 
         balance = 0
-        response = bankone_get_details_by_customer_id(institution.customerID, token).json()
-        accounts = response["Accounts"]
-
+        accounts = get_corporate_acct_detail(institution.customerID, token)
         for account in accounts:
             if account["NUBAN"] == str(account_no):
-                balance = str(account["withdrawableAmount"]).replace(",", "")
+                balance = str(account["Balance"]["WithdrawableAmount"]).replace(",", "")
 
         if float(balance) <= 0:
             return False, "Insufficient balance", ""
@@ -571,12 +570,11 @@ def verify_approve_bill_payment(request, payment_req, mandate, bill_type, paymen
 
 def get_institution_balance(trans_req):
     auth_token = decrypt_text(trans_req.institution.bank.auth_token)
-    response = bankone_get_details_by_customer_id(customer_id=trans_req.institution.customerID, token=auth_token).json()
     balance = 0
-    accounts = response["Accounts"]
+    accounts = get_corporate_acct_detail(trans_req.institution.customerID, auth_token)
     for account in accounts:
         if account["NUBAN"] == str(trans_req.account_no):
-            balance = str(account["withdrawableAmount"]).replace(",", "")
+            balance = str(account["Balance"]["WithdrawableAmount"]).replace(",", "")
 
     if float(balance) <= 0:
         raise InvalidRequestException({"detail": "Insufficient balance"})

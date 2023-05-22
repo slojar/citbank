@@ -6,7 +6,8 @@ from django.conf import settings
 
 from account.models import CustomerAccount
 from account.utils import check_account_status, decrypt_text
-from bankone.api import bankone_get_details_by_customer_id, bankone_charge_customer, bankone_send_sms
+from bankone.api import bankone_get_details_by_customer_id, bankone_charge_customer, bankone_send_sms, \
+    get_corporate_acct_detail
 from billpayment.models import Electricity
 from tm_saas.api import validate_meter_no, electricity, check_wallet_balance
 
@@ -36,15 +37,21 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration, inst
             return False, "An error occurred while vending, please try again later"
 
     # CHECK ACCOUNT BALANCE
+    balance = 0
     token = decrypt_text(customer.bank.auth_token)
     settlement_acct_no = customer.bank.settlement_acct_no
-    response = bankone_get_details_by_customer_id(customer.customerID, token).json()
+    if inst:
+        accounts = get_corporate_acct_detail(customer.customerID, token)
+        for account in accounts:
+            if account["NUBAN"] == str(account_no):
+                balance = str(account["Balance"]["WithdrawableAmount"]).replace(",", "")
 
-    balance = 0
-    accounts = response["Accounts"]
-    for account in accounts:
-        if account["NUBAN"] == str(account_no):
-            balance = str(account["withdrawableAmount"]).replace(",", "")
+    else:
+        response = bankone_get_details_by_customer_id(customer.customerID, token).json()
+        accounts = response["Accounts"]
+        for account in accounts:
+            if account["NUBAN"] == str(account_no):
+                balance = str(account["withdrawableAmount"]).replace(",", "")
 
     if float(balance) <= 0:
         return False, "Insufficient balance"

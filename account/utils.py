@@ -209,30 +209,47 @@ def open_account_with_banks(bank, request):
 
 
 def get_account_balance(customer, customer_type):
-    from bankone.api import bankone_get_details_by_customer_id
+    from bankone.api import bankone_get_details_by_customer_id, get_corporate_acct_detail
 
     data = dict()
+    customer_id = customer.customerID
+
     if customer.bank.short_name in bank_one_banks:
         # GET ACCOUNT BALANCES
         token = decrypt_text(customer.bank.auth_token)
-        response = bankone_get_details_by_customer_id(customer.customerID, token).json()
-        accounts = response["Accounts"]
-        customer_account = list()
-        for account in accounts:
-            account_detail = dict()
-            if account["NUBAN"]:
-                ledger = str(account["ledgerBalance"]).replace(",", "")
-                withdraw_able = str(account["withdrawableAmount"]).replace(",", "")
-                available = str(account["availableBalance"]).replace(",", "")
+        if customer_type == "corporate":
+            customer_account = [
+                {
+                    "account_no": account["NUBAN"],
+                    "ledger_balance": decimal.Decimal(str(account["Balance"]["LedgerBalance"]).replace(",", "")),
+                    "withdrawable_balance": decimal.Decimal(
+                        str(account["Balance"]["WithdrawableAmount"]).replace(",", "")),
+                    "available_balance": decimal.Decimal(str(account["Balance"]["AvailableBalance"]).replace(",", "")),
+                    "account_type": account["ProductName"],
+                    "bank_acct_no": account["Number"]
 
-                account_detail["account_no"] = account["NUBAN"]
-                account_detail["ledger_balance"] = decimal.Decimal(ledger)
-                account_detail["withdrawable_balance"] = decimal.Decimal(withdraw_able)
-                account_detail["available_balance"] = decimal.Decimal(available)
-                account_detail["kyc_level"] = account["kycLevel"]
-                account_detail["account_type"] = account["accountType"]
-                account_detail["bank_acct_no"] = account["accountNumber"]
-                customer_account.append(account_detail)
+                }
+                for account in get_corporate_acct_detail(customer_id, token)
+                if account["NUBAN"]
+            ]
+
+        else:
+            response = bankone_get_details_by_customer_id(customer.customerID, token).json()
+            accounts = response["Accounts"]
+            customer_account = [
+                {
+                    "account_no": account["NUBAN"],
+                    "ledger_balance": decimal.Decimal(str(account["ledgerBalance"]).replace(",", "")),
+                    "withdrawable_balance": decimal.Decimal(str(account["withdrawableAmount"]).replace(",", "")),
+                    "available_balance": decimal.Decimal(str(account["availableBalance"]).replace(",", "")),
+                    "kyc_level": account["kycLevel"],
+                    "account_type": account["accountType"],
+                    "bank_acct_no": account["accountNumber"]
+                }
+                for account in accounts
+                if account.get("NUBAN")
+            ]
+
         data["account_balances"] = customer_account
         Thread(target=update_customer_account, args=[customer, customer_account, customer_type]).start()
 
@@ -407,7 +424,7 @@ def get_bank_flex_balance(customer):
 
 def perform_bank_transfer(bank, request):
     from bankone.api import bankone_get_details_by_customer_id, bankone_generate_transaction_ref_code, \
-        bankone_local_bank_transfer, bankone_other_bank_transfer
+        bankone_local_bank_transfer, bankone_other_bank_transfer, get_corporate_acct_detail
 
     transfer_type = request.data.get('transfer_type')  # same_bank or other_bank
     account_number = request.data.get('account_no')
@@ -508,11 +525,11 @@ def perform_bank_transfer(bank, request):
         # Compare amount with balance
         balance = 0
         token = decrypt_text(bank.auth_token)
-        account = bankone_get_details_by_customer_id(customer_id, token).json()
-        for acct in account["Accounts"]:
+        account = get_corporate_acct_detail(customer_id, token).json()
+        for acct in account:
             if acct["NUBAN"] == account_number:
-                withdraw_able = str(acct["withdrawableAmount"]).replace(",", "")
-                app_zone_acct = str(acct["accountNumber"])
+                withdraw_able = str(acct["Balance"]["WithdrawableAmount"]).replace(",", "")
+                app_zone_acct = str(acct["Number"])
                 balance = decimal.Decimal(withdraw_able)
 
         if balance <= 0:

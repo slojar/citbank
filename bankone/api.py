@@ -42,7 +42,7 @@ def bankone_get_details_by_customer_id(customer_id, token):
     url = f'{base_url}/Account/GetAccountsByCustomerId/2?authtoken={token}&customerId={customer_id}'
 
     response = requests.request('GET', url=url)
-    log_request(url, response.json())
+    log_request(url, response.text)
     return response
 
 
@@ -614,4 +614,11 @@ def bankone_check_phone_no(phone_no, auth_token):
     log_request(url, response)
     return response
 
+
+def get_corporate_acct_detail(customer_id, auth_token):
+    from account.utils import log_request
+    url = f"{base_url}/Account/GetActiveSavingsAccountsByCustomerID/{version}?authtoken={auth_token}&customerId={customer_id}"
+    response = requests.request('GET', url=url).json()
+    log_request(url, response)
+    return response
 
