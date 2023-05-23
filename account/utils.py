@@ -525,7 +525,7 @@ def perform_bank_transfer(bank, request):
         # Compare amount with balance
         balance = 0
         token = decrypt_text(bank.auth_token)
-        account = get_corporate_acct_detail(customer_id, token).json()
+        account = get_corporate_acct_detail(customer_id, token)
         for acct in account:
             if acct["NUBAN"] == account_number:
                 withdraw_able = str(acct["Balance"]["WithdrawableAmount"]).replace(",", "")
