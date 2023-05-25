@@ -116,10 +116,12 @@ class TransferRequestAPIView(APIView, CustomPagination):
             if approval_status:
                 if approval_status == "checked":
                     query &= Q(checked=True)
-                if approval_status == "verified":
+                elif approval_status == "verified":
                     query &= Q(verified=True)
-                if approval_status == "approved":
+                elif approval_status == "approved":
                     query &= Q(approved=True)
+                else:
+                    query &= Q(status=approval_status)
 
             queryset = self.paginate_queryset(TransferRequest.objects.filter(query), request)
             serializer = TransferRequestSerializerOut(queryset, many=True, context={"request": request}).data
