@@ -528,7 +528,7 @@ def perform_bank_transfer(bank, request):
         account = get_corporate_acct_detail(customer_id, token)
         for acct in account:
             if acct["NUBAN"] == account_number:
-                withdraw_able = str(acct["Balance"]["WithdrawableAmount"]).replace(",", "")
+                withdraw_able = str(acct["Balance"]["WithdrawableAmount"])
                 app_zone_acct = str(acct["Number"])
                 balance = decimal.Decimal(withdraw_able)
 

@@ -135,7 +135,7 @@ def transfer_validation(mandate, amount, account_number):
         account = get_corporate_acct_detail(customer_id, token)
         for acct in account:
             if acct["NUBAN"] == account_number:
-                withdraw_able = str(account["Balance"]["WithdrawableAmount"]).replace(",", "")
+                withdraw_able = str(account["Balance"]["WithdrawableAmount"])
                 balance = decimal.Decimal(withdraw_able)
 
         if balance <= 0:
@@ -361,7 +361,7 @@ def check_balance_for_bill_payment(institution, account_no, amount, payment_type
         accounts = get_corporate_acct_detail(institution.customerID, token)
         for account in accounts:
             if account["NUBAN"] == str(account_no):
-                balance = str(account["Balance"]["WithdrawableAmount"]).replace(",", "")
+                balance = str(account["Balance"]["WithdrawableAmount"])
 
         if float(balance) <= 0:
             return False, "Insufficient balance", ""
@@ -574,7 +574,7 @@ def get_institution_balance(trans_req):
     accounts = get_corporate_acct_detail(trans_req.institution.customerID, auth_token)
     for account in accounts:
         if account["NUBAN"] == str(trans_req.account_no):
-            balance = str(account["Balance"]["WithdrawableAmount"]).replace(",", "")
+            balance = str(account["Balance"]["WithdrawableAmount"])
 
     if float(balance) <= 0:
         raise InvalidRequestException({"detail": "Insufficient balance"})

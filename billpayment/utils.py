@@ -44,7 +44,7 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration, inst
         accounts = get_corporate_acct_detail(customer.customerID, token)
         for account in accounts:
             if account["NUBAN"] == str(account_no):
-                balance = str(account["Balance"]["WithdrawableAmount"]).replace(",", "")
+                balance = str(account["Balance"]["WithdrawableAmount"])
 
     else:
         response = bankone_get_details_by_customer_id(customer.customerID, token).json()
