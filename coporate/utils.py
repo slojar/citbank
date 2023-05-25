@@ -135,7 +135,7 @@ def transfer_validation(mandate, amount, account_number):
         account = get_corporate_acct_detail(customer_id, token)
         for acct in account:
             if acct["NUBAN"] == account_number:
-                withdraw_able = str(account["Balance"]["WithdrawableAmount"])
+                withdraw_able = str(acct["Balance"]["WithdrawableAmount"])
                 balance = decimal.Decimal(withdraw_able)
 
         if balance <= 0:
