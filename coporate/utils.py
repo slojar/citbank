@@ -331,7 +331,7 @@ def create_bulk_transfer(data, institution, bulk_trans, schedule, scheduler):
         ben_acct_type = item["beneficiary_acct_type"]
 
         TransferRequest.objects.create(
-            institution=institution, bulk_transfer=bulk_trans, transfer_option="bulk", account_number=account_no,
+            institution=institution, bulk_transfer=bulk_trans, transfer_option="bulk", account_no=account_no,
             amount=amount, description=narration, beneficiary_name=ben_name, transfer_type=trans_type,
             beneficiary_acct=ben_acct_no, bank_code=bank_code, nip_session_id=nip_id, bank_name=bank_name,
             beneficiary_acct_type=ben_acct_type, scheduled=schedule, scheduler=scheduler
