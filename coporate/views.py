@@ -107,21 +107,21 @@ class TransferRequestAPIView(APIView, CustomPagination):
             search = request.GET.get("search")
 
             query = Q(institution=mandate.institution, transfer_option="single")
-            # if search:
-            #     query &= Q(account_no__iexact=search) | Q(beneficiary_acct__iexact=search) | \
-            #              Q(bank_name__iexact=search) | Q(transfer_type__iexact=search) | Q(
-            #         beneficiary_acct_type__iexact=search)
-            # if date_from and date_to:
-            #     query &= Q(created_on__range=[date_from, date_to])
-            # if approval_status:
-            #     if approval_status == "checked":
-            #         query &= Q(checked=True)
-            #     elif approval_status == "verified":
-            #         query &= Q(verified=True)
-            #     elif approval_status == "approved":
-            #         query &= Q(approved=True)
-            #     else:
-            #         query &= Q(status=approval_status)
+            if search:
+                query &= Q(account_no__iexact=search) | Q(beneficiary_acct__iexact=search) | \
+                         Q(bank_name__iexact=search) | Q(transfer_type__iexact=search) | Q(
+                    beneficiary_acct_type__iexact=search)
+            if date_from and date_to:
+                query &= Q(created_on__range=[date_from, date_to])
+            if approval_status:
+                if approval_status == "checked":
+                    query &= Q(checked=True)
+                elif approval_status == "verified":
+                    query &= Q(verified=True)
+                elif approval_status == "approved":
+                    query &= Q(approved=True)
+                else:
+                    query &= Q(status=approval_status)
 
             queryset = self.paginate_queryset(TransferRequest.objects.filter(query), request)
             serializer = TransferRequestSerializerOut(queryset, many=True, context={"request": request}).data
