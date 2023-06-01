@@ -485,8 +485,7 @@ class BulkTransferSerializerIn(serializers.Serializer):
             bulk_trans.scheduler = scheduler
             bulk_trans.save()
         # Create Transfer Requests
-        create_bulk_transfer(data, institution, bulk_trans, schedule, scheduler)
-        # Thread(target=create_bulk_transfer, args=[data, institution, bulk_trans, schedule, scheduler]).start()
+        Thread(target=create_bulk_transfer, args=[data, institution, bulk_trans, schedule, scheduler]).start()
 
         return BulkTransferSerializerOut(bulk_trans).data
 

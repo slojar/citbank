@@ -91,16 +91,26 @@ def validate_scn(bank, service_name, scn):
 def cable_tv_sub(bank, **kwargs):
     url = f"{baseUrl}/{kwargs.get('service_name')}"
     header = get_header(bank)
-    payload = json.dumps({
-                "provider": "cdl",
-                "monthsPaidFor": kwargs.get("duration"),
-                "customerNumber": kwargs.get("customer_number"),
-                "amount": kwargs.get("amount"),
-                "customerName": kwargs.get("customer_name"),
-                "productCodes": kwargs.get("product_codes"),
-                "invoicePeriod": kwargs.get("duration"),
-                "smartcardNumber": kwargs.get("smart_card_no")
-            })
+    # payload = json.dumps({
+    #             "provider": "cdl",
+    #             "monthsPaidFor": kwargs.get("duration"),
+    #             "customerNumber": kwargs.get("customer_number"),
+    #             "amount": kwargs.get("amount"),
+    #             "customerName": kwargs.get("customer_name"),
+    #             "productCodes": kwargs.get("product_codes"),
+    #             "invoicePeriod": kwargs.get("duration"),
+    #             "smartcardNumber": kwargs.get("smart_card_no")
+    #         })
+
+    payload = dict()
+    payload["provider"] = "cdl"
+    payload["monthsPaidFor"] = kwargs.get("duration")
+    payload["customerNumber"] = kwargs.get("customer_number")
+    payload["amount"] = kwargs.get("amount")
+    payload["customerName"] = kwargs.get("customer_name")
+    payload["productCodes"] = kwargs.get("product_codes")
+    payload["invoicePeriod"] = kwargs.get("duration")
+    payload["smartcardNumber"] = kwargs.get("smart_card_no")
 
     response = requests.request("POST", url=url, headers=header, data=payload).json()
     log_request("POST", f"url: {url}", f"header: {header}", f"payload: {payload}", f"response: {response}")
