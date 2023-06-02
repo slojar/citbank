@@ -123,7 +123,7 @@ class TransferRequestAPIView(APIView, CustomPagination):
                 else:
                     query &= Q(status=approval_status)
 
-            queryset = self.paginate_queryset(TransferRequest.objects.filter(query), request)
+            queryset = self.paginate_queryset(TransferRequest.objects.filter(query).exclude(approved_by__in=[mandate]), request)
             serializer = TransferRequestSerializerOut(queryset, many=True, context={"request": request}).data
             data = self.get_paginated_response(serializer).data
         return Response(data)
