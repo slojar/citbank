@@ -267,7 +267,7 @@ class BulkTransferAPIView(APIView, CustomPagination):
                 if approval_status == "approved":
                     query &= Q(approved=True)
 
-            queryset = self.paginate_queryset(BulkTransferRequest.objects.filter(query), request)
+            queryset = self.paginate_queryset(BulkTransferRequest.objects.filter(query).exclude(approved_by__in=[mandate]), request)
             serializer = BulkTransferSerializerOut(queryset, many=True, context={"request": request}).data
             data = self.get_paginated_response(serializer).data
         return Response(data)
