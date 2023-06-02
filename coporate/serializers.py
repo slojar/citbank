@@ -105,7 +105,7 @@ class MandateSerializerOut(serializers.ModelSerializer):
                 "email": mandate.user.email,
                 "phone_number": mandate.phone_number,
                 "active": mandate.active
-            } for mandate in Mandate.objects.filter(institution=obj.institution).exclude(id=obj.id)]
+            } for mandate in Mandate.objects.filter(institution=obj.institution)]
         return data
 
     def get_bvn(self, obj):

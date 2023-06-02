@@ -105,6 +105,8 @@ class TransferRequestAPIView(APIView, CustomPagination):
             date_from = request.GET.get("date_from")
             date_to = request.GET.get("date_to")
             search = request.GET.get("search")
+            exc_ude = request.GET.get("exclude", "false")
+
 
             query = Q(institution=mandate.institution, transfer_option="single")
             if search:
@@ -123,7 +125,10 @@ class TransferRequestAPIView(APIView, CustomPagination):
                 else:
                     query &= Q(status=approval_status)
 
-            queryset = self.paginate_queryset(TransferRequest.objects.filter(query).exclude(approved_by__in=[mandate]), request)
+            if exc_ude == "true":
+                queryset = self.paginate_queryset(TransferRequest.objects.filter(query).exclude(approved_by__in=[mandate]), request)
+            else:
+                queryset = self.paginate_queryset(TransferRequest.objects.filter(query), request)
             serializer = TransferRequestSerializerOut(queryset, many=True, context={"request": request}).data
             data = self.get_paginated_response(serializer).data
         return Response(data)
@@ -254,6 +259,7 @@ class BulkTransferAPIView(APIView, CustomPagination):
             date_from = request.GET.get("date_from")
             approval_status = request.GET.get("status")  # checked, verified, approved
             date_to = request.GET.get("date_to")
+            exc_ude = request.GET.get("exclude", "false")
 
             query = Q(institution=mandate.institution)
 
@@ -267,7 +273,10 @@ class BulkTransferAPIView(APIView, CustomPagination):
                 if approval_status == "approved":
                     query &= Q(approved=True)
 
-            queryset = self.paginate_queryset(BulkTransferRequest.objects.filter(query).exclude(approved_by__in=[mandate]), request)
+            if exc_ude == "true":
+                queryset = self.paginate_queryset(BulkTransferRequest.objects.filter(query).exclude(approved_by__in=[mandate]), request)
+            else:
+                queryset = self.paginate_queryset(BulkTransferRequest.objects.filter(query), request)
             serializer = BulkTransferSerializerOut(queryset, many=True, context={"request": request}).data
             data = self.get_paginated_response(serializer).data
         return Response(data)
