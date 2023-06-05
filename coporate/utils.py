@@ -458,7 +458,7 @@ def retrieve_bill_payment(self, payment_type, company, bill_type, pk=None):
             )
             serializer = AirtimeSerializer(instance).data
         else:
-            query = Airtime.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type)
+            query = Airtime.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
             queryset = self.paginate_queryset(query, self.request)
             data = AirtimeSerializer(queryset, many=True).data
             serializer = self.get_paginated_response(data).data
@@ -470,7 +470,7 @@ def retrieve_bill_payment(self, payment_type, company, bill_type, pk=None):
             )
             serializer = DataSerializer(instance).data
         else:
-            query = Data.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type)
+            query = Data.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
             queryset = self.paginate_queryset(query, self.request)
             data = DataSerializer(queryset, many=True).data
             serializer = self.get_paginated_response(data).data
@@ -482,7 +482,7 @@ def retrieve_bill_payment(self, payment_type, company, bill_type, pk=None):
             )
             serializer = CableTVSerializer(instance).data
         else:
-            query = CableTV.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type)
+            query = CableTV.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
             queryset = self.paginate_queryset(query, self.request)
             data = CableTVSerializer(queryset, many=True).data
             serializer = self.get_paginated_response(data).data
@@ -494,7 +494,7 @@ def retrieve_bill_payment(self, payment_type, company, bill_type, pk=None):
             )
             serializer = ElectricitySerializer(instance).data
         else:
-            query = Electricity.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type)
+            query = Electricity.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
             queryset = self.paginate_queryset(query, self.request)
             data = ElectricitySerializer(queryset, many=True).data
             serializer = self.get_paginated_response(data).data

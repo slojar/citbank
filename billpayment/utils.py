@@ -192,5 +192,12 @@ def vend_electricity(bank, account_no, disco_type, meter_no, amount, phone_numbe
     return True, "vending was successful", token
 
 
+def simulate_transfer():
+    success = True
+    response = {
+        "IsSuccessful": True,
+        "ResponseCode": "00"
+    }
+    return success, response
 
 

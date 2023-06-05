@@ -101,18 +101,6 @@ def cable_tv_sub(bank, **kwargs):
                 "invoicePeriod": kwargs.get("duration"),
                 "smartcardNumber": kwargs.get("smart_card_no")
             })
-
-    # payload = dict()
-    # payload["provider"] = "cdl"
-    # payload["monthsPaidFor"] = kwargs.get("duration")
-    # payload["customerNumber"] = kwargs.get("customer_number")
-    # payload["amount"] = kwargs.get("amount")
-    # payload["customerName"] = kwargs.get("customer_name")
-    # payload["productCodes"] = kwargs.get("product_codes")
-    # payload["invoicePeriod"] = kwargs.get("duration")
-    # payload["smartcardNumber"] = kwargs.get("smart_card_no")
-    log_request(f"PAYLOAD FOR CABLE_TV\n{payload}")
-
     response = requests.request("POST", url=url, headers=header, data=payload).json()
     log_request("POST", f"url: {url}", f"header: {header}", f"payload: {payload}", f"response: {response}")
     return response

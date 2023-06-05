@@ -334,7 +334,9 @@ class CableTVAPIView(APIView):
 
         if success is False:
             log_request(f"error-message: {response}")
-            payment.response_message = response
+            if payment:
+                payment.response_message = response
+                payment.save()
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
@@ -344,7 +346,7 @@ class CableTVAPIView(APIView):
 
             cable_response = cable_tv_sub(
                 bank=customer.bank, service_name=service_name, duration=duration, customer_number=phone_number,
-                customer_name=customer_name, amount=amount, product_codes=product_codes,
+                customer_name=customer_name, amount=float(amount), product_codes=product_codes,
                 smart_card_no=smart_card_no
             )
 
