@@ -32,8 +32,8 @@ class Institution(models.Model):
 
 class Limit(models.Model):
     institution = models.OneToOneField(Institution, on_delete=models.SET_NULL, blank=True, null=True)
-    daily_limit = models.DecimalField(max_digits=20, decimal_places=2, default=200000)
-    transfer_limit = models.DecimalField(max_digits=20, decimal_places=2, default=100000)
+    daily_limit = models.DecimalField(max_digits=20, decimal_places=2, default=1000000)
+    transfer_limit = models.DecimalField(max_digits=20, decimal_places=2, default=500000)
     checked = models.BooleanField(default=False)
     verified = models.BooleanField(default=False)
     approved = models.BooleanField(default=False)

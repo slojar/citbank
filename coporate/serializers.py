@@ -95,6 +95,7 @@ class MandateSerializerOut(serializers.ModelSerializer):
     added_by = serializers.CharField(source="added_by.last_name")
     bvn = serializers.SerializerMethodField()
     other_signatories = serializers.SerializerMethodField()
+    limit = serializers.SerializerMethodField()
 
     def get_other_signatories(self, obj):
         data = None
@@ -112,6 +113,15 @@ class MandateSerializerOut(serializers.ModelSerializer):
         if obj.bvn:
             return decrypt_text(obj.bvn)
         return None
+
+    def get_limit(self, obj):
+        data = dict()
+        if Limit.objects.filter(institution_id=obj.institution_id).exists():
+            limit = Limit.objects.filter(institution_id=obj.institution_id).last()
+            data["id"] = limit.id
+            data["daily_transfer_limit"] = limit.daily_limit
+            data["total_transfer_limit"] = limit.transfer_limit
+        return data
 
     class Meta:
         model = Mandate
@@ -158,6 +168,9 @@ class InstitutionSerializerIn(serializers.Serializer):
         institution.account_no = account_no
         institution.created_by = request.user
         institution.save()
+
+        # Create Limit
+        limit, _ = Limit.objects.get_or_create(institution=institution)
 
         return InstitutionSerializerOut(institution, context=self.context).data
 

@@ -2,6 +2,7 @@ from django.db import models
 
 from account.models import Bank
 from coporate.choices import TRANSFER_REQUEST_OPTION, TRANSFER_REQUEST_STATUS, TRANSACTION_TYPE
+from coporate.models import Mandate
 
 REVERSAL_STATUS = (
     ("completed", "Completed"), ("pending", "Pending")
@@ -17,6 +18,8 @@ class BulkBillPayment(models.Model):
     amount = models.FloatField(default=0.0)
     status = models.CharField(max_length=100, choices=TRANSFER_REQUEST_STATUS, default="pending")
     decline_reason = models.CharField(max_length=250, blank=True, null=True)
+    approved_by = models.ManyToManyField(Mandate, blank=True, related_name="bulk_bill_approved")
+    declined_by = models.ManyToManyField(Mandate, blank=True, related_name="bulk_bill_declined")
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
@@ -44,6 +47,8 @@ class Airtime(models.Model):
     checked = models.BooleanField(default=False)
     verified = models.BooleanField(default=False)
     approved = models.BooleanField(default=False)
+    approved_by = models.ManyToManyField(Mandate, blank=True, related_name="airtime_approved")
+    declined_by = models.ManyToManyField(Mandate, blank=True, related_name="airtime_declined")
     created_on = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -68,6 +73,8 @@ class Data(models.Model):
     transaction_status = models.CharField(max_length=20, choices=TRANSFER_REQUEST_STATUS, default="pending")
     decline_reason = models.CharField(max_length=250, blank=True, null=True)
     response_message = models.CharField(max_length=300, blank=True, null=True)
+    approved_by = models.ManyToManyField(Mandate, blank=True, related_name="data_approved")
+    declined_by = models.ManyToManyField(Mandate, blank=True, related_name="data_declined")
     checked = models.BooleanField(default=False)
     verified = models.BooleanField(default=False)
     approved = models.BooleanField(default=False)
@@ -97,6 +104,8 @@ class CableTV(models.Model):
     transaction_status = models.CharField(max_length=20, choices=TRANSFER_REQUEST_STATUS, default="pending")
     decline_reason = models.CharField(max_length=250, blank=True, null=True)
     response_message = models.CharField(max_length=300, blank=True, null=True)
+    approved_by = models.ManyToManyField(Mandate, blank=True, related_name="cable_approved")
+    declined_by = models.ManyToManyField(Mandate, blank=True, related_name="cable_declined")
     checked = models.BooleanField(default=False)
     verified = models.BooleanField(default=False)
     approved = models.BooleanField(default=False)
@@ -126,6 +135,8 @@ class Electricity(models.Model):
     transaction_status = models.CharField(max_length=20, choices=TRANSFER_REQUEST_STATUS, default="pending")
     decline_reason = models.CharField(max_length=250, blank=True, null=True)
     response_message = models.CharField(max_length=300, blank=True, null=True)
+    approved_by = models.ManyToManyField(Mandate, blank=True, related_name="elect_approved")
+    declined_by = models.ManyToManyField(Mandate, blank=True, related_name="elect_declined")
     checked = models.BooleanField(default=False)
     verified = models.BooleanField(default=False)
     approved = models.BooleanField(default=False)

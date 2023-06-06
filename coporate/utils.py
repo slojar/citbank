@@ -190,6 +190,7 @@ def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=No
 
         if action == "approve":
             tran_req.approved = True
+            tran_req.verified = True
             tran_req.approved_by.add(mandate)
             tran_req.status = "approved"
             # Send email to all mandate
@@ -446,8 +447,9 @@ def create_bill_payment(data, acct_no, phone_, amount, payment_type, company, re
     return serializer
 
 
-def retrieve_bill_payment(self, payment_type, company, bill_type, pk=None):
+def retrieve_bill_payment(self, payment_type, mandate, bill_type, ex_ude, pk=None):
     option = "single"
+    company = mandate.institution
     if bill_type == "bulk":
         option = "bulk"
     trans_type = "corporate"
@@ -458,7 +460,14 @@ def retrieve_bill_payment(self, payment_type, company, bill_type, pk=None):
             )
             serializer = AirtimeSerializer(instance).data
         else:
-            query = Airtime.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
+            if ex_ude == "true":
+                query = \
+                    Airtime.objects.filter(
+                        institution=company, transaction_option=option, transaction_type=trans_type).exclude(
+                        approved_by__in=[mandate], declined_by__in=[mandate]).order_by("-id")
+            else:
+                query = Airtime.objects.filter(
+                    institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
             queryset = self.paginate_queryset(query, self.request)
             data = AirtimeSerializer(queryset, many=True).data
             serializer = self.get_paginated_response(data).data
@@ -470,7 +479,14 @@ def retrieve_bill_payment(self, payment_type, company, bill_type, pk=None):
             )
             serializer = DataSerializer(instance).data
         else:
-            query = Data.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
+            if ex_ude == "true":
+                query = \
+                    Data.objects.filter(
+                        institution=company, transaction_option=option, transaction_type=trans_type).exclude(
+                        approved_by__in=[mandate], declined_by__in=[mandate]).order_by("-id")
+            else:
+                query = Data.objects.filter(
+                    institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
             queryset = self.paginate_queryset(query, self.request)
             data = DataSerializer(queryset, many=True).data
             serializer = self.get_paginated_response(data).data
@@ -482,7 +498,14 @@ def retrieve_bill_payment(self, payment_type, company, bill_type, pk=None):
             )
             serializer = CableTVSerializer(instance).data
         else:
-            query = CableTV.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
+            if ex_ude == "true":
+                query = \
+                    CableTV.objects.filter(
+                        institution=company, transaction_option=option, transaction_type=trans_type).exclude(
+                        approved_by__in=[mandate], declined_by__in=[mandate]).order_by("-id")
+            else:
+                query = CableTV.objects.filter(
+                    institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
             queryset = self.paginate_queryset(query, self.request)
             data = CableTVSerializer(queryset, many=True).data
             serializer = self.get_paginated_response(data).data
@@ -494,7 +517,14 @@ def retrieve_bill_payment(self, payment_type, company, bill_type, pk=None):
             )
             serializer = ElectricitySerializer(instance).data
         else:
-            query = Electricity.objects.filter(institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
+            if ex_ude == "true":
+                query = \
+                    Electricity.objects.filter(
+                        institution=company, transaction_option=option, transaction_type=trans_type).exclude(
+                        approved_by__in=[mandate], declined_by__in=[mandate]).order_by("-id")
+            else:
+                query = Electricity.objects.filter(
+                    institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
             queryset = self.paginate_queryset(query, self.request)
             data = ElectricitySerializer(queryset, many=True).data
             serializer = self.get_paginated_response(data).data
@@ -521,6 +551,7 @@ def verify_approve_bill_payment(request, payment_req, mandate, bill_type, paymen
         next_level = Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).order_by("-level").first().level
     if current_level == 1:
         payment_req.checked = True
+        payment_req.approved_by.add(mandate)
         # Send email to verifiers
         for mandate_ in Mandate.objects.filter(institution=mandate.institution, level=next_level):
             Thread(target=send_approval_notification_request, args=[mandate_]).start()
@@ -537,12 +568,14 @@ def verify_approve_bill_payment(request, payment_req, mandate, bill_type, paymen
 
         if action == "approve":
             payment_req.verified = True
+            payment_req.approved_by.add(mandate)
             # Send email to authorizers
             for _mandate in Mandate.objects.filter(institution=mandate.institution, level=next_level):
                 Thread(target=send_approval_notification_request, args=[_mandate]).start()
         if action == "decline":
             # Set rejection reason
             payment_req.decline_reason = reject_reason
+            payment_req.declined_by.add(mandate)
             payment_req.status = "declined"
 
     else:
@@ -552,7 +585,9 @@ def verify_approve_bill_payment(request, payment_req, mandate, bill_type, paymen
             raise InvalidRequestException({"detail": "Cannot approve, request has recently been approved"})
 
         if action == "approve":
+            payment_req.verified = True
             payment_req.approved = True
+            payment_req.approved_by.add(mandate)
             payment_req.status = "approved"
             # Send email to all mandate
             for _mandates in Mandate.objects.filter(institution=mandate.institution):
@@ -562,6 +597,7 @@ def verify_approve_bill_payment(request, payment_req, mandate, bill_type, paymen
 
         if action == "decline":
             payment_req.status = "declined"
+            payment_req.declined_by.add(mandate)
             payment_req.decline_reason = reject_reason
 
     payment_req.save()

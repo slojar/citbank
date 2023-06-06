@@ -96,18 +96,17 @@ class TransferRequestAPIView(APIView, CustomPagination):
     permission_classes = [IsMandate]
 
     def get(self, request, pk=None):
+        approval_status = request.GET.get("status")  # checked, verified, approved
+        date_from = request.GET.get("date_from")
+        date_to = request.GET.get("date_to")
+        search = request.GET.get("search")
+        exc_ude = request.GET.get("exclude", "false")
+
         mandate = get_object_or_404(Mandate, user=request.user)
         if pk:
             req = get_object_or_404(TransferRequest, id=pk, institution=mandate.institution, transfer_option="single")
             data = TransferRequestSerializerOut(req, context={"request": request}).data
         else:
-            approval_status = request.GET.get("status")  # checked, verified, approved
-            date_from = request.GET.get("date_from")
-            date_to = request.GET.get("date_to")
-            search = request.GET.get("search")
-            exc_ude = request.GET.get("exclude", "false")
-
-
             query = Q(institution=mandate.institution, transfer_option="single")
             if search:
                 query &= Q(account_no__iexact=search) | Q(beneficiary_acct__iexact=search) | \
@@ -126,7 +125,8 @@ class TransferRequestAPIView(APIView, CustomPagination):
                     query &= Q(status=approval_status)
 
             if exc_ude == "true":
-                queryset = self.paginate_queryset(TransferRequest.objects.filter(query).exclude(approved_by__in=[mandate]), request)
+                queryset = self.paginate_queryset(TransferRequest.objects.filter(
+                    query).exclude(approved_by__in=[mandate], declined_by__in=[mandate]), request)
             else:
                 queryset = self.paginate_queryset(TransferRequest.objects.filter(query), request)
             serializer = TransferRequestSerializerOut(queryset, many=True, context={"request": request}).data
@@ -295,7 +295,8 @@ class CorporateBillPaymentAPIView(APIView, CustomPagination):
         mandate = get_object_or_404(Mandate, user=request.user)
         payment_type = request.GET.get("payment_type")
         bulk_payment = request.GET.get("bill_option")
-        data = retrieve_bill_payment(self, payment_type, mandate.institution, bulk_payment, pk)
+        exc_ude = request.GET.get("exclude", "false")
+        data = retrieve_bill_payment(self, payment_type, mandate, bulk_payment, exc_ude, pk)
         return Response(data)
 
     def post(self, request):
