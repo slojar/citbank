@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from account.models import CustomerAccount
-from .models import Mandate, Institution, TransferRequest, TransferScheduler, BulkUploadFile, BulkTransferRequest
+from .models import Mandate, Institution, TransferRequest, TransferScheduler, BulkUploadFile, BulkTransferRequest, Limit
 
 
 class MandateInlineAdmin(admin.TabularInline):
@@ -12,8 +12,12 @@ class MandateAccountInlineAdmin(admin.TabularInline):
     model = CustomerAccount
 
 
+class LimitInlineAdmin(admin.TabularInline):
+    model = Limit
+
+
 class InstitutionModelAdmin(admin.ModelAdmin):
-    inlines = [MandateInlineAdmin, MandateAccountInlineAdmin]
+    inlines = [MandateInlineAdmin, MandateAccountInlineAdmin, LimitInlineAdmin]
     list_display = ["name", "code", "account_no", "created_on"]
     search_fields = ["name", "code", "account_no"]
 
