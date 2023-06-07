@@ -30,20 +30,6 @@ class Institution(models.Model):
         return f"{self.name} - {self.account_no}"
 
 
-class Limit(models.Model):
-    institution = models.OneToOneField(Institution, on_delete=models.SET_NULL, blank=True, null=True)
-    daily_limit = models.DecimalField(max_digits=20, decimal_places=2, default=1000000)
-    transfer_limit = models.DecimalField(max_digits=20, decimal_places=2, default=500000)
-    checked = models.BooleanField(default=False)
-    verified = models.BooleanField(default=False)
-    approved = models.BooleanField(default=False)
-    created_on = models.DateTimeField(auto_now_add=True)
-    updated_on = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"{self.institution.name}"
-
-
 class Mandate(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     institution = models.ForeignKey(Institution, on_delete=models.SET_NULL, null=True)
@@ -61,6 +47,22 @@ class Mandate(models.Model):
 
     def __str__(self):
         return f"{self.user}: {self.level}"
+
+
+class Limit(models.Model):
+    institution = models.OneToOneField(Institution, on_delete=models.SET_NULL, blank=True, null=True)
+    daily_limit = models.DecimalField(max_digits=20, decimal_places=2, default=1000000)
+    transfer_limit = models.DecimalField(max_digits=20, decimal_places=2, default=500000)
+    checked = models.BooleanField(default=False)
+    verified = models.BooleanField(default=False)
+    approved = models.BooleanField(default=False)
+    approved_by = models.ManyToManyField(Mandate, blank=True, related_name="limit_approved")
+    declined_by = models.ManyToManyField(Mandate, blank=True, related_name="limit_declined")
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.institution.name}"
 
 
 class TransferScheduler(models.Model):

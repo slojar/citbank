@@ -71,6 +71,13 @@ def update_transaction_limits(request, mandate):
     from .notifications import send_approval_notification_request
     daily_limit = request.data.get("daily_limit")
     transfer_limit = request.data.get("transfer_limit")
+    # reject_reason = request.data.get("reason")
+    action = request.data.get("action")
+
+    accepted_action = ["approve", "decline"]
+
+    if action not in accepted_action:
+        raise InvalidRequestException({"detail": "Selected action is not valid"})
 
     limit = mandate.institution.limit
     # get next_level
@@ -85,16 +92,27 @@ def update_transaction_limits(request, mandate):
         limit.verified = False
         limit.approved = False
         limit.save()
+        limit.approved_by.add(mandate)
         return limit
 
     upper_level = check_upper_level_exist(mandate)
     # Send email to next authorizer
     if upper_level:
-        limit.verified = True
-        for mandate_ in Mandate.objects.filter(institution=mandate.institution, level=next_level):
-            Thread(target=send_approval_notification_request, args=[mandate_]).start()
+        if action == "decline":
+            limit.declined_by.add(mandate)
+        if action == "approve":
+            limit.verified = True
+            limit.approved_by.add(mandate)
+            for mandate_ in Mandate.objects.filter(institution=mandate.institution, level=next_level):
+                Thread(target=send_approval_notification_request, args=[mandate_]).start()
     else:
-        limit.approved = True
+        if not limit.verified:
+            raise InvalidRequestException({"detail": "Limit is not yet verified"})
+        if action == "decline":
+            limit.declined_by.add(mandate)
+        if action == "approve":
+            limit.approved_by.add(mandate)
+            limit.approved = True
 
     limit.save()
     return limit
