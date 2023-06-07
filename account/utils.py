@@ -515,9 +515,10 @@ def perform_bank_transfer(bank, request):
                                                        institution__bank=bank).count()
 
     # Narration max is 100 char, Reference max is 12 char, amount should be in kobo (i.e multiply by 100)
-    narration = ""
+
+    narration = f"Trf to {beneficiary_name}"[:100]
     if description:
-        narration = description[:100]
+        narration = f"{narration}/{description}"[:100]
 
     if bank.short_name in bank_one_banks:
         app_zone_acct = ""
