@@ -597,7 +597,7 @@ def verify_approve_bill_payment(request, payment_req, mandate, bill_type, paymen
             payment_req.status = "declined"
 
     else:
-        if not payment_req.verified or not payment_req.checked:
+        if not payment_req.checked:
             raise InvalidRequestException({"detail": "Cannot approve, request is awaiting check or verification"})
         if payment_req.approved:
             raise InvalidRequestException({"detail": "Cannot approve, request has recently been approved"})
