@@ -201,7 +201,7 @@ def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=No
             tran_req.status = "declined"
 
     else:
-        if not tran_req.verified or not tran_req.checked:
+        if tran_req.checked:
             raise InvalidRequestException({"detail": "Cannot approve, request is awaiting check or verification"})
         if tran_req.approved:
             raise InvalidRequestException({"detail": "Cannot approve, request has recently been approved"})
