@@ -295,7 +295,7 @@ class CorporateBillPaymentAPIView(APIView, CustomPagination):
         mandate = get_object_or_404(Mandate, user=request.user)
         payment_type = request.GET.get("payment_type")
         bulk_payment = request.GET.get("bill_option")
-        exc_ude = request.GET.get("exclude", "false")
+        exc_ude = request.GET.get("exclude")
         data = retrieve_bill_payment(self, payment_type, mandate, bulk_payment, exc_ude, pk)
         return Response(data)
 
