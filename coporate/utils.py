@@ -468,87 +468,47 @@ def create_bill_payment(data, acct_no, phone_, amount, payment_type, company, re
 def retrieve_bill_payment(self, payment_type, mandate, bill_type, ex_ude, pk=None):
     option = "single"
     company = mandate.institution
+    trans_type = "corporate"
+    query = None
+    serializer = None
+
     if bill_type == "bulk":
         option = "bulk"
-    trans_type = "corporate"
+
     if payment_type == "airtime":
-        if pk:
-            instance = get_object_or_404(
-                Airtime, id=pk, institution=company, transaction_option=option, transaction_type=trans_type
-            )
-            serializer = AirtimeSerializer(instance).data
-        else:
-            if ex_ude == "true":
-                query = \
-                    Airtime.objects.filter(
-                        institution=company, transaction_option=option, transaction_type=trans_type).exclude(
-                        approved_by__in=[mandate], declined_by__in=[mandate]).order_by("-id")
-            else:
-                query = Airtime.objects.filter(
-                    institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
-            queryset = self.paginate_queryset(query, self.request)
-            data = AirtimeSerializer(queryset, many=True).data
-            serializer = self.get_paginated_response(data).data
-
+        ModelClass = Airtime
+        SerializerClass = AirtimeSerializer
     elif payment_type == "data":
-        if pk:
-            instance = get_object_or_404(
-                Data, id=pk, institution=company, transaction_option=option, transaction_type=trans_type
-            )
-            serializer = DataSerializer(instance).data
-        else:
-            if ex_ude == "true":
-                query = \
-                    Data.objects.filter(
-                        institution=company, transaction_option=option, transaction_type=trans_type).exclude(
-                        approved_by__in=[mandate], declined_by__in=[mandate]).order_by("-id")
-            else:
-                query = Data.objects.filter(
-                    institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
-            queryset = self.paginate_queryset(query, self.request)
-            data = DataSerializer(queryset, many=True).data
-            serializer = self.get_paginated_response(data).data
-
+        ModelClass = Data
+        SerializerClass = DataSerializer
     elif payment_type == "cable_tv":
-        if pk:
-            instance = get_object_or_404(
-                CableTV, id=pk, institution=company, transaction_option=option, transaction_type=trans_type
-            )
-            serializer = CableTVSerializer(instance).data
-        else:
-            if ex_ude == "true":
-                query = \
-                    CableTV.objects.filter(
-                        institution=company, transaction_option=option, transaction_type=trans_type).exclude(
-                        approved_by__in=[mandate], declined_by__in=[mandate]).order_by("-id")
-            else:
-                query = CableTV.objects.filter(
-                    institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
-            queryset = self.paginate_queryset(query, self.request)
-            data = CableTVSerializer(queryset, many=True).data
-            serializer = self.get_paginated_response(data).data
-
+        ModelClass = CableTV
+        SerializerClass = CableTVSerializer
     elif payment_type == "electricity":
-        if pk:
-            instance = get_object_or_404(
-                Electricity, id=pk, institution=company, transaction_option=option, transaction_type=trans_type
-            )
-            serializer = ElectricitySerializer(instance).data
-        else:
-            if ex_ude == "true":
-                query = \
-                    Electricity.objects.filter(
-                        institution=company, transaction_option=option, transaction_type=trans_type).exclude(
-                        approved_by__in=[mandate], declined_by__in=[mandate]).order_by("-id")
-            else:
-                query = Electricity.objects.filter(
-                    institution=company, transaction_option=option, transaction_type=trans_type).order_by("-id")
-            queryset = self.paginate_queryset(query, self.request)
-            data = ElectricitySerializer(queryset, many=True).data
-            serializer = self.get_paginated_response(data).data
-
+        ModelClass = Electricity
+        SerializerClass = ElectricitySerializer
     else:
         raise InvalidRequestException({"detail": "Please select a valid payment type"})
+
+    if pk:
+        instance = get_object_or_404(
+            ModelClass, id=pk, institution=company, transaction_option=option, transaction_type=trans_type
+        )
+        serializer = SerializerClass(instance).data
+    else:
+        if ex_ude == "true":
+            query = ModelClass.objects.filter(
+                institution=company, transaction_option=option, transaction_type=trans_type
+            ).exclude(approved_by__in=[mandate], declined_by__in=[mandate]).order_by("-id")
+        else:
+            query = ModelClass.objects.filter(
+                institution=company, transaction_option=option, transaction_type=trans_type
+            ).order_by("-id")
+
+        if query is not None:
+            queryset = self.paginate_queryset(query, self.request)
+            data = SerializerClass(queryset, many=True).data
+            serializer = self.get_paginated_response(data).data
 
     return serializer
 
