@@ -641,12 +641,10 @@ def get_institution_balance(trans_req):
 
 
 def corporate_vending(request, trans_req, payment_type):
-    authorization_header = request.META.get('HTTP_AUTHORIZATION', '')
-    log_request(f"AUTH_HEADER:\n{authorization_header}")
-    # url = reverse('app_name:view_name', kwargs={'param': 'value'}, extra={'Authorization': 'Bearer your_token'})
+    request_headers = {"Authorization": request.META.get('HTTP_AUTHORIZATION', '')}
 
     if payment_type == "airtime":
-        url = request.build_absolute_uri(reverse('billpayment:recharge', extra={'Authorization': authorization_header}))
+        url = request.build_absolute_uri(reverse('billpayment:recharge'))
         payload = json.dumps({
             "sender_type": "corporate",
             "bill_id": str(trans_req.id),
@@ -656,51 +654,51 @@ def corporate_vending(request, trans_req, payment_type):
             "account_no": str(trans_req.account_no),
             "amount": str(trans_req.amount)
         })
-        response = requests.post(url=url, data=payload)
+        response = requests.post(url=url, data=payload, headers=request_headers)
         log_request(f"Airtime from corporate account ---->>> payload: {payload}\nresponse: {response}")
 
     elif payment_type == "data":
         url = request.build_absolute_uri(reverse('billpayment:recharge'))
         payload = json.dumps({
-            "plan_id": trans_req.plan_id,
+            "plan_id": str(trans_req.plan_id),
             "sender_type": "corporate",
-            "bill_id": trans_req.id,
+            "bill_id": str(trans_req.id),
             "purchase_type": "data",
-            "phone_number": trans_req.beneficiary,
-            "network": trans_req.network,
-            "account_no": trans_req.account_no,
-            "amount": trans_req.amount
+            "phone_number": str(trans_req.beneficiary),
+            "network": str(trans_req.network),
+            "account_no": str(trans_req.account_no),
+            "amount": str(trans_req.amount)
         })
-        response = requests.post(url=url, data=payload)
+        response = requests.post(url=url, data=payload, headers=request_headers)
         log_request(f"Data from corporate account ---->>> payload: {payload}\nresponse: {response}")
     elif payment_type == "cable_tv":
         url = request.build_absolute_uri(reverse('billpayment:cable_tv'))
         payload = json.dumps({
-            "account_no": trans_req.account_no,
-            "service_name": trans_req.service_name,
-            "duration": trans_req.months,
-            "phone_number": trans_req.phone_number,
-            "amount": trans_req.amount,
-            "customer_name": trans_req.customer_name,
-            "product_codes": trans_req.product,
-            "smart_card_no": trans_req.smart_card_no,
+            "account_no": str(trans_req.account_no),
+            "service_name": str(trans_req.service_name),
+            "duration": str(trans_req.months),
+            "phone_number": str(trans_req.phone_number),
+            "amount": str(trans_req.amount),
+            "customer_name": str(trans_req.customer_name),
+            "product_codes": str(trans_req.product),
+            "smart_card_no": str(trans_req.smart_card_no),
             "sender_type": "corporate",
-            "bill_id": trans_req.id
+            "bill_id": str(trans_req.id)
         })
-        response = requests.post(url=url, data=payload)
+        response = requests.post(url=url, data=payload, headers=request_headers)
         log_request(f"CableTV from corporate account ---->>> payload: {payload}\nresponse: {response}")
     elif payment_type == "electricity":
         payload = json.dumps({
-            "disco_type": trans_req.disco_type,
-            "account_no": trans_req.account_no,
-            "meter_no": trans_req.meter_number,
-            "amount": trans_req.amount,
-            "phone_no": trans_req.phone_number,
+            "disco_type": str(trans_req.disco_type),
+            "account_no": str(trans_req.account_no),
+            "meter_no": str(trans_req.meter_number),
+            "amount": str(trans_req.amount),
+            "phone_no": str(trans_req.phone_number),
             "sender_type": "corporate",
-            "bill_id": trans_req.id,
+            "bill_id": str(trans_req.id),
         })
         url = request.build_absolute_uri(reverse('billpayment:electricity'))
-        response = requests.post(url=url, data=payload)
+        response = requests.post(url=url, data=payload, headers=request_headers)
         log_request(f"Electricity from corporate account ---->>> payload: {payload}\nresponse: {response}")
     else:
         log_request(f"Invalid payment type ---->> {payment_type}")
