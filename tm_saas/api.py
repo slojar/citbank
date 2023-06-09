@@ -90,7 +90,12 @@ def validate_scn(bank, service_name, scn):
 
 def cable_tv_sub(bank, **kwargs):
     url = f"{baseUrl}/{kwargs.get('service_name')}"
-    header = get_header(bank)
+    # header = get_header(bank)
+    header = {
+        "client-id": decrypt_text(bank.tm_service_id),
+        "Content-Type": "application/json"
+    }
+
     payload = json.dumps({
                 "provider": "cdl",
                 "monthsPaidFor": kwargs.get("duration"),

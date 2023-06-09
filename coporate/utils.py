@@ -645,12 +645,12 @@ def corporate_vending(request, trans_req, payment_type):
         url = request.build_absolute_uri(reverse('billpayment:recharge'))
         payload = json.dumps({
             "sender_type": "corporate",
-            "bill_id": trans_req.id,
+            "bill_id": str(trans_req.id),
             "purchase_type": "airtime",
-            "phone_number": trans_req.beneficiary,
-            "network": trans_req.network,
-            "account_no": trans_req.account_no,
-            "amount": trans_req.amount
+            "phone_number": str(trans_req.beneficiary),
+            "network": str(trans_req.network),
+            "account_no": str(trans_req.account_no),
+            "amount": str(trans_req.amount)
         })
         response = requests.post(url=url, data=payload)
         log_request(f"Airtime from corporate account ---->>> payload: {payload}\nresponse: {response}")
