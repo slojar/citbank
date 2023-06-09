@@ -108,9 +108,9 @@ class AirtimeDataPurchaseAPIView(APIView):
         if sender_type == "corporate":
             try:
                 if purchase_type == "airtime":
-                    payment = Airtime.objects.get(id=bill_id, approved=True, status="pending")
+                    payment = Airtime.objects.get(id=bill_id, approved=True)
                 if purchase_type == "data":
-                    payment = Data.objects.get(id=bill_id, approved=True, status="pending")
+                    payment = Data.objects.get(id=bill_id, approved=True)
 
             except Exception as err:
                 return Response({"detail": "An error has occurred", "error": str(err)},
@@ -316,7 +316,7 @@ class CableTVAPIView(APIView):
 
         elif sender_type == "corporate":
             try:
-                payment = CableTV.objects.get(id=bill_id, approved=True, status="pending")
+                payment = CableTV.objects.get(id=bill_id, approved=True)
                 institution = payment.institution
             except Exception as ex:
                 return Response({"detail": "An error has occurred", "error": str(ex)},
@@ -523,7 +523,7 @@ class ElectricityAPIView(APIView):
 
         elif sender_type == "corporate":
             try:
-                payment = Electricity.objects.get(id=bill_id, approved=True, status="pending")
+                payment = Electricity.objects.get(id=bill_id, approved=True)
                 institution = payment.institution
             except Exception as ex:
                 return Response({"detail": "An error has occurred", "error": str(ex)},
