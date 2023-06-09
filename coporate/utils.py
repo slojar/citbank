@@ -281,24 +281,26 @@ def perform_corporate_transfer(request, trans_req, transfer_type):
     request_headers = {"Authorization": request.META.get('HTTP_AUTHORIZATION', ''), "Content-Type": "application/json"}
     if transfer_type == "bulk":
         transfer_requests = TransferRequest.objects.filter(bulk_transfer=trans_req, transfer_option="bulk")
+        # update transfer request
+        transfer_requests.update(verified=True, approved=True)
         for trans_request in transfer_requests:
             url = request.build_absolute_uri(
                 reverse('account:transfer', kwargs={'bank_id': trans_req.institution.bank_id}))
             payload = json.dumps({
                 "sender_type": "corporate",
-                "transfer_id": trans_request.id
+                "transfer_id": str(trans_request.id)
             })
             response = requests.post(url=url, data=payload, headers=request_headers)
-            log_request(f"Transfer from corporate account ---->>> {response}")
+            log_request(f"Transfer from corporate account ---->>> {response.text}")
         return True
 
     host = request.build_absolute_uri(reverse('account:transfer', kwargs={'bank_id': trans_req.institution.bank_id}))
     payload = json.dumps({
         "sender_type": "corporate",
-        "transfer_id": trans_req.id
+        "transfer_id": str(trans_req.id)
     })
     response = requests.post(url=host, data=payload, headers=request_headers)
-    log_request(f"Transfer from corporate account ---->>> {response}")
+    log_request(f"Transfer from corporate account ---->>> {response.text}")
     return True
 
 
