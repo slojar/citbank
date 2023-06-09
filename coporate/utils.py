@@ -211,6 +211,7 @@ def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=No
             tran_req.verified = True
             tran_req.approved_by.add(mandate)
             tran_req.status = "approved"
+            tran_req.save()
             # Send email to all mandate
             for _mandates in Mandate.objects.filter(institution=mandate.institution):
                 Thread(target=send_successful_transfer_email, args=[_mandates, tran_req]).start()
@@ -277,6 +278,7 @@ def change_password(mandate, data):
 
 
 def perform_corporate_transfer(request, trans_req, transfer_type):
+    request_headers = {"Authorization": request.META.get('HTTP_AUTHORIZATION', ''), "Content-Type": "application/json"}
     if transfer_type == "bulk":
         transfer_requests = TransferRequest.objects.filter(bulk_transfer=trans_req, transfer_option="bulk")
         for trans_request in transfer_requests:
@@ -286,7 +288,7 @@ def perform_corporate_transfer(request, trans_req, transfer_type):
                 "sender_type": "corporate",
                 "transfer_id": trans_request.id
             })
-            response = requests.post(url=url, data=payload)
+            response = requests.post(url=url, data=payload, headers=request_headers)
             log_request(f"Transfer from corporate account ---->>> {response}")
         return True
 
@@ -295,7 +297,7 @@ def perform_corporate_transfer(request, trans_req, transfer_type):
         "sender_type": "corporate",
         "transfer_id": trans_req.id
     })
-    response = requests.post(url=host, data=payload)
+    response = requests.post(url=host, data=payload, headers=request_headers)
     log_request(f"Transfer from corporate account ---->>> {response}")
     return True
 
