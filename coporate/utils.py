@@ -647,7 +647,7 @@ def corporate_vending(request, trans_req, payment_type):
         url = request.build_absolute_uri(reverse('billpayment:recharge'))
         payload = json.dumps({
             "sender_type": "corporate",
-            "bill_id": str(trans_req.id),
+            "bill_id": int(trans_req.id),
             "purchase_type": "airtime",
             "phone_number": str(trans_req.beneficiary),
             "network": str(trans_req.network),
@@ -662,7 +662,7 @@ def corporate_vending(request, trans_req, payment_type):
         payload = json.dumps({
             "plan_id": str(trans_req.plan_id),
             "sender_type": "corporate",
-            "bill_id": str(trans_req.id),
+            "bill_id": int(trans_req.id),
             "purchase_type": "data",
             "phone_number": str(trans_req.beneficiary),
             "network": str(trans_req.network),
@@ -683,7 +683,7 @@ def corporate_vending(request, trans_req, payment_type):
             "product_codes": str(trans_req.product),
             "smart_card_no": str(trans_req.smart_card_no),
             "sender_type": "corporate",
-            "bill_id": str(trans_req.id)
+            "bill_id": int(trans_req.id)
         })
         response = requests.post(url=url, data=payload, headers=request_headers)
         log_request(f"CableTV from corporate account ---->>> payload: {payload}\nresponse: {response.text}")
@@ -695,7 +695,7 @@ def corporate_vending(request, trans_req, payment_type):
             "amount": str(trans_req.amount),
             "phone_no": str(trans_req.phone_number),
             "sender_type": "corporate",
-            "bill_id": str(trans_req.id),
+            "bill_id": int(trans_req.id),
         })
         url = request.build_absolute_uri(reverse('billpayment:electricity'))
         response = requests.post(url=url, data=payload, headers=request_headers)
