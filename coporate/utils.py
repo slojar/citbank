@@ -641,8 +641,12 @@ def get_institution_balance(trans_req):
 
 
 def corporate_vending(request, trans_req, payment_type):
+    authorization_header = request.META.get('HTTP_AUTHORIZATION', '')
+    log_request(f"AUTH_HEADER:\n{authorization_header}")
+    # url = reverse('app_name:view_name', kwargs={'param': 'value'}, extra={'Authorization': 'Bearer your_token'})
+
     if payment_type == "airtime":
-        url = request.build_absolute_uri(reverse('billpayment:recharge'))
+        url = request.build_absolute_uri(reverse('billpayment:recharge', extra={'Authorization': authorization_header}))
         payload = json.dumps({
             "sender_type": "corporate",
             "bill_id": str(trans_req.id),
