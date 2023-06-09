@@ -108,6 +108,7 @@ class AirtimeDataPurchaseAPIView(APIView):
         if sender_type == "corporate":
             try:
                 if purchase_type == "airtime":
+                    log_request(f"The Payload: {request.data}")
                     payment = Airtime.objects.get(id=int(bill_id), approved=True)
                 if purchase_type == "data":
                     payment = Data.objects.get(id=int(bill_id), approved=True)
