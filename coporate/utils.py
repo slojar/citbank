@@ -655,7 +655,7 @@ def corporate_vending(request, trans_req, payment_type):
             "amount": str(trans_req.amount)
         })
         response = requests.post(url=url, data=payload, headers=request_headers)
-        log_request(f"Airtime from corporate account ---->>> payload: {payload}\nresponse: {response}")
+        log_request(f"Airtime from corporate account ---->>> payload: {payload}\nresponse: {response.text}")
 
     elif payment_type == "data":
         url = request.build_absolute_uri(reverse('billpayment:recharge'))
@@ -670,7 +670,7 @@ def corporate_vending(request, trans_req, payment_type):
             "amount": str(trans_req.amount)
         })
         response = requests.post(url=url, data=payload, headers=request_headers)
-        log_request(f"Data from corporate account ---->>> payload: {payload}\nresponse: {response}")
+        log_request(f"Data from corporate account ---->>> payload: {payload}\nresponse: {response.text}")
     elif payment_type == "cable_tv":
         url = request.build_absolute_uri(reverse('billpayment:cable_tv'))
         payload = json.dumps({
@@ -686,7 +686,7 @@ def corporate_vending(request, trans_req, payment_type):
             "bill_id": str(trans_req.id)
         })
         response = requests.post(url=url, data=payload, headers=request_headers)
-        log_request(f"CableTV from corporate account ---->>> payload: {payload}\nresponse: {response}")
+        log_request(f"CableTV from corporate account ---->>> payload: {payload}\nresponse: {response.text}")
     elif payment_type == "electricity":
         payload = json.dumps({
             "disco_type": str(trans_req.disco_type),
@@ -699,7 +699,7 @@ def corporate_vending(request, trans_req, payment_type):
         })
         url = request.build_absolute_uri(reverse('billpayment:electricity'))
         response = requests.post(url=url, data=payload, headers=request_headers)
-        log_request(f"Electricity from corporate account ---->>> payload: {payload}\nresponse: {response}")
+        log_request(f"Electricity from corporate account ---->>> payload: {payload}\nresponse: {response.text}")
     else:
         log_request(f"Invalid payment type ---->> {payment_type}")
         return True
