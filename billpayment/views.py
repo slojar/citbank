@@ -108,10 +108,9 @@ class AirtimeDataPurchaseAPIView(APIView):
         if sender_type == "corporate":
             try:
                 if purchase_type == "airtime":
-                    log_request(f"The Payload: {request.data}")
-                    payment = Airtime.objects.get(id=int(bill_id), approved=True)
+                    payment = Airtime.objects.get(id=bill_id, approved=True)
                 if purchase_type == "data":
-                    payment = Data.objects.get(id=int(bill_id), approved=True)
+                    payment = Data.objects.get(id=bill_id, approved=True)
 
             except Exception as err:
                 return Response({"detail": "An error has occurred", "error": str(err)},
