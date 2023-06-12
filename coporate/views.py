@@ -106,32 +106,33 @@ class TransferRequestAPIView(APIView, CustomPagination):
         if pk:
             req = get_object_or_404(TransferRequest, id=pk, institution=mandate.institution, transfer_option="single")
             data = TransferRequestSerializerOut(req, context={"request": request}).data
-        else:
-            query = Q(institution=mandate.institution, transfer_option="single")
-            approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate])
-            if search:
-                query &= Q(account_no__iexact=search) | Q(beneficiary_acct__iexact=search) | \
-                         Q(bank_name__iexact=search) | Q(transfer_type__iexact=search) | Q(
-                    beneficiary_acct_type__iexact=search)
-            if date_from and date_to:
-                query &= Q(created_on__range=[date_from, date_to])
-            if approval_status:
-                if approval_status == "checked":
-                    query &= Q(checked=True)
-                elif approval_status == "verified":
-                    query &= Q(verified=True)
-                elif approval_status == "approved":
-                    query &= Q(approved=True)
-                else:
-                    query &= Q(status=approval_status)
+            return Response(data)
 
-            if exc_ude == "true":
-                queryset = self.paginate_queryset(TransferRequest.objects.filter(
-                    query).exclude(approved_query).order_by("-id"), request)
+        query = Q(institution=mandate.institution, transfer_option="single")
+        approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate])
+
+        if search:
+            query &= Q(account_no__iexact=search) | Q(beneficiary_acct__iexact=search) | \
+                     Q(bank_name__iexact=search) | Q(transfer_type__iexact=search) | Q(
+                beneficiary_acct_type__iexact=search)
+        if date_from and date_to:
+            query &= Q(created_on__range=[date_from, date_to])
+        if approval_status:
+            if approval_status == "checked":
+                query &= Q(checked=True)
+            elif approval_status == "verified":
+                query &= Q(verified=True)
+            elif approval_status == "approved":
+                query &= Q(approved=True)
             else:
-                queryset = self.paginate_queryset(TransferRequest.objects.filter(query).order_by("-id"), request)
-            serializer = TransferRequestSerializerOut(queryset, many=True, context={"request": request}).data
-            data = self.get_paginated_response(serializer).data
+                query &= Q(status=approval_status)
+
+        queryset = self.paginate_queryset(TransferRequest.objects.filter(query).order_by("-id"), request)
+        if exc_ude == "true":
+            queryset = self.paginate_queryset(TransferRequest.objects.filter(
+                query).exclude(approved_query).order_by("-id"), request)
+        serializer = TransferRequestSerializerOut(queryset, many=True, context={"request": request}).data
+        data = self.get_paginated_response(serializer).data
         return Response(data)
 
     def post(self, request):
