@@ -7,7 +7,7 @@ from threading import Thread
 import requests
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
@@ -475,6 +475,7 @@ def retrieve_bill_payment(self, payment_type, mandate, bill_type, ex_ude, pk=Non
     trans_type = "corporate"
     query = None
     serializer = None
+    approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate])
 
     if bill_type == "bulk":
         option = "bulk"
@@ -503,7 +504,7 @@ def retrieve_bill_payment(self, payment_type, mandate, bill_type, ex_ude, pk=Non
         if ex_ude == "true":
             query = ModelClass.objects.filter(
                 institution=company, transaction_option=option, transaction_type=trans_type
-            ).exclude(approved_by__in=[mandate], declined_by__in=[mandate]).order_by("-id")
+            ).exclude(approved_query).order_by("-id")
         else:
             query = ModelClass.objects.filter(
                 institution=company, transaction_option=option, transaction_type=trans_type

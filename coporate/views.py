@@ -108,27 +108,28 @@ class TransferRequestAPIView(APIView, CustomPagination):
             data = TransferRequestSerializerOut(req, context={"request": request}).data
         else:
             query = Q(institution=mandate.institution, transfer_option="single")
-            # if search:
-            #     query &= Q(account_no__iexact=search) | Q(beneficiary_acct__iexact=search) | \
-            #              Q(bank_name__iexact=search) | Q(transfer_type__iexact=search) | Q(
-            #         beneficiary_acct_type__iexact=search)
-            # if date_from and date_to:
-            #     query &= Q(created_on__range=[date_from, date_to])
-            # if approval_status:
-            #     if approval_status == "checked":
-            #         query &= Q(checked=True)
-            #     elif approval_status == "verified":
-            #         query &= Q(verified=True)
-            #     elif approval_status == "approved":
-            #         query &= Q(approved=True)
-            #     else:
-            #         query &= Q(status=approval_status)
+            approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate])
+            if search:
+                query &= Q(account_no__iexact=search) | Q(beneficiary_acct__iexact=search) | \
+                         Q(bank_name__iexact=search) | Q(transfer_type__iexact=search) | Q(
+                    beneficiary_acct_type__iexact=search)
+            if date_from and date_to:
+                query &= Q(created_on__range=[date_from, date_to])
+            if approval_status:
+                if approval_status == "checked":
+                    query &= Q(checked=True)
+                elif approval_status == "verified":
+                    query &= Q(verified=True)
+                elif approval_status == "approved":
+                    query &= Q(approved=True)
+                else:
+                    query &= Q(status=approval_status)
 
             if exc_ude == "true":
                 queryset = self.paginate_queryset(TransferRequest.objects.filter(
-                    query).exclude(approved_by__in=[mandate], declined_by__in=[mandate]), request)
+                    query).exclude(approved_query).order_by("-id"), request)
             else:
-                queryset = self.paginate_queryset(TransferRequest.objects.filter(query), request)
+                queryset = self.paginate_queryset(TransferRequest.objects.filter(query).order_by("-id"), request)
             serializer = TransferRequestSerializerOut(queryset, many=True, context={"request": request}).data
             data = self.get_paginated_response(serializer).data
         return Response(data)
@@ -262,6 +263,7 @@ class BulkTransferAPIView(APIView, CustomPagination):
             exc_ude = request.GET.get("exclude", "false")
 
             query = Q(institution=mandate.institution)
+            approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate])
 
             if date_from and date_to:
                 query &= Q(created_on__range=[date_from, date_to])
@@ -274,9 +276,9 @@ class BulkTransferAPIView(APIView, CustomPagination):
                     query &= Q(approved=True)
 
             if exc_ude == "true":
-                queryset = self.paginate_queryset(BulkTransferRequest.objects.filter(query).exclude(approved_by__in=[mandate]), request)
+                queryset = self.paginate_queryset(BulkTransferRequest.objects.filter(query).exclude(approved_query).order_by("-id"), request)
             else:
-                queryset = self.paginate_queryset(BulkTransferRequest.objects.filter(query), request)
+                queryset = self.paginate_queryset(BulkTransferRequest.objects.filter(query).order_by("-id"), request)
             serializer = BulkTransferSerializerOut(queryset, many=True, context={"request": request}).data
             data = self.get_paginated_response(serializer).data
         return Response(data)
@@ -380,7 +382,9 @@ class BulkBillPaymentAPIView(APIView, CustomPagination):
             return Response(self.get_paginated_response(serializer).data)
 
     def post(self, request):
-        if Mandate.objects.get(level__gt=1):
+        try:
+            Mandate.objects.get(level=1, user=request.user)
+        except Mandate.DoesNotExist:
             return Response(
                 {"detail": "Only lowest level signatory can perform this action"}, status=status.HTTP_400_BAD_REQUEST
             )

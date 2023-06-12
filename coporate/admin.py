@@ -22,8 +22,12 @@ class InstitutionModelAdmin(admin.ModelAdmin):
     search_fields = ["name", "code", "account_no"]
 
 
+class TransferRequestModelAdmin(admin.ModelAdmin):
+    list_display = ["institution", "transfer_option", "account_no", "amount", "created_on"]
+
+
 # admin.site.register(Role)
-admin.site.register(TransferRequest)
+admin.site.register(TransferRequest, TransferRequestModelAdmin)
 admin.site.register(TransferScheduler)
 admin.site.register(BulkUploadFile)
 admin.site.register(BulkTransferRequest)
