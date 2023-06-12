@@ -127,10 +127,13 @@ class TransferRequestAPIView(APIView, CustomPagination):
             else:
                 query &= Q(status=approval_status)
 
-        queryset = self.paginate_queryset(TransferRequest.objects.filter(query).order_by("-id"), request)
+        # queryset = self.paginate_queryset(TransferRequest.objects.filter(query).order_by("-id"), request)
+        queryset = self.paginate_queryset(TransferRequest.objects.all().order_by("-id"), request)
+        log_request(f"Mandate Institution: {mandate.institution}\n")
         if exc_ude == "true":
-            queryset = self.paginate_queryset(TransferRequest.objects.filter(
-                query).exclude(approved_query).order_by("-id"), request)
+            # queryset = self.paginate_queryset(TransferRequest.objects.filter(
+            #     query).exclude(approved_query).order_by("-id"), request)
+            queryset = self.paginate_queryset(TransferRequest.objects.all().exclude(approved_query).order_by("-id"), request)
         serializer = TransferRequestSerializerOut(queryset, many=True, context={"request": request}).data
         data = self.get_paginated_response(serializer).data
         return Response(data)
