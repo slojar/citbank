@@ -153,8 +153,8 @@ def transfer_validation(mandate, amount, account_number):
         account = get_corporate_acct_detail(customer_id, token)
         for acct in account:
             if acct["NUBAN"] == account_number:
-                withdraw_able = str(acct["Balance"]["WithdrawableAmount"])
-                balance = decimal.Decimal(withdraw_able)
+                withdraw_able = str(acct["Balance"]["WithdrawableAmount"]).replace(",", "")
+                balance = decimal.Decimal(withdraw_able) / 100
 
         if balance <= 0:
             raise InvalidRequestException({"detail": "Insufficient balance"})
@@ -172,11 +172,17 @@ def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=No
     if Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).exists():
         next_level = Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).order_by("-level").first().level
     if current_level == 1:
-        tran_req.checked = True
-        tran_req.approved_by.add(mandate)
-        # Send email to verifiers
-        for mandate_ in Mandate.objects.filter(institution=mandate.institution, level=next_level):
-            Thread(target=send_approval_notification_request, args=[mandate_]).start()
+        if action == "approve":
+            tran_req.checked = True
+            tran_req.approved_by.add(mandate)
+            # Send email to verifiers
+            for mandate_ in Mandate.objects.filter(institution=mandate.institution, level=next_level):
+                Thread(target=send_approval_notification_request, args=[mandate_]).start()
+
+        if action == "decline":
+            tran_req.decline_reason = reject_reason
+            tran_req.declined_by.add(mandate)
+            tran_req.status = "declined"
         tran_req.save()
         return tran_req
 
@@ -384,7 +390,7 @@ def check_balance_for_bill_payment(institution, account_no, amount, payment_type
         accounts = get_corporate_acct_detail(institution.customerID, token)
         for account in accounts:
             if account["NUBAN"] == str(account_no):
-                balance = str(account["Balance"]["WithdrawableAmount"])
+                balance = decimal.Decimal(str(account["Balance"]["WithdrawableAmount"]).replace(",", "")) / 100
 
         if float(balance) <= 0:
             return False, "Insufficient balance", ""
@@ -533,11 +539,17 @@ def verify_approve_bill_payment(request, payment_req, mandate, bill_type, paymen
     if Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).exists():
         next_level = Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).order_by("-level").first().level
     if current_level == 1:
-        payment_req.checked = True
-        payment_req.approved_by.add(mandate)
-        # Send email to verifiers
-        for mandate_ in Mandate.objects.filter(institution=mandate.institution, level=next_level):
-            Thread(target=send_approval_notification_request, args=[mandate_]).start()
+        if action == "approve":
+            payment_req.checked = True
+            payment_req.approved_by.add(mandate)
+            # Send email to verifiers
+            for mandate_ in Mandate.objects.filter(institution=mandate.institution, level=next_level):
+                Thread(target=send_approval_notification_request, args=[mandate_]).start()
+        if action == "decline":
+            payment_req.decline_reason = reject_reason
+            payment_req.declined_by.add(mandate)
+            payment_req.status = "declined"
+
         payment_req.save()
         return payment_req
 
@@ -595,7 +607,7 @@ def get_institution_balance(trans_req):
     accounts = get_corporate_acct_detail(trans_req.institution.customerID, auth_token)
     for account in accounts:
         if account["NUBAN"] == str(trans_req.account_no):
-            balance = str(account["Balance"]["WithdrawableAmount"])
+            balance = decimal.Decimal(str(account["Balance"]["WithdrawableAmount"]).replace(",", "")) / 100
 
     if float(balance) <= 0:
         raise InvalidRequestException({"detail": "Insufficient balance"})

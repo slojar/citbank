@@ -1,6 +1,6 @@
 import json
 from account.utils import decrypt_text
-from bankone.api import bankone_send_email
+from bankone.api import bankone_send_email, bankone_send_sms
 from django.conf import settings
 
 from coporate.utils import check_upper_level_exist
@@ -13,6 +13,13 @@ def send_email_to_bankone_mandates(bank, sender, email, subject, content):
     mfb_code = decrypt_text(bank.mfb_code)
     # Send Email
     bankone_send_email(sender, email, subject, content, inst_code, mfb_code)
+    return True
+
+
+def send_sms_to_bankone_mandates(bank, account_no, content, receiver):
+    code = decrypt_text(bank.institution_code)
+    token = decrypt_text(bank.auth_token)
+    bankone_send_sms(account_no, content, receiver, token, code, bank.short_name)
     return True
 
 
@@ -78,6 +85,8 @@ def send_token_to_mandate(mandate, otp):
     first_name = mandate.user.first_name
     subject = "Transaction Token"
     bank = mandate.institution.bank
+    account_no = mandate.institution.account_no
+    receiver = mandate.phone_number
     bank_name = bank.name
     email = mandate.user.email
     sender = bank.support_email
@@ -85,8 +94,14 @@ def send_token_to_mandate(mandate, otp):
     content = f"Dear {first_name},<br><br>Kindly use the following token to complete transaction. " \
               f"<br><strong>Token: {otp}</strong><br>" \
               f"<br>Regards, <br>{bank_name} Team."
+    sms_content = f"Dear {first_name},\nKindly use the following token to complete transaction.\nToken: {otp} \n" \
+                  f"Regards,\n{bank_name} Team."
     if short_name in bank_one_banks:
+        # Send email
         send_email_to_bankone_mandates(bank, sender, email, subject, content)
+        # Send SMS
+        send_sms_to_bankone_mandates(bank, account_no, sms_content, receiver)
+
     return True
 
 

@@ -221,10 +221,10 @@ def get_account_balance(customer, customer_type):
             customer_account = [
                 {
                     "account_no": account["NUBAN"],
-                    "ledger_balance": decimal.Decimal(str(account["Balance"]["LedgerBalance"]).replace(",", "")),
+                    "ledger_balance": decimal.Decimal(str(account["Balance"]["LedgerBalance"]).replace(",", ""))/100,
                     "withdrawable_balance": decimal.Decimal(
-                        str(account["Balance"]["WithdrawableAmount"]).replace(",", "")),
-                    "available_balance": decimal.Decimal(str(account["Balance"]["AvailableBalance"]).replace(",", "")),
+                        str(account["Balance"]["WithdrawableAmount"]).replace(",", ""))/100,
+                    "available_balance": decimal.Decimal(str(account["Balance"]["AvailableBalance"]).replace(",", ""))/100,
                     "account_type": account["ProductName"],
                     "bank_acct_no": account["Number"]
 
@@ -529,9 +529,9 @@ def perform_bank_transfer(bank, request):
         account = get_corporate_acct_detail(customer_id, token)
         for acct in account:
             if acct["NUBAN"] == account_number:
-                withdraw_able = str(acct["Balance"]["WithdrawableAmount"])
+                withdraw_able = str(acct["Balance"]["WithdrawableAmount"]).replace(",", "")
                 app_zone_acct = str(acct["Number"])
-                balance = decimal.Decimal(withdraw_able)
+                balance = decimal.Decimal(withdraw_able) / 100
 
         if balance <= 0:
             return False, "Insufficient balance"
