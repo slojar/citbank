@@ -379,7 +379,7 @@ class BulkBillPaymentAPIView(APIView, CustomPagination):
             return Response(BulkPaymentSerializerOut(payment).data)
         else:
             queryset = self.paginate_queryset(BulkBillPayment.objects.filter(institution=mandate.institution), request)
-            serializer = BulkTransferSerializerOut(queryset, many=True).data
+            serializer = BulkPaymentSerializerOut(queryset, many=True).data
             return Response(self.get_paginated_response(serializer).data)
 
     def post(self, request):
