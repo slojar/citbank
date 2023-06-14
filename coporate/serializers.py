@@ -1,4 +1,5 @@
 import csv
+import decimal
 import json
 import uuid
 from io import StringIO
@@ -428,7 +429,7 @@ class BulkUploadBillSerializerIn(serializers.Serializer):
                     data, debit_account_number, phone_number, amount, "airtime", institution, ref_no, option="bulk",
                     bulk_instance=bulk_bill
                 )
-                total_amount += amount
+                total_amount += decimal.Decimal(amount)
 
             except Exception as ex:
                 log_request(f"Error while reading bulk upload file: {ex}")
