@@ -582,6 +582,8 @@ def verify_approve_bill_payment(request, payment_req, mandate, bill_type, paymen
             payment_req.declined_by.add(mandate)
             payment_req.status = "declined"
 
+        payment_req.save()
+
     else:
         if not payment_req.checked:
             raise InvalidRequestException({"detail": "Cannot approve, request is awaiting check or verification"})
@@ -597,8 +599,8 @@ def verify_approve_bill_payment(request, payment_req, mandate, bill_type, paymen
             for _mandates in Mandate.objects.filter(institution=mandate.institution):
                 Thread(target=send_successful_bill_payment_email, args=[_mandates, payment_req]).start()
             # Perform Bill Payment
-            Thread(target=perform_corporate_bill_payment, args=[request, payment_req, bill_type, payment_type]).start()
             payment_req.save()
+            Thread(target=perform_corporate_bill_payment, args=[request, payment_req, bill_type, payment_type]).start()
             # perform_corporate_bill_payment(request, payment_req, bill_type, payment_type)
 
         if action == "decline":
