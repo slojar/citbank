@@ -378,7 +378,15 @@ class BulkBillPaymentAPIView(APIView, CustomPagination):
             payment = get_object_or_404(BulkBillPayment, id=pk, institution=mandate.institution)
             return Response(BulkPaymentSerializerOut(payment).data)
         else:
-            queryset = self.paginate_queryset(BulkBillPayment.objects.filter(institution=mandate.institution), request)
+            exc_ude = request.GET.get("exclude", "false")
+            payment_type = request.GET.get("payment_type")
+            approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate])
+            query = Q(institution=mandate.institution, payment_type=payment_type)
+
+            queryset = self.paginate_queryset(BulkBillPayment.objects.filter(query).order_by("-id"), request)
+            if exc_ude == "true":
+                queryset = self.paginate_queryset(TransferRequest.objects.filter(
+                    query).exclude(approved_query).order_by("-id"), request)
             serializer = BulkPaymentSerializerOut(queryset, many=True).data
             return Response(self.get_paginated_response(serializer).data)
 

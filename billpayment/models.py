@@ -11,6 +11,7 @@ REVERSAL_STATUS = (
 
 class BulkBillPayment(models.Model):
     institution = models.ForeignKey("coporate.Institution", on_delete=models.SET_NULL, null=True, blank=True)
+    payment_type = models.CharField(max_length=200, default="airtime")
     description = models.CharField(max_length=200)
     checked = models.BooleanField(default=False)
     verified = models.BooleanField(default=False)
