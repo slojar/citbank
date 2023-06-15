@@ -169,6 +169,10 @@ def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=No
     from .notifications import send_approval_notification_request, send_successful_transfer_email
     current_level = mandate.level
     next_level = None
+
+    if tran_req.status == "approved" or tran_req.status == "declined":
+        raise InvalidRequestException({"detail": "This request has recently been authorized or declined"})
+
     if Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).exists():
         next_level = Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).order_by("-level").first().level
     if current_level == 1:
@@ -534,10 +538,15 @@ def check_upper_level_exist(mandate):
 def verify_approve_bill_payment(request, payment_req, mandate, bill_type, payment_type, action=None, reject_reason=None):
     from .notifications import send_approval_notification_request, send_successful_bill_payment_email
 
+    if payment_req.status == "approved" or payment_req.status == "declined":
+        raise InvalidRequestException({"detail": "This request has recently been authorized or declined"})
+
     next_level = None
     current_level = mandate.level
+
     if Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).exists():
         next_level = Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).order_by("-level").first().level
+
     if current_level == 1:
         if action == "approve":
             payment_req.checked = True
