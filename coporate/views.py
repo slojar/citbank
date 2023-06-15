@@ -381,7 +381,7 @@ class BulkBillPaymentAPIView(APIView, CustomPagination):
             exc_ude = request.GET.get("exclude", "false")
             payment_type = request.GET.get("payment_type")
             approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate])
-            query = Q(institution=mandate.institution, payment_type=payment_type)
+            query = Q(institution=mandate.institution)
 
             queryset = self.paginate_queryset(BulkBillPayment.objects.filter(query).order_by("-id"), request)
             if exc_ude == "true":
