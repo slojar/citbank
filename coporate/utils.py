@@ -698,6 +698,7 @@ def corporate_vending(request, trans_req, payment_type):
 def perform_corporate_bill_payment(request, payment_req, bill_type, payment_type):
     if bill_type == "bulk":
         bill_payment_requests = Airtime.objects.filter(bulk_payment=payment_req, transaction_option="bulk")
+        bill_payment_requests.update(checked=True, verified=True, approved=True)
         for bill_payment_request in bill_payment_requests:
             # Perform airtime purchase
             corporate_vending(request, bill_payment_request, "airtime")
