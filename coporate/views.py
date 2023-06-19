@@ -109,7 +109,7 @@ class TransferRequestAPIView(APIView, CustomPagination):
             return Response(data)
 
         query = Q(institution=mandate.institution, transfer_option="single")
-        approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate])
+        approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate]) | Q(status="declined")
 
         if search:
             query &= Q(account_no__iexact=search) | Q(beneficiary_acct__iexact=search) | \
@@ -264,7 +264,7 @@ class BulkTransferAPIView(APIView, CustomPagination):
             exc_ude = request.GET.get("exclude", "false")
 
             query = Q(institution=mandate.institution)
-            approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate])
+            approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate]) | Q(status="declined")
 
             if date_from and date_to:
                 query &= Q(created_on__range=[date_from, date_to])
@@ -380,7 +380,7 @@ class BulkBillPaymentAPIView(APIView, CustomPagination):
         else:
             exc_ude = request.GET.get("exclude", "false")
             payment_type = request.GET.get("payment_type")
-            approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate])
+            approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate]) | Q(status="declined")
             query = Q(institution=mandate.institution, payment_type=payment_type)
 
             queryset = self.paginate_queryset(BulkBillPayment.objects.filter(query).order_by("-id"), request)

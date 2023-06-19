@@ -485,7 +485,7 @@ def retrieve_bill_payment(self, payment_type, mandate, bill_type, ex_ude, pk=Non
     trans_type = "corporate"
     query = None
     serializer = None
-    approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate])
+    approved_query = Q(approved_by__in=[mandate]) | Q(declined_by__in=[mandate]) | Q(status="declined")
 
     if bill_type == "bulk":
         option = "bulk"
