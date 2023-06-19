@@ -238,6 +238,15 @@ class TransferSchedulerAPIView(APIView, CustomPagination):
         data = TransferSchedulerSerializerOut(scheduler).data
         return Response({"detail": "Scheduler status changed successfully", "data": data})
 
+    def delete(self, request, pk):
+        mandate = get_object_or_404(Mandate, user=request.user)
+        if not TransferRequest.objects.filter(scheduler_id=pk, institution=mandate.institution).exists():
+            return Response({"detail": "Selected scheduler is not valid"}, status=status.HTTP_400_BAD_REQUEST)
+        scheduler = get_object_or_404(TransferScheduler, id=pk)
+        # delete scheduler
+        scheduler.delete()
+        return Response({"detail": "Scheduler deleted successfully"})
+
 
 class BulkUploadAPIView(APIView):
     permission_classes = [IsUploader]
