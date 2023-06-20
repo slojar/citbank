@@ -218,7 +218,7 @@ class TransferSchedulerAPIView(APIView, CustomPagination):
             schedulers = [transfer.scheduler for transfer in transfer_request]
             for item in schedulers:
                 if item.id not in result:
-                    result.append(item)
+                    result.append(item.id)
             response = TransferScheduler.objects.filter(id__in=result).order_by("-created_on")
             queryset = self.paginate_queryset(response, request)
             serializer = TransferSchedulerSerializerOut(queryset, many=True).data
