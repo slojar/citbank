@@ -7,6 +7,7 @@ from threading import Thread
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 
@@ -302,7 +303,11 @@ class TransferRequestSerializerIn(serializers.Serializer):
 
 
 class TransferSchedulerSerializerOut(serializers.ModelSerializer):
+    total_amount = serializers.SerializerMethodField()
     transfers = serializers.SerializerMethodField()
+
+    def get_total_amount(self, obj):
+        return TransferRequest.objects.filter(scheduler=obj).aggregate(Sum("amount"))["amount__sum"] or 0
 
     def get_transfers(self, obj):
         return TransferRequestSerializerOut(TransferRequest.objects.filter(scheduler=obj), many=True).data
@@ -524,7 +529,7 @@ class BulkTransferSerializerIn(serializers.Serializer):
             # Create TransferScheduler
             scheduler = TransferScheduler.objects.create(
                 schedule_type=schedule_type, day_of_the_month=day_of_the_month, day_of_the_week=day_of_the_week,
-                start_date=start_date, end_date=end_date
+                start_date=start_date, end_date=end_date, transfer_option="bulk"
             )
             bulk_trans.scheduler = scheduler
             bulk_trans.save()
