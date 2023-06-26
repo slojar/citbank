@@ -102,6 +102,7 @@ class Homepage(views.APIView):
         data["recent_customer"] = recent
         data["total_customer_count"] = total_individual_customer + total_institutions
         data["total_individual_customer_count"] = total_individual_customer
+        data["total_corporate_customer_count"] = total_institutions
         data["total_active_individual_customer_count"] = total_active_individual_customer
         data["total_inactive_individual_customer_count"] = total_inactive_individual_customer
         data["total_active_corporate_customer_count"] = total_active_institution
