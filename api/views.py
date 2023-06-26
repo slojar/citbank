@@ -32,6 +32,7 @@ class Homepage(views.APIView):
         data = dict()
 
         customer_queryset = Customer.objects.filter(bank_id=bank)
+        institution_query = Institution.objects.filter(bank_id=bank)
         transaction_queryset = Transaction.objects.filter(customer__bank_id=bank, status="success")
         airtime_queryset = Airtime.objects.filter(bank_id=bank)
         data_queryset = Data.objects.filter(bank_id=bank)
@@ -41,9 +42,13 @@ class Homepage(views.APIView):
             AccountRequest.objects.filter(bank_id=bank, status="pending").order_by("-created_on")[:10]
 
         # Get counts and aggregates
-        total_customer = customer_queryset.count()
-        total_active_customer = customer_queryset.filter(active=True).count()
-        total_inactive_customer = customer_queryset.filter(active=False).count()
+        total_individual_customer = customer_queryset.count()
+        total_active_individual_customer = customer_queryset.filter(active=True).count()
+        total_inactive_individual_customer = customer_queryset.filter(active=False).count()
+
+        total_institutions = institution_query.count()
+        total_active_institution = institution_query.filter(active=True).count()
+        total_inactive_institution = institution_query.filter(active=False).count()
         # recent = account_request_queryset.values_list(get_request_detail(), flat=True)
         recent = [item.get_request_detail() for item in account_request_queryset]
         airtime_count = airtime_queryset.count()
@@ -95,9 +100,13 @@ class Homepage(views.APIView):
         corp_electricity_purchase_count = corp_electricity_purchase.count()
 
         data["recent_customer"] = recent
-        data["total_customer_count"] = total_customer
-        data["total_active_customer_count"] = total_active_customer
-        data["total_inactive_customer_count"] = total_inactive_customer
+        data["total_customer_count"] = total_individual_customer + total_institutions
+        data["total_individual_customer_count"] = total_individual_customer
+        data["total_active_individual_customer_count"] = total_active_individual_customer
+        data["total_inactive_individual_customer_count"] = total_inactive_individual_customer
+        data["total_active_corporate_customer_count"] = total_active_institution
+        data["total_inactive_corporate_customer_count"] = total_inactive_institution
+
         data["airtime_count"] = airtime_count
         data["data_count"] = data_count
         data["cable_tv_count"] = cable_tv_count

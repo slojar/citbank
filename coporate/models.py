@@ -20,6 +20,7 @@ class Institution(models.Model):
     code = models.CharField(max_length=20)
     bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True)
     customerID = models.CharField(max_length=200, null=True, blank=True)
+    active = models.BooleanField(default=False)
     address = models.CharField(max_length=500)
     account_no = models.CharField(max_length=20)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)

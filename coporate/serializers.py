@@ -169,6 +169,7 @@ class InstitutionSerializerIn(serializers.Serializer):
         institution.address = address
         institution.account_no = account_no
         institution.created_by = request.user
+        institution.active = True
         institution.save()
 
         # Create Limit
