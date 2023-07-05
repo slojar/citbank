@@ -38,6 +38,7 @@ class Bank(models.Model):
     name = models.CharField(max_length=200)
     short_name = models.CharField(max_length=50, blank=True, null=True)
     support_email = models.CharField(max_length=50, blank=True, null=True)
+    support_phone = models.CharField(max_length=50, blank=True, null=True)
     enquiry_email = models.CharField(max_length=50, blank=True, null=True)
     feedback_email = models.CharField(max_length=50, blank=True, null=True)
     officer_rating_email = models.CharField(max_length=50, blank=True, null=True)

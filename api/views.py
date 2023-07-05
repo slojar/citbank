@@ -330,8 +330,9 @@ class AdminAccountRequestAPIView(views.APIView, CustomPagination):
             acct_req.rejection_reason = reason
             acct_req.rejected_by = request.user
             # Send rejection email to the customer
-            content = f"Dear {acct_req.first_name}, \nYour account opening is declined, " \
-                      f"a customer service agent will contact you soon."
+            content = f"Dear {acct_req.first_name}, \nYour account opening is declined. See Below the reason(s) " \
+                      f"for the decline.\n{reason}\nKindly regularize and retry OR contact the customer service " \
+                      f"agent on {acct_req.bank.support_phone} for assistance.\n Thank You"
             subject = f"{acct_req.bank.name}: Account Creation Rejected"
             Thread(
                 target=bankone_send_otp_message,
