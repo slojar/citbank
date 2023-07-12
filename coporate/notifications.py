@@ -41,8 +41,8 @@ def send_username_password_to_mandate(mandate, password):
               f"CustomerID: <strong>{institution.customerID}</strong><br><br>" \
               f"Kindly change your password upon successful login.<br>" \
               f"<br>Regards, <br>{bank_name} Team."
-    sms_content = f"Dear {first_name},\nPlease find below, your username and password for your corporate account " \
-                  f"opened at {bank_name}.\nUsername: {username}\nPassword: {password}\n" \
+    sms_content = f"Dear {first_name},\nPlease login with the following credentials " \
+                  f"\nUsername: {username}\nPassword: {password}\n" \
                   f"CustomerID: {institution.customerID}\n\nKindly change your password upon successful login.\n" \
                   f"\nRegards,\n{bank_name} Team."
     if short_name in bank_one_banks:
