@@ -26,6 +26,8 @@ def send_sms_to_bankone_mandates(bank, account_no, content, receiver):
 def send_username_password_to_mandate(mandate, password):
     first_name = mandate.user.first_name
     institution = mandate.institution
+    account_no = institution.account_no
+    receiver = mandate.phone_number
     bank = institution.bank
     bank_name = bank.name
     sender = bank.support_email
@@ -39,8 +41,13 @@ def send_username_password_to_mandate(mandate, password):
               f"CustomerID: <strong>{institution.customerID}</strong><br><br>" \
               f"Kindly change your password upon successful login.<br>" \
               f"<br>Regards, <br>{bank_name} Team."
+    sms_content = f"Dear {first_name},\nPlease find below, your username and password for your corporate account " \
+                  f"opened at {bank_name}.\nUsername: {username}\nPassword: {password}\n" \
+                  f"CustomerID: {institution.customerID}\n\nKindly change your password upon successful login.\n" \
+                  f"\nRegards,\n{bank_name} Team."
     if short_name in bank_one_banks:
         send_email_to_bankone_mandates(bank, sender, email, subject, content)
+        send_sms_to_bankone_mandates(bank, account_no, sms_content, receiver)
     return True
 
 
@@ -136,14 +143,13 @@ def send_successful_bill_payment_email(mandate, trans_req):
     short_name = bank.short_name
     content = f"Dear {first_name},<br><br>A bill payment transaction has been approved, please login to your " \
               f"dashboard to see details <br><br>Regards, <br>{bank_name} Team."
-              # f"<br><strong>SENT FROM: {trans_req.account_number}</strong>" \
-              # f"<br><strong>BENEFICIARY NAME: {trans_req.beneficiary_name}</strong>" \
-              # f"<br><strong>BENEFICIARY ACCOUNT NUMBER: {trans_req.beneficiary_acct}</strong>" \
-              # f"<br><strong>BENEFICIARY BANK: {trans_req.bank_name}</strong>" \
-              # f"<br><strong>AMOUNT: {trans_req.amount}</strong>" \
-              # f"<br><strong>NARRATION: {trans_req.description}</strong><br>" \
-              # f"<br>Regards, <br>{bank_name} Team."
+    # f"<br><strong>SENT FROM: {trans_req.account_number}</strong>" \
+    # f"<br><strong>BENEFICIARY NAME: {trans_req.beneficiary_name}</strong>" \
+    # f"<br><strong>BENEFICIARY ACCOUNT NUMBER: {trans_req.beneficiary_acct}</strong>" \
+    # f"<br><strong>BENEFICIARY BANK: {trans_req.bank_name}</strong>" \
+    # f"<br><strong>AMOUNT: {trans_req.amount}</strong>" \
+    # f"<br><strong>NARRATION: {trans_req.description}</strong><br>" \
+    # f"<br>Regards, <br>{bank_name} Team."
     if short_name in bank_one_banks:
         send_email_to_bankone_mandates(bank, sender, email, subject, content)
     return True
-
