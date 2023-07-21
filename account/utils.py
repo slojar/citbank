@@ -1,3 +1,4 @@
+import ast
 import base64
 import calendar
 import datetime
@@ -221,10 +222,11 @@ def get_account_balance(customer, customer_type):
             customer_account = [
                 {
                     "account_no": account["NUBAN"],
-                    "ledger_balance": decimal.Decimal(str(account["Balance"]["LedgerBalance"]).replace(",", ""))/100,
+                    "ledger_balance": decimal.Decimal(str(account["Balance"]["LedgerBalance"]).replace(",", "")) / 100,
                     "withdrawable_balance": decimal.Decimal(
-                        str(account["Balance"]["WithdrawableAmount"]).replace(",", ""))/100,
-                    "available_balance": decimal.Decimal(str(account["Balance"]["AvailableBalance"]).replace(",", ""))/100,
+                        str(account["Balance"]["WithdrawableAmount"]).replace(",", "")) / 100,
+                    "available_balance": decimal.Decimal(
+                        str(account["Balance"]["AvailableBalance"]).replace(",", "")) / 100,
                     "account_type": account["ProductName"],
                     "bank_acct_no": account["Number"]
 
@@ -235,6 +237,7 @@ def get_account_balance(customer, customer_type):
 
         else:
             response = bankone_get_details_by_customer_id(customer.customerID, token).json()
+            unsupported_codes = list(ast.literal_eval(str(customer.bank.non_required_codes)))
             accounts = response["Accounts"]
             customer_account = [
                 {
@@ -244,10 +247,11 @@ def get_account_balance(customer, customer_type):
                     "available_balance": decimal.Decimal(str(account["availableBalance"]).replace(",", "")),
                     "kyc_level": account["kycLevel"],
                     "account_type": account["accountType"],
+                    "product_code": account["productCode"],
                     "bank_acct_no": account["accountNumber"]
                 }
                 for account in accounts
-                if account.get("NUBAN")
+                if not int(account.get("productCode")) in unsupported_codes and account.get("NUBAN")
             ]
 
         data["account_balances"] = customer_account
@@ -261,16 +265,19 @@ def update_customer_account(customer, account_balances, customer_type):
         account_no = account["account_no"]
         bank_acct_no = account["bank_acct_no"]
         account_type = account["account_type"]
+        product_code = account["product_code"]
 
         if customer_type == "individual":
-            if not CustomerAccount.objects.filter(customer=customer, account_no=account_no).exists():
-                CustomerAccount.objects.create(
-                    customer=customer, account_no=account_no, bank_acct_number=bank_acct_no, account_type=account_type
-                )
+            acct, created = CustomerAccount.objects.get_or_create(customer=customer, account_no=account_no)
+            acct.bank_acct_number = bank_acct_no
+            acct.account_type = account_type
+            acct.product_code = product_code
+            acct.save()
         else:
             if not CustomerAccount.objects.filter(institution=customer, account_no=account_no).exists():
                 CustomerAccount.objects.create(
-                    institution=customer, account_no=account_no, bank_acct_number=bank_acct_no, account_type=account_type
+                    institution=customer, account_no=account_no, bank_acct_number=bank_acct_no,
+                    account_type=account_type
                 )
 
     return True
@@ -918,4 +925,3 @@ def dashboard_transaction_data(bank_id, trans_type):
     trans['monthly'] = monthly
     trans['yearly'] = yearly
     return trans
-

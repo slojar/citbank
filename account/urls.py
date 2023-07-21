@@ -48,6 +48,8 @@ urlpatterns = [
 
     path('card/', views.CardOperationAPIView.as_view(), name="cards"),
     path('fixed-deposit/<int:bank_id>', views.FixDepositAPIView.as_view(), name="fixed-deposit"),
+
+    path('dispute/', views.RegisterDisputeAPIView.as_view(), name="dispute")
 ]
 
 

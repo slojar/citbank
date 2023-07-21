@@ -86,19 +86,19 @@ class LoginView(APIView):
 
         detail, success = authenticate_user(request)
         if success is True:
-            try:
-                customer = Customer.objects.get(user=request.user)
-                if not version or version < customer.bank.app_version:
-                    return Response({"detail": "Please download the latest version from your store"},
-                                    status=status.HTTP_400_BAD_REQUEST)
-                data = get_account_balance(customer, "individual")
-                data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
-                return Response({
-                    "detail": detail, "access_token": str(AccessToken.for_user(request.user)),
-                    "refresh_token": str(RefreshToken.for_user(request.user)), 'data': data})
-            except Exception as ex:
-                log_request(f"error-message: {ex}")
-                return Response({"detail": "An error occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+            # try:
+            customer = Customer.objects.get(user=request.user)
+            if not version or version < customer.bank.app_version:
+                return Response({"detail": "Please download the latest version from your store"},
+                                status=status.HTTP_400_BAD_REQUEST)
+            data = get_account_balance(customer, "individual")
+            data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
+            return Response({
+                "detail": detail, "access_token": str(AccessToken.for_user(request.user)),
+                "refresh_token": str(RefreshToken.for_user(request.user)), 'data': data})
+            # except Exception as ex:
+            #     log_request(f"error-message: {ex}")
+            #     return Response({"detail": "An error occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -965,3 +965,34 @@ class FixDepositAPIView(APIView):
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
         return Response(response)
 
+
+class RegisterDisputeAPIView(APIView):
+    def post(self, request):
+        card = request.data.get("card")
+        account_no = request.data.get("account_no")
+        dispute_date = request.data.get("dispute_date")
+        amount = request.data.get("amount")
+
+        customer = get_object_or_404(Customer, user=request.user)
+        name = str("{} {}").format(self.request.user.first_name, self.request.user.last_name).capitalize()
+
+        if not all([card, account_no, dispute_date, amount]):
+            log_request(f"error-message: All field is required")
+            return Response(
+                {"detail": "Required: Card, Account Number, Dispute Date, and Amount"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        institution_code = decrypt_text(customer.bank.institution_code)
+        mfb_code = decrypt_text(customer.bank.mfb_code)
+        receiver = customer.bank.dispute_email
+        sport = customer.bank.support_email
+        subject = f"CARD DISPUTE: {name}"
+
+        message = f"Dear Admin,<br>Kindly see below details of Card Dispute reported by customer: {name}:<br><br>" \
+                  f"CARD: <strong>{card}</strong><br>ACCOUNT NO.: <strong>{account_no}</strong><br>" \
+                  f"DATE: <strong>{dispute_date}</strong><br><strong>{amount}</strong><br>" \
+
+        Thread(target=bankone_send_email, args=[sport, receiver, subject, message, institution_code, mfb_code]).start()
+
+        return Response({"detail": "Card dispute submitted successfully"})
