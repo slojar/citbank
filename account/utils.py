@@ -178,7 +178,7 @@ def open_account_with_banks(bank, request):
         utility = data.get("utility")
         valid_id = data.get("valid_id")
 
-        if not all([bvn, phone, f_name, l_name, o_name, gender, dob, nin, email, address]):
+        if not all([bvn, phone, f_name, l_name, gender, dob, nin, email, address]):
             return False, "All fields are required to open account with bank"
         if not all([image, signature, utility, valid_id]):
             return False, "Please upload your utility bill, validID, signature and image/picture"
