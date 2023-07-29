@@ -487,7 +487,7 @@ def perform_bank_transfer(bank, request):
 
         current_limit = float(amount) + float(today_trans)
         today_trans = \
-            Transaction.objects.filter(customer=customer, status="success", created_on=today_date).aggregate(
+            Transaction.objects.filter(customer=customer, created_on=today_date).aggregate(
                 Sum("amount"))["amount__sum"] or 0
 
         # Check Daily Transfer Limit
