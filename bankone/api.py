@@ -241,10 +241,11 @@ def bankone_other_bank_transfer(**kwargs):
             "Token": kwargs.get("auth_token")
         }
     )
-
-    response = requests.request('POST', url=url, data=payload, headers=header).json()
-    log_request(url, payload, response)
-    return response
+    log_request(f"LOGGING EXTERNAL TRANSFER\nURL:{url}\nPAYLOAD{payload}")
+    response = requests.request('POST', url=url, data=payload, headers=header)
+    log_request(f"LOGGING EXTERNAL TRANSFER RESPONSE\nRESPONSE:{response.text}")
+    # log_request(url, payload, response)
+    return response.json()
 
 
 def bankone_others_name_query(account_no, bank_code, auth_token):
