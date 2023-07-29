@@ -487,7 +487,7 @@ def perform_bank_transfer(bank, request):
 
         current_limit = float(amount) + float(today_trans)
         today_trans = \
-            Transaction.objects.filter(customer=customer, created_on=today_date).aggregate(
+            Transaction.objects.filter(customer=customer, status="success", created_on=today_date).aggregate(
                 Sum("amount"))["amount__sum"] or 0
 
         # Check Daily Transfer Limit
@@ -555,10 +555,6 @@ def perform_bank_transfer(bank, request):
                 narration = "transfer"
 
             bank_name = bank.name
-            response = bankone_local_bank_transfer(
-                amount=amount, sender=account_number, receiver=beneficiary_acct, trans_ref=ref_code,
-                description=narration, auth_token=token
-            )
             # Create Transaction instance
             if sender_type == "individual":
                 transfer = Transaction.objects.create(
@@ -573,6 +569,11 @@ def perform_bank_transfer(bank, request):
                     beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code,
                     transfer_request=trans_req
                 )
+
+            response = bankone_local_bank_transfer(
+                amount=amount, sender=account_number, receiver=beneficiary_acct, trans_ref=ref_code,
+                description=narration, auth_token=token
+            )
 
             if response["IsSuccessful"] is True and response["ResponseCode"] != "00":
                 transfer.status = "failed"
@@ -593,13 +594,6 @@ def perform_bank_transfer(bank, request):
             # Convert kobo amount sent on OtherBankTransfer to naira... To be removed in future update
             # o_amount = amount / 100
 
-            response = bankone_other_bank_transfer(
-                amount=amount, bank_acct_no=app_zone_acct, sender_name=sender_name, sender_acct_no=account_number,
-                receiver_acct_no=beneficiary_acct, receiver_acct_type=beneficiary_acct_type,
-                receiver_bank_code=bank_code, receiver_name=beneficiary_name, auth_token=token,
-                description=narration, trans_ref=ref_code,
-                nip_session_id=nip_session_id
-            )
             # Create transfer
             if sender_type == "individual":
                 transfer = Transaction.objects.create(
@@ -614,6 +608,14 @@ def perform_bank_transfer(bank, request):
                     beneficiary_acct_no=beneficiary_acct, amount=amount, narration=description, reference=ref_code,
                     transfer_request=trans_req
                 )
+
+            response = bankone_other_bank_transfer(
+                amount=amount, bank_acct_no=app_zone_acct, sender_name=sender_name, sender_acct_no=account_number,
+                receiver_acct_no=beneficiary_acct, receiver_acct_type=beneficiary_acct_type,
+                receiver_bank_code=bank_code, receiver_name=beneficiary_name, auth_token=token,
+                description=narration, trans_ref=ref_code,
+                nip_session_id=nip_session_id
+            )
 
             if response["IsSuccessFul"] is True and response["ResponseCode"] != "00":
                 transfer.status = "failed"

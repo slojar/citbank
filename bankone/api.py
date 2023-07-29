@@ -241,9 +241,9 @@ def bankone_other_bank_transfer(**kwargs):
             "Token": kwargs.get("auth_token")
         }
     )
-    log_request(f"LOGGING EXTERNAL TRANSFER\nURL:{url}\nPAYLOAD{payload}")
+    log_request(f"LOGGING EXTERNAL FUND TRANSFER\nURL: {url}\nPAYLOAD: {payload}")
     response = requests.request('POST', url=url, data=payload, headers=header)
-    log_request(f"LOGGING EXTERNAL TRANSFER RESPONSE\nRESPONSE:{response.text}")
+    log_request(f"LOGGING EXTERNAL FUND TRANSFER RESPONSE\nRESPONSE: {response.text}")
     # log_request(url, payload, response)
     return response.json()
 
@@ -551,9 +551,10 @@ def bankone_local_bank_transfer(**kwargs):
     payload['RetrievalReference'] = kwargs.get("trans_ref")
     payload['Narration'] = kwargs.get("description")
 
-    response = requests.request('POST', url=url, data=payload).json()
-    log_request(url, payload, response)
-    return response
+    log_request(f"LOGGING LOCAL FUND TRANSFER\nURL: {url}\nPAYLOAD: {payload}")
+    response = requests.request('POST', url=url, data=payload)
+    log_request(f"LOGGING LOCAL FUND TRANSFER RESPONSE:\nRESPONSE: {response.text}")
+    return response.json()
 
 
 def bankone_get_bvn_detail(bvn, auth_token):
