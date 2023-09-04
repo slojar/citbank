@@ -130,8 +130,9 @@ class AirtimeDataPurchaseAPIView(APIView):
 
         if success is False:
             log_request(f"error-message: {response}")
-            payment.response_message = response
-            payment.save()
+            if payment:
+                payment.response_message = response
+                payment.save()
             return Response({"detail": response}, status=status.HTTP_400_BAD_REQUEST)
 
         if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
@@ -212,8 +213,6 @@ class AirtimeDataPurchaseAPIView(APIView):
             return Response({"detail": f"{purchase_type} purchase for {phone_number} was successful"})
 
         elif response["IsSuccessful"] is True and response["ResponseCode"] == "51":
-            payment.response_message = "Insufficient balance"
-            payment.save()
             return Response({"detail": "Insufficient Funds"}, status=status.HTTP_400_BAD_REQUEST)
 
         else:
