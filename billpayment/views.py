@@ -188,7 +188,7 @@ class AirtimeDataPurchaseAPIView(APIView):
                         bank=bank
                     )
 
-                if "data" in response:
+                if "data" in data_response:
                     new_success = True
                     data = data_response["data"]
 
