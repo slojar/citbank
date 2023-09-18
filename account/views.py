@@ -643,7 +643,9 @@ class BankAPIListView(APIView):
 
         bank, create = Bank.objects.get_or_create(name=name)
         create_or_update_bank(request, bank)
-        return Response(BankSerializer(bank, context={"request": request}).data)
+        response = BankSerializer(bank, context={"request": request}).data
+        log_request(f"Other Banks Details: {response}")
+        return Response(response)
 
     def get(self, request):
         return Response(BankSerializer(Bank.objects.all(), many=True).data)
