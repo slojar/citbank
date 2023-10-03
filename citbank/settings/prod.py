@@ -25,6 +25,7 @@ DATABASES = {
 # CORS
 CORS_ALLOWED_ORIGINS = [
     "https://api.citmfb.com",
+    "https://admin.citmfb.com",
     "https://api.bankpro.ng",
 ]
 
