@@ -33,7 +33,7 @@ CORS_ALLOWED_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 # Set the SECURE_PROXY_SSL_HEADER to indicate that the application is behind a proxy
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Ensure all requests are redirected to HTTPS
 SECURE_SSL_REDIRECT = True
