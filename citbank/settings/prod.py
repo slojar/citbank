@@ -23,26 +23,26 @@ DATABASES = {
 }
 
 # CORS
-CORS_ALLOWED_ORIGINS = [
-    "https://api.citmfb.com",
-    "https://admin.citmfb.com",
-    "https://api.bankpro.ng",
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "https://api.citmfb.com",
+#     "https://admin.citmfb.com",
+#     "https://api.bankpro.ng",
+# ]
 
-# CORS_ALLOW_ALL_ORIGINS = True
-CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+CORS_ALLOW_ALL_ORIGINS = True
+# CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 # Set the SECURE_PROXY_SSL_HEADER to indicate that the application is behind a proxy
 # SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Ensure all requests are redirected to HTTPS
-SECURE_SSL_REDIRECT = True
+# SECURE_SSL_REDIRECT = True
 
 # Prevent site from being loaded in iFrame
 X_FRAME_OPTIONS = 'DENY'
 
 # CSP
-CSP_DEFAULT_SRC = ("'self'",)
+# CSP_DEFAULT_SRC = ("'self'",)
 
 # Prevent MIME-sniffing
 SECURE_CONTENT_TYPE_NOSNIFF = True
