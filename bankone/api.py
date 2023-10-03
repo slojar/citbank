@@ -33,7 +33,7 @@ def bankone_get_account_by_account_no(account_no, token):
     payload['accountNumber'] = account_no
 
     response = requests.request('GET', url=url, params=payload)
-    log_request(url, payload, response.json())
+    log_request(url, payload, response.text)
     return response
 
 
@@ -61,7 +61,7 @@ def bankone_charge_customer(**kwargs):
     payload['Narration'] = kwargs.get("description")
 
     response = requests.request('POST', url=url, data=payload)
-    log_request(url, payload, response.json())
+    log_request(url, payload, response.text)
     return response
 
 
@@ -75,9 +75,9 @@ def bankone_log_reversal(tran_date, trans_ref, auth_token):
     payload['TransactionDate'] = str(tran_date)
     payload['RetrievalReference'] = trans_ref
 
-    response = requests.request('POST', url=url, data=payload).json()
-    log_request(url, payload, response)
-    return response
+    response = requests.request('POST', url=url, data=payload)
+    log_request(url, payload, response.text)
+    return response.json()
 
 
 def bankone_send_sms(account_no, content, receiver, token, code, bank_code):
@@ -97,9 +97,9 @@ def bankone_send_sms(account_no, content, receiver, token, code, bank_code):
 
     payload.append(data)
 
-    response = requests.request('POST', url=url, json=payload).json()
-    log_request(url, payload, response)
-    return response
+    response = requests.request('POST', url=url, json=payload)
+    log_request(url, payload, response.text)
+    return response.json()
 
 
 def bankone_send_email(mail_from, to, subject, body, institution_code, mfb_code):
@@ -115,10 +115,10 @@ def bankone_send_email(mail_from, to, subject, body, institution_code, mfb_code)
     data['subject'] = subject
     data['Message'] = body
 
-    response = requests.request('GET', url, params=data).json()
+    response = requests.request('GET', url, params=data)
 
-    log_request(url, data, response)
-    return response
+    log_request(url, data, response.text)
+    return response.json()
 
 
 def bankone_create_account(**kwargs):
@@ -149,7 +149,7 @@ def bankone_create_account(**kwargs):
         "NotificationPreference": 3,
     }
 
-    response = requests.request('POST', url, data=payload).json()
+    response = requests.request('POST', url, data=payload)
     # sample_response = {'IsSuccessful': True, 'CustomerIDInString': None, 'Message': {'AccountNumber': '1100329130',
     # 'BankoneAccountNumber': '01290031020032913', 'CustomerID': '032913', 'FullName': 'OBADEMI ISAAC',
     # 'CreationMessage': None, 'Id': 236349}, 'TransactionTrackingRef': None, 'Page': None}
@@ -158,8 +158,8 @@ def bankone_create_account(**kwargs):
     # 'BankoneAccountNumber': None, 'CustomerID': None, 'FullName': None, 'CreationMessage': 'Invalid Email
     # Address.', 'Id': 0}, 'TransactionTrackingRef': None, 'Page': None}
 
-    log_request(url, payload, response)
-    return response
+    log_request(url, payload, response.text)
+    return response.json()
 
 
 def bankone_get_acct_officer(auth_token):
@@ -169,9 +169,9 @@ def bankone_get_acct_officer(auth_token):
     payload = dict()
     payload['authtoken'] = auth_token
 
-    response = requests.request('GET', url=url, params=payload).json()
-    log_request(url, payload, response)
-    return response
+    response = requests.request('GET', url=url, params=payload)
+    log_request(url, payload, response.text)
+    return response.json()
 
 
 def bankone_get_customer_acct_officer(acct_no, auth_token):
@@ -182,9 +182,9 @@ def bankone_get_customer_acct_officer(acct_no, auth_token):
     payload['authtoken'] = auth_token
     payload['accountNumber'] = acct_no
 
-    response = requests.request('GET', url=url, params=payload).json()
-    log_request(url, payload, response)
-    return response
+    response = requests.request('GET', url=url, params=payload)
+    log_request(url, payload, response.text)
+    return response.json()
 
 
 def bankone_transaction_history(**kwargs):
@@ -210,9 +210,9 @@ def bankone_transaction_history(**kwargs):
     else:
         payload['pageNo'] = 1
 
-    response = requests.request('GET', url=url, params=payload).json()
-    log_request(url, payload, response)
-    return response
+    response = requests.request('GET', url=url, params=payload)
+    log_request(url, payload, response.text)
+    return response.json()
 
 
 def bankone_other_bank_transfer(**kwargs):
@@ -257,18 +257,18 @@ def bankone_others_name_query(account_no, bank_code, auth_token):
     payload['BankCode'] = bank_code
     payload['AccountNumber'] = account_no
 
-    response = requests.request('POST', url=url, data=payload).json()
-    log_request(url, payload, response)
-    return response
+    response = requests.request('POST', url=url, data=payload)
+    log_request(url, payload, response.text)
+    return response.json()
 
 
 def bankone_get_banks(auth_token):
     from account.utils import log_request
     url = f'{base_url_3ps}/BillsPayment/GetCommercialBanks/{auth_token}'
 
-    response = requests.request('GET', url=url).json()
+    response = requests.request('GET', url=url)
     # log_request(url, response)
-    return response
+    return response.json()
 
 
 def bankone_get_customer_cards(account_no, auth_token):
@@ -279,9 +279,9 @@ def bankone_get_customer_cards(account_no, auth_token):
     payload['Token'] = auth_token
     payload['AccountNo'] = account_no
 
-    response = requests.request('POST', url=url, data=payload).json()
-    log_request(url, payload, response)
-    return response
+    response = requests.request('POST', url=url, data=payload)
+    log_request(url, payload, response.text)
+    return response.json()
 
 
 def bankone_freeze_or_unfreeze_card(serial_no, reason, account_no, action, auth_token):
@@ -298,9 +298,9 @@ def bankone_freeze_or_unfreeze_card(serial_no, reason, account_no, action, auth_
     payload['Reason'] = reason
     payload['AccountNumber'] = account_no
 
-    response = requests.request('POST', url=url, data=payload).json()
-    log_request(url, payload, response)
-    return response
+    response = requests.request('POST', url=url, data=payload)
+    log_request(url, payload, response.text)
+    return response.json()
 
 
 def bankone_send_otp_message(phone_number, content, subject, account_no, email, bank):
@@ -517,9 +517,9 @@ def bankone_generate_statement(**kwargs):
     else:
         payload['isPdf'] = False
 
-    response = requests.request('GET', url=url, params=payload).json()
-    log_request(url, payload, response)
-    return response
+    response = requests.request('GET', url=url, params=payload)
+    log_request(url, payload, response.text)
+    return response.json()
 
 
 # Bank Flex API
@@ -532,9 +532,9 @@ def bank_flex(bvn, auth_key_bank_flex):
         'Authorization': f'Bearer {auth_key_bank_flex}'
     }
 
-    response = requests.request("GET", url, headers=headers, data=payload).json()
-    log_request(url, headers, response)
-    return response
+    response = requests.request("GET", url, headers=headers, data=payload)
+    log_request(url, headers, response.text)
+    return response.json()
 
 
 def bankone_local_bank_transfer(**kwargs):
@@ -565,9 +565,9 @@ def bankone_get_bvn_detail(bvn, auth_token):
     payload['BVN'] = bvn
     payload['token'] = auth_token
 
-    response = requests.request('POST', url=url, data=payload).json()
-    log_request(url, payload, response)
-    return response
+    response = requests.request('POST', url=url, data=payload)
+    log_request(url, payload, response.text)
+    return response.json()
 
 
 def bankone_get_fixed_deposit(phone_no, auth_token):
@@ -579,7 +579,7 @@ def bankone_get_fixed_deposit(phone_no, auth_token):
     payload['authtoken'] = auth_token
 
     response = requests.request('GET', url=url, params=payload)
-    log_request(url, payload, response)
+    log_request(url, payload, response.text)
     return response
 
 
@@ -612,9 +612,9 @@ def bankone_send_statement(request, bank, response):
 def bankone_check_phone_no(phone_no, auth_token):
     from account.utils import log_request
     url = f"{base_url}/Customer/PhoneNumberExist/{version}?phoneNumber={phone_no}&authtoken={auth_token}"
-    response = requests.request('GET', url=url).json()
-    log_request(url, response)
-    return response
+    response = requests.request('GET', url=url)
+    log_request(url, response.text)
+    return response.json()
 
 
 def get_corporate_acct_detail(customer_id, auth_token):
