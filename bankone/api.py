@@ -406,8 +406,8 @@ def bankone_create_new_customer(data, account_no, bank):
 
         # Create User and Customer
         if not email == "" or None:
-            if User.objects.filter(email=email).exists():
-                detail = 'Account is already registered, please proceed to login with your credentials'
+            if Customer.objects.filter(bank=bank, user__email__iexact=email).exists():
+                detail = 'An individual account with this email already exist, please login or contact administrator'
                 return success, detail
 
         user, _ = User.objects.get_or_create(username=username)

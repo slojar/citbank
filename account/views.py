@@ -88,6 +88,11 @@ class LoginView(APIView):
         if success is True:
             # try:
             customer = Customer.objects.get(user=request.user)
+            # Check if bank is active
+            if customer.bank.active is False:
+                return Response({"detail": "Error contacting bank, please try again later"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
             if not version or version < customer.bank.app_version:
                 return Response({"detail": "Please download the latest version from your store"},
                                 status=status.HTTP_400_BAD_REQUEST)
@@ -876,6 +881,10 @@ class TransferAPIView(APIView):
     def post(self, request, bank_id):
         try:
             bank = get_object_or_404(Bank, id=bank_id)
+            if bank.active is False:
+                return Response({"detail": "Error contacting bank, please try again later"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
             success, detail = perform_bank_transfer(bank, request)
             if success is False:
                 return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
