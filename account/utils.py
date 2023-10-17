@@ -255,7 +255,8 @@ def get_account_balance(customer, customer_type):
             ]
 
         data["account_balances"] = customer_account
-        Thread(target=update_customer_account, args=[customer, customer_account, customer_type]).start()
+        update_customer_account(customer, customer_account, customer_type)
+        # Thread(target=update_customer_account, args=[customer, customer_account, customer_type]).start()
 
     return data
 
