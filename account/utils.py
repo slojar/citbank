@@ -228,6 +228,7 @@ def get_account_balance(customer, customer_type):
                     "available_balance": decimal.Decimal(
                         str(account["Balance"]["AvailableBalance"]).replace(",", "")) / 100,
                     "account_type": account["ProductName"],
+                    "product_code": account["productCode"],
                     "bank_acct_no": account["Number"]
 
                 }
