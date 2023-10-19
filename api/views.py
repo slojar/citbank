@@ -146,6 +146,10 @@ class AdminCustomerAPIView(views.APIView, CustomPagination):
         else:
             search = request.GET.get("search")
             account_status = request.GET.get("account_status")
+            date_from = request.GET.get("date_from")
+            date_to = request.GET.get("date_to")
+            download = request.GET.get("download", "false")
+            data = dict()
 
             query = Q(bank_id=bank_id)
             if search:
@@ -154,17 +158,18 @@ class AdminCustomerAPIView(views.APIView, CustomPagination):
                          Q(user__username__icontains=search) | Q(customeraccount__account_no__exact=search) | \
                          Q(phone_number__exact=search)
 
-                customers = Customer.objects.filter(query).order_by('-created_on').distinct()
-            elif account_status:
+            if account_status:
                 query &= Q(active=account_status)
+            if date_from and date_to:
+                query &= Q(created_on__range=[date_from, date_to])
 
-                customers = Customer.objects.filter(query).order_by('-created_on').distinct()
-            else:
-                customers = Customer.objects.filter(query).order_by('-created_on')
-
-            result = self.paginate_queryset(customers, request)
-            serializer = CustomerSerializer(result, many=True, context={'request': request}).data
-            data = self.get_paginated_response(serializer).data
+            customers = Customer.objects.filter(query).order_by('-created_on')
+            if download == "false":
+                result = self.paginate_queryset(customers, request)
+                serializer = CustomerSerializer(result, many=True, context={'request': request}).data
+                data = self.get_paginated_response(serializer).data
+            if download == "true":
+                data = CustomerSerializer(customers, many=True, context={'request': request}).data
 
         return Response(data)
 
@@ -201,11 +206,15 @@ class AdminCustomerAPIView(views.APIView, CustomPagination):
 
 
 class AdminTransferAPIView(views.APIView, CustomPagination):
-    permission_classes = []
+    permission_classes = [IsAdminUser]
 
     def get(self, request, bank_id):
-        transfer_type = request.GET.get("transfer_type")  # local, others
+        transfer_type = request.GET.get("transfer_type", "local")  # local, others
         search = request.GET.get("search")
+        date_from = request.GET.get("date_from")
+        date_to = request.GET.get("date_to")
+        download = request.GET.get("download", "false")
+        data = dict()
 
         query = Q(customer__bank_id=bank_id)
         if search:
@@ -215,82 +224,75 @@ class AdminTransferAPIView(views.APIView, CustomPagination):
 
         if transfer_type == "local":
             query &= Q(transfer_type="local_transfer") | Q(transfer_type="transfer")
-            transfers = Transaction.objects.filter(query).order_by('-created_on').distinct()
-        elif transfer_type == "others":
+        if transfer_type == "others":
             query &= Q(transfer_type="external_transfer")
-            transfers = Transaction.objects.filter(query).order_by('-created_on').distinct()
-        else:
-            transfers = Transaction.objects.filter(query).order_by('-created_on')
+        if date_from and date_to:
+            query &= Q(created_on__range=[date_from, date_to])
 
-        queryset = self.paginate_queryset(transfers, request)
-        serializer = TransferSerializer(queryset, many=True).data
-        data = self.get_paginated_response(serializer).data
+        transfers = Transaction.objects.filter(query).order_by('-created_on')
+        if download == "false":
+            queryset = self.paginate_queryset(transfers, request)
+            serializer = TransferSerializer(queryset, many=True).data
+            data = self.get_paginated_response(serializer).data
+        if download == "true":
+            data = TransferSerializer(transfers, many=True).data
 
         return Response(data)
 
 
 class AdminBillPaymentAPIView(views.APIView, CustomPagination):
-    permission_classes = []
+    permission_classes = [IsAdminUser]
 
     def get(self, request, bank_id):
-
         bill_type = request.GET.get("bill_type")
         search = request.GET.get("search")
-
-        data = dict()
-
-        query = Q(bank_id=bank_id)
+        date_from = request.GET.get("date_from")
+        date_to = request.GET.get("date_to")
+        download = request.GET.get("download", "false")
 
         if not bill_type:
             return Response({"detail": "Bill type is required"}, status=status.HTTP_400_BAD_REQUEST)
 
+        query = Q(bank_id=bank_id)
+        if date_from and date_to:
+            query &= Q(created_on__range=[date_from, date_to])
+
         if bill_type == "airtime":
-            if search:
-                query &= Q(account_no__iexact=search) | Q(beneficiary__iexact=search) | Q(network__iexact=search) | \
-                         Q(transaction_id__iexact=search)
-                queryset = Airtime.objects.filter(query).distinct().order_by('-created_on')
-            else:
-                queryset = Airtime.objects.filter(bank_id=bank_id).order_by('-created_on')
-            queryset = self.paginate_queryset(queryset, request)
-            serializer = AirtimeSerializer(queryset, many=True).data
-
+            model_class = Airtime
+            serializer_class = AirtimeSerializer
+            search_param = Q(account_no__iexact=search) | Q(beneficiary__iexact=search) | Q(network__iexact=search) |\
+                           Q(transaction_id__iexact=search)
         elif bill_type == "data":
-            if search:
-                query &= Q(account_no__iexact=search) | Q(beneficiary__iexact=search) | Q(network__iexact=search) | \
+            model_class = Data
+            serializer_class = DataSerializer
+            search_param = Q(account_no__iexact=search) | Q(beneficiary__iexact=search) | Q(network__iexact=search) | \
                          Q(transaction_id__iexact=search) | Q(plan_id__iexact=search)
-                queryset = Data.objects.filter(query).distinct().order_by('-created_on')
-            else:
-                queryset = Data.objects.filter(bank_id=bank_id).order_by('-created_on')
-            queryset = self.paginate_queryset(queryset, request)
-            serializer = DataSerializer(queryset, many=True).data
-
         elif bill_type == "cable_tv":
-            if search:
-                query &= Q(account_no__iexact=search) | Q(service_name__iexact=search) | \
+            model_class = CableTV
+            serializer_class = CableTVSerializer
+            search_param = Q(account_no__iexact=search) | Q(service_name__iexact=search) | \
                          Q(smart_card_no__iexact=search) | Q(transaction_id__iexact=search) | \
                          Q(phone_number__iexact=search)
-                queryset = CableTV.objects.filter(query).distinct().order_by('-created_on')
-            else:
-                queryset = CableTV.objects.filter(bank_id=bank_id).order_by('-created_on')
-            queryset = self.paginate_queryset(queryset, request)
-            serializer = CableTVSerializer(queryset, many=True).data
-
         elif bill_type == "electricity":
-            if search:
-                query &= Q(account_no__iexact=search) | Q(disco_type__iexact=search) | \
+            model_class = Electricity
+            serializer_class = ElectricitySerializer
+            search_param = Q(account_no__iexact=search) | Q(disco_type__iexact=search) | \
                          Q(meter_number__iexact=search) | Q(transaction_id__iexact=search) | \
                          Q(phone_number__iexact=search)
-                queryset = Electricity.objects.filter(query).distinct().order_by('-created_on')
-            else:
-                queryset = Electricity.objects.filter(bank_id=bank_id).order_by('-created_on')
-            queryset = self.paginate_queryset(queryset, request)
-            serializer = ElectricitySerializer(queryset, many=True).data
-
         else:
             return Response({"detail": "Invalid bill type selected"}, status=status.HTTP_400_BAD_REQUEST)
 
-        detail = self.get_paginated_response(serializer).data
-        data["detail"] = detail
+        if search:
+            query &= search_param
+
+        result = model_class.objects.filter(query).distinct().order_by('-created_on')
+        queryset = self.paginate_queryset(result, request)
+        serializer = serializer_class(queryset, many=True).data
+
+        if download == "true":
+            data = {"detail": serializer}
+        else:
+            data = {"detail": self.get_paginated_response(serializer).data}
 
         return Response(data)
 
