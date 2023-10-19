@@ -47,7 +47,7 @@ class MandateLoginAPIView(APIView):
 
         mandate = get_object_or_404(Mandate, user=user)
         if mandate.institution.customerID != customer_id:
-            return Response({"detail": "Invalid Customer ID"})
+            return Response({"detail": "Invalid Customer ID"}, status=status.HTTP_400_BAD_REQUEST)
         check_mandate_password_pin_otp(mandate, active=1)
         data = get_account_balance(mandate.institution, "corporate")
         data.update({"mandate": MandateSerializerOut(mandate, context={"request": request}).data})
