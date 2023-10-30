@@ -53,6 +53,7 @@ class Bank(models.Model):
     savings_product_code = models.IntegerField(blank=True, null=True)
     tm_notification = models.TextField(blank=True, null=True)
     bill_payment_charges = models.DecimalField(max_digits=20, decimal_places=2, default=100)
+    transfer_fee = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True)
     auth_token = models.TextField(blank=True, null=True)
     institution_code = models.TextField(blank=True, null=True)
     mfb_code = models.TextField(blank=True, null=True)
