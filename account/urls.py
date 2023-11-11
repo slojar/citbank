@@ -49,7 +49,12 @@ urlpatterns = [
     path('card/', views.CardOperationAPIView.as_view(), name="cards"),
     path('fixed-deposit/<int:bank_id>', views.FixDepositAPIView.as_view(), name="fixed-deposit"),
 
-    path('dispute/', views.RegisterDisputeAPIView.as_view(), name="dispute")
+    path('dispute/', views.RegisterDisputeAPIView.as_view(), name="dispute"),
+
+    # Payattitude
+    path('pay-with-phone/', views.PayWithPhone.as_view(), name="pay-with-phone"),
+    path('validate-phone', views.ValidatePhoneNumberForPayattitude.as_view(), name="validate-phone-number"),
+    path('payattitude-verify', views.StatusVerificationForPayattitude.as_view(), name="verify-payattitude"),
 ]
 
 

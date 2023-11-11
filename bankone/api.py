@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 
 from account.models import CustomerAccount, CustomerOTP, Customer, Transaction
 from account.utils import decrypt_text
+from payattitude.api import single_register
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
@@ -439,6 +440,10 @@ def bankone_create_new_customer(data, account_no, bank):
         if not account['AccountStatus'] == "Active":
             customer_acct.active = False
         customer_acct.save()
+
+    # Register Customer on Payattitude
+    client_id = decrypt_text(bank.payattitude_client_id)
+    Thread(target=single_register, args=[client_id, first_name, last_name, phone_number, "", bvn, account_no]).start()
 
     # send email to admin
     app_reg = str(bank.registration_email)

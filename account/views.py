@@ -17,17 +17,20 @@ from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
-from billpayment.models import Airtime, Data, CableTV, Electricity
+from billpayment.models import Airtime, Data, CableTV, Electricity, BillPaymentReversal
+from citbank.exceptions import raise_serializer_error_msg
 from citbank.throttle import AnonymousThrottle
 from coporate.models import Mandate
 from .paginations import CustomPagination
-from .serializers import CustomerSerializer, TransferSerializer, BeneficiarySerializer, BankSerializer
+from .serializers import CustomerSerializer, TransferSerializer, BeneficiarySerializer, BankSerializer, \
+    ValidatePhoneSerializerIn
 from .utils import authenticate_user, generate_new_otp, \
     decrypt_text, encrypt_text, confirm_trans_pin, open_account_with_banks, get_account_balance, \
     get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
     get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, get_account_officer, \
     get_bank_flex_balance, perform_bank_transfer, perform_name_query, retrieve_customer_card, block_or_unblock_card, \
-    perform_bvn_validation, get_fix_deposit_accounts, create_or_update_bank
+    perform_bvn_validation, get_fix_deposit_accounts, create_or_update_bank, format_phone_number, \
+    decrypt_payattitude_data, check_account_status, authorize_payattitude_payment
 
 from bankone.api import bankone_get_account_by_account_no, bankone_send_otp_message, bankone_create_new_customer, \
     generate_random_ref_code, bankone_send_email, bankone_send_statement
@@ -1007,3 +1010,61 @@ class RegisterDisputeAPIView(APIView):
         Thread(target=bankone_send_email, args=[sport, receiver, subject, message, institution_code, mfb_code]).start()
 
         return Response({"detail": "Card dispute submitted successfully"})
+
+
+class PayWithPhone(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        success, data = authorize_payattitude_payment(request)
+        return Response(data)
+
+
+class ValidatePhoneNumberForPayattitude(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        serializer = ValidatePhoneSerializerIn(data=request.data, context={"request": request})
+        serializer.is_valid() or raise_serializer_error_msg(errors=serializer.errors)
+        response = serializer.save()
+        return Response(response)
+
+
+class StatusVerificationForPayattitude(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        session_id = request.data.get("session")
+        transaction_id = request.data.get("TransactionId")
+        status_code = request.data.get("StatusCode")
+        # status_message = request.data.get("Status")
+        data = {"session": session_id}
+
+        # Get transaction with reference number
+        try:
+            trans = Transaction.objects.get(reference=transaction_id, transfer_type="payattitude", status="pending")
+        except Transaction.DoesNotExist:
+            data.update({"statusCode": "03", "status": "Invalid Transaction ID or not found"})
+            return Response(json.dumps(data))
+        if status_code == "00":
+            trans.status = "success"
+            trans.save()
+            data.update({"statusCode": "00", "status": "Approved"})
+
+        elif status_code == "03":
+            trans.status = "failed"
+            trans.save()
+            # Reverse customer fund
+            bank = trans.customer.bank
+            ref_code = trans.reference
+            date_today = datetime.datetime.now().date()
+            BillPaymentReversal.objects.create(transaction_reference=ref_code, transaction_date=str(date_today),
+                                               bank=bank, payment_type="payattitude")
+            data.update({"statusCode": "00", "status": "Approved"})
+        else:
+            data.update({"statusCode": "03", "status": "Invalid/Unknown statusCode"})
+
+        return Response(json.dumps(data))
+
+
+

@@ -3,7 +3,7 @@ from django.conf import settings
 from bankone.api import bankone_get_banks
 from .models import Customer, CustomerAccount, Transaction, Beneficiary, Bank, AccountRequest
 from rest_framework import serializers
-from .utils import decrypt_text
+from .utils import decrypt_text, format_phone_number
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
@@ -116,5 +116,33 @@ class AccountRequestSerializer(serializers.ModelSerializer):
         model = AccountRequest
         exclude = []
 
+
+class ValidatePhoneSerializerIn(serializers.Serializer):
+    phone = serializers.CharField()
+
+    def create(self, validated_data):
+        phone_number = validated_data.get("phone")
+        ph_no = format_phone_number(phone_number)
+        try:
+            name = Customer.objects.get(phone_number=ph_no).get_full_name()
+            accounts = [
+                str(account.account_no) for account in
+                CustomerAccount.objects.filter(customer__phone_number=ph_no)
+            ]
+            data = {
+                "Status": "00",
+                "Success": True,
+                "Name": name,
+                "Account": ",".join(accounts)
+            }
+        except Exception:
+            data = {
+                "Status": "Phone not found",
+                "Success": "Declined",
+                "Name": "",
+                "Account": ""
+            }
+
+        return json.dumps(data)
 
 

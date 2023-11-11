@@ -5,12 +5,13 @@ import datetime
 import decimal
 import json
 import logging
-import os.path
 import random
 import uuid
 import re
 from threading import Thread
 
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 from django.conf import settings
 from django.contrib.auth import login, authenticate
 from django.core.files.base import ContentFile
@@ -24,6 +25,8 @@ from .models import Customer, CustomerAccount, CustomerOTP, Transaction, Account
 from cryptography.fernet import Fernet
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
+encryption_key = settings.PAYATTITUDE_KEY
+encryption_iv = settings.PAYATTITUDE_IV
 
 
 def log_request(*args):
@@ -431,8 +434,8 @@ def get_bank_flex_balance(customer):
 
 
 def perform_bank_transfer(bank, request):
-    from bankone.api import bankone_get_details_by_customer_id, bankone_generate_transaction_ref_code, \
-        bankone_local_bank_transfer, bankone_other_bank_transfer, get_corporate_acct_detail
+    from bankone.api import bankone_generate_transaction_ref_code, bankone_local_bank_transfer, \
+        bankone_other_bank_transfer, get_corporate_acct_detail
 
     transfer_type = request.data.get('transfer_type')  # same_bank or other_bank
     account_number = request.data.get('account_no')
@@ -833,6 +836,7 @@ def create_or_update_bank(request, bank):
     data = request.data
     short_name = data.get("short_name")
     tm_service_id = data.get("tm_service_id")
+    payattitude_client_id = data.get("payattitude_client_id")
     institution_code = data.get("institution_code")
     mfb_code = data.get("mfb_code")
     auth_token = data.get("auth_token")
@@ -871,6 +875,8 @@ def create_or_update_bank(request, bank):
         bank.bill_payment_charges = bill_payment_charges
     if tm_service_id:
         bank.tm_service_id = encrypt_text(tm_service_id)
+    if payattitude_client_id:
+        bank.payattitude_client_id = encrypt_text(payattitude_client_id)
     if auth_token:
         bank.auth_token = encrypt_text(auth_token)
     if institution_code:
@@ -928,3 +934,130 @@ def dashboard_transaction_data(bank_id, trans_type):
     trans['monthly'] = monthly
     trans['yearly'] = yearly
     return trans
+
+
+def encrypt_payattitude_data(data):
+    cipher = AES.new(encryption_key, AES.MODE_CBC, iv=encryption_iv)
+    plain_text = bytes(data, "utf-8")
+    encrypted_text = cipher.encrypt(pad(plain_text, AES.block_size))
+    # Convert byte to hex
+    result = encrypted_text.hex()
+    return result
+
+
+def decrypt_payattitude_data(data):
+    cipher = AES.new(encryption_key, AES.MODE_CBC, iv=encryption_iv)
+    plain_text = bytes.fromhex(data)
+    decrypted_text = unpad(cipher.decrypt(plain_text), AES.block_size)
+    # Convert to string
+    result = decrypted_text.decode("utf-8")
+    return result
+
+
+def authorize_payattitude_payment(request):
+    from bankone.api import get_corporate_acct_detail, bankone_charge_customer
+    session_id = request.data.get("session")
+    amount = request.data.get("amount")
+    account_no = request.data.get("account")
+    phone_no = request.data.get("phone")
+    customer_name = request.data.get("name")
+    fee = request.data.get("fee")
+    description = request.data.get("summary")
+    user_auth = request.data.get("AuthInfo")
+    success = False
+
+    # Reformat phone number
+    phone_number = format_phone_number(phone_no)
+
+    # Check if phone number tally with account
+    customer_account = CustomerAccount.objects.get(account_no=account_no)
+    customer = customer_account.customer
+    bank = customer.bank
+    auth_pin = user_auth.get("pin")
+    total_amount = decimal.Decimal(amount) + decimal.Decimal(fee)
+    narration = f"{description}"[:100]
+    settlement_account = settings.PAYATTITUDE_SETTLEMENT_ACCOUNT
+    balance = 0
+
+    false_data = {"session": session_id, "status": "Failed", "statusCode": "03"}
+
+    if str(customer.phone_number) != str(phone_number):
+        false_data.update({"status": "Account not associated to phone number"})
+        return success, json.dumps(false_data)
+
+    # Check account status
+    result = check_account_status(customer)
+    if result is False:
+        false_data.update({"status": "Your account is locked, please contact the bank to unlock"})
+        return success, json.dumps(false_data)
+
+    # Decrypt the PIN
+    decrypted_auth_pin = decrypt_payattitude_data(auth_pin)
+    # Compare the PIN with customer PIN
+    decrypted_pin = decrypt_text(customer.transaction_pin)
+
+    if decrypted_auth_pin != decrypted_pin:
+        false_data.update({"status": "Invalid Transaction PIN"})
+        return success, json.dumps(false_data)
+
+    # Check customer balance
+    if bank.short_name in bank_one_banks:
+        # Compare amount with balance
+        token = decrypt_text(bank.auth_token)
+        account = get_corporate_acct_detail(customer.customerID, token)
+        for acct in account:
+            if acct["NUBAN"] == account_no:
+                withdraw_able = str(acct["Balance"]["WithdrawableAmount"]).replace(",", "")
+                balance = decimal.Decimal(withdraw_able) / 100
+
+        if balance <= 0:
+            false_data.update({"status": "Insufficient balance"})
+            return success, json.dumps(false_data)
+
+        if decimal.Decimal(total_amount) > balance:
+            false_data.update({"status": "Amount cannot be greater than current balance"})
+            return success, json.dumps(false_data)
+
+        code = str(uuid.uuid4().int)[:5]
+        bank_s_name = str(customer.bank.short_name.upper())
+        ref_code = f"{bank_s_name}-{code}"
+        bank_name = bank.name
+        # Create Transaction instance
+        transaction = Transaction.objects.create(
+            customer=customer, sender_acct_no=account_no, transfer_type="payattitude",
+            beneficiary_type="payattitude", beneficiary_name="PAYATTITUDE (PAY WITH PHONE)", bank_name=bank_name,
+            beneficiary_acct_no=settlement_account, amount=total_amount, narration=description, reference=ref_code
+        )
+        # Charge customer account
+        response = bankone_charge_customer(
+            account_no=account_no, amount=total_amount, trans_ref=ref_code, description=narration, auth_token=token,
+            settlement_acct=settlement_account
+        )
+        response = response.json()
+
+        if response["IsSuccessful"] is True and response["ResponseCode"] != "00":
+            transaction.status = "failed"
+            transaction.save()
+            false_data.update({"status": str(response["ResponseMessage"])})
+            return success, json.dumps(false_data)
+
+        if response["IsSuccessful"] is False:
+            transaction.status = "failed"
+            transaction.save()
+            false_data.update({"status": str(response["ResponseMessage"])})
+            return success, json.dumps(false_data)
+
+        if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+            success_data = {
+                "session": session_id, "account": account_no, "phone": phone_no, "action": "ClientPayment",
+                "current": "Authentication", "transactionId": ref_code, "amount": amount, "fee": fee,
+                "name": customer_name, "summary": narration, "statusCode": "00", "status": "Approved"
+            }
+            return True, json.dumps(success_data)
+    else:
+        false_data.update({"status": "Error locating bank, please try again later"})
+        return success, json.dumps(false_data)
+
+
+
+
