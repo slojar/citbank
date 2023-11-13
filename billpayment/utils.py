@@ -21,7 +21,8 @@ def check_balance_and_charge(user, account_no, amount, ref_code, narration, inst
             return False, "Account not found"
 
         # Check if customer status is active
-        customer = CustomerAccount.objects.get(customer__user=user, active=True, account_no=account_no).customer
+        customer = CustomerAccount.objects.filter(
+            customer__user=user, active=True, account_no=account_no).last().customer
         check = check_account_status(customer)
         if check is False:
             return False, "Your account is locked, please contact the bank to unlock"

@@ -387,7 +387,7 @@ def generate_bank_statement(request, bank, date_from, date_to, account_no, forma
             else:
                 save_file = base64.b64decode(statement_string, validate=True)
                 content = ContentFile(save_file)
-                account = CustomerAccount.objects.get(customer__bank=bank, account_no=account_no)
+                account = CustomerAccount.objects.get(customer__bank=bank, account_no=account_no, customer__isnull=False)
                 account.statement.save(f"statement_{account_no}.pdf", content)
                 account.save()
 
@@ -970,7 +970,7 @@ def authorize_payattitude_payment(request):
     phone_number = format_phone_number(phone_no)
 
     # Check if phone number tally with account
-    customer_account = CustomerAccount.objects.get(account_no=account_no)
+    customer_account = CustomerAccount.objects.get(account_no=account_no, customer__isnull=False)
     customer = customer_account.customer
     bank = customer.bank
     auth_pin = user_auth.get("pin")

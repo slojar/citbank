@@ -856,7 +856,7 @@ class AccountOfficerAPIView(APIView):
         if not CustomerAccount.objects.filter(account_no=account_no).exists():
             return Response({"detail": "User with account not found"}, status=status.HTTP_400_BAD_REQUEST)
 
-        account = CustomerAccount.objects.get(account_no=account_no)
+        account = CustomerAccount.objects.get(account_no=account_no, customer__isnull=False)
         bank = account.customer.bank
 
         data = get_account_officer(account, bank)
