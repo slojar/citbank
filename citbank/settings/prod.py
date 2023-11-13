@@ -23,14 +23,17 @@ DATABASES = {
 }
 
 # CORS
-# CORS_ALLOWED_ORIGINS = [
-#     "https://api.citmfb.com",
-#     "https://admin.citmfb.com",
-#     "https://api.bankpro.ng",
-# ]
+CORS_ALLOWED_ORIGINS = [
+    "https://api.citmfb.com",
+    "https://admin.citmfb.com",
+    "https://ibank.citmfb.com",
+    "https://api.bankpro.ng",
+    "https://ibank.kcmfb.com",
+    "https://administrator.kcmfb.com",
+]
 
-CORS_ALLOW_ALL_ORIGINS = True
-# CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+# CORS_ALLOW_ALL_ORIGINS = True
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 # Set the SECURE_PROXY_SSL_HEADER to indicate that the application is behind a proxy
 # SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -94,4 +97,12 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
+
+# PAYATTITUDE
+PAYATTITUDE_BASE_URL = env('PAYATTITUDE_BASE_URL')
+PAYATTITUDE_KEY = env('PAYATTITUDE_KEY')
+PAYATTITUDE_IV = env('PAYATTITUDE_IV')
+PAYATTITUDE_SETTLEMENT_ACCOUNT = env('PAYATTITUDE_SETTLEMENT_ACCOUNT')
+
+
 
