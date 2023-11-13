@@ -466,7 +466,7 @@ def perform_bank_transfer(bank, request):
             return False, "Required fields are account_number, beneficiary account details, and amount"
 
         # get the customer the account_number belongs to
-        customer_account = CustomerAccount.objects.get(account_no=account_number)
+        customer_account = CustomerAccount.objects.get(account_no=account_number, customer__isnull=False)
         customer = customer_account.customer
         customer_id = customer.customerID
         sender_name = customer.get_full_name()
