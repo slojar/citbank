@@ -11,7 +11,6 @@ import re
 from threading import Thread
 
 from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
 from django.conf import settings
 from django.contrib.auth import login, authenticate
 from django.core.files.base import ContentFile
@@ -26,7 +25,6 @@ from cryptography.fernet import Fernet
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 encryption_key = settings.PAYATTITUDE_KEY
-encryption_iv = settings.PAYATTITUDE_IV
 
 
 def log_request(*args):
@@ -936,22 +934,11 @@ def dashboard_transaction_data(bank_id, trans_type):
     return trans
 
 
-def encrypt_payattitude_data(data):
-    cipher = AES.new(encryption_key, AES.MODE_CBC, iv=encryption_iv)
-    plain_text = bytes(data, "utf-8")
-    encrypted_text = cipher.encrypt(pad(plain_text, AES.block_size))
-    # Convert byte to hex
-    result = encrypted_text.hex()
-    return result
-
-
-def decrypt_payattitude_data(data):
-    cipher = AES.new(encryption_key, AES.MODE_CBC, iv=encryption_iv)
-    plain_text = bytes.fromhex(data)
-    decrypted_text = unpad(cipher.decrypt(plain_text), AES.block_size)
-    # Convert to string
-    result = decrypted_text.decode("utf-8")
-    return result
+def decrypt_payattitude_pin(content, key):
+    data = bytes.fromhex(content)
+    cipher = AES.new(key, AES.MODE_ECB)
+    decrypted_data = cipher.decrypt(data)
+    return decrypted_data.decode('utf-8')
 
 
 def authorize_payattitude_payment(request):
@@ -991,8 +978,10 @@ def authorize_payattitude_payment(request):
         false_data.update({"status": "Your account is locked, please contact the bank to unlock"})
         return success, json.dumps(false_data)
 
-    # Decrypt the PIN
-    decrypted_auth_pin = decrypt_payattitude_data(auth_pin)
+    # Decrypt the Authentication PIN
+    key = bytes.fromhex(encryption_key)
+    decrypted_auth_pin = str(decrypt_payattitude_pin(auth_pin, key))[:4]
+
     # Compare the PIN with customer PIN
     decrypted_pin = decrypt_text(customer.transaction_pin)
 

@@ -1,12 +1,9 @@
 import datetime
-import decimal
 import json
 import uuid
-import requests
 from threading import Thread
 
 from django.db.models import Q, Sum
-from django.contrib.auth.models import User
 from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -24,16 +21,15 @@ from coporate.models import Mandate
 from .paginations import CustomPagination
 from .serializers import CustomerSerializer, TransferSerializer, BeneficiarySerializer, BankSerializer, \
     ValidatePhoneSerializerIn
-from .utils import authenticate_user, generate_new_otp, \
-    decrypt_text, encrypt_text, confirm_trans_pin, open_account_with_banks, get_account_balance, \
-    get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
-    get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, get_account_officer, \
-    get_bank_flex_balance, perform_bank_transfer, perform_name_query, retrieve_customer_card, block_or_unblock_card, \
-    perform_bvn_validation, get_fix_deposit_accounts, create_or_update_bank, format_phone_number, \
-    decrypt_payattitude_data, check_account_status, authorize_payattitude_payment
+from .utils import authenticate_user, generate_new_otp, decrypt_text, encrypt_text, open_account_with_banks, \
+    get_account_balance, get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
+    get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, \
+    get_account_officer, get_bank_flex_balance, perform_bank_transfer, perform_name_query, retrieve_customer_card, \
+    block_or_unblock_card, perform_bvn_validation, get_fix_deposit_accounts, create_or_update_bank, \
+    authorize_payattitude_payment
 
 from bankone.api import bankone_get_account_by_account_no, bankone_send_otp_message, bankone_create_new_customer, \
-    generate_random_ref_code, bankone_send_email, bankone_send_statement
+    bankone_send_email, bankone_send_statement
 from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
