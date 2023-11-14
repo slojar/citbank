@@ -980,7 +980,7 @@ def authorize_payattitude_payment(request):
 
     # Decrypt the Authentication PIN
     key = bytes.fromhex(encryption_key)
-    decrypted_auth_pin = str(decrypt_payattitude_pin(auth_pin, key))[:4]
+    decrypted_auth_pin = str(decrypt_payattitude_pin(auth_pin, key))[:6]
 
     # Compare the PIN with customer PIN
     decrypted_pin = decrypt_text(customer.transaction_pin)
