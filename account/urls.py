@@ -52,7 +52,7 @@ urlpatterns = [
     path('dispute/', views.RegisterDisputeAPIView.as_view(), name="dispute"),
 
     # Payattitude
-    path('pay-with-phone/', views.PayWithPhone.as_view(), name="pay-with-phone"),
+    path('pay-with-phone', views.PayWithPhone.as_view(), name="pay-with-phone"),
     path('validate-phone', views.ValidatePhoneNumberForPayattitude.as_view(), name="validate-phone-number"),
     path('payattitude-verify', views.StatusVerificationForPayattitude.as_view(), name="verify-payattitude"),
 ]
