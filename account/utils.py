@@ -949,6 +949,7 @@ def authorize_payattitude_payment(request):
     phone_no = request.data.get("phone")
     customer_name = request.data.get("name")
     fee = request.data.get("fee")
+    channel = request.data.get("channel")
     description = request.data.get("summary")
     user_auth = request.data.get("AuthInfo")
     success = False
@@ -1011,11 +1012,12 @@ def authorize_payattitude_payment(request):
         bank_s_name = str(customer.bank.short_name.upper())
         ref_code = f"{bank_s_name}-{code}"
         bank_name = bank.name
+        transaction_amount = float(total_amount)
         # Create Transaction instance
         transaction = Transaction.objects.create(
-            customer=customer, sender_acct_no=account_no, transfer_type="payattitude",
-            beneficiary_type="payattitude", beneficiary_name="PAYATTITUDE (PAY WITH PHONE)", bank_name=bank_name,
-            beneficiary_acct_no=settlement_account, amount=total_amount, narration=description, reference=ref_code
+            customer=customer, sender_acct_no=account_no, transfer_type="payattitude", fee=fee, channel=channel,
+            beneficiary_type="payattitude", beneficiary_name="BankPro (PAY WITH PHONE)", bank_name=bank_name,
+            beneficiary_acct_no=settlement_account, amount=transaction_amount, narration=description, reference=ref_code
         )
         # Charge customer account
         response = bankone_charge_customer(

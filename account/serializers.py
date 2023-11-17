@@ -102,7 +102,7 @@ class TransferSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Transaction
-        exclude = []
+        exclude = ["fee", "channel"]
 
 
 class BeneficiarySerializer(serializers.ModelSerializer):

@@ -144,6 +144,8 @@ class Transaction(models.Model):
     beneficiary_acct_no = models.CharField(max_length=200, blank=True, null=True)
     status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='pending')
     amount = models.FloatField()
+    fee = models.FloatField(blank=True, null=True)
+    channel = models.CharField(max_length=50, blank=True, null=True)
     narration = models.TextField(blank=True, null=True)
     reference = models.CharField(max_length=12, blank=True, null=True)
     created_on = models.DateTimeField(auto_now_add=True)
