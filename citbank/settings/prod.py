@@ -25,8 +25,11 @@ DATABASES = {
 # CORS
 CORS_ALLOWED_ORIGINS = [
     "https://api.citmfb.com",
+    "https://api.moneyfieldmfb.com",
     "https://admin.citmfb.com",
+    "https://admin.moneyfieldmfb.com",
     "https://ibank.citmfb.com",
+    "https://ibank.moneyfieldmfb.com",
     "https://api.bankpro.ng",
     "https://ibank.kcmfb.com",
     "https://administrator.kcmfb.com",
