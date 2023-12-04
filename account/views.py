@@ -155,7 +155,7 @@ class SignupOtpView(APIView):
             if success is False:
                 log_request(f"error-message: {detail}")
                 return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
-            return Response({"detail": "OPT sent to email and phone number"})
+            return Response({"detail": "OTP sent to email and phone number"})
         except Exception as err:
             log_request(f"error-message: {err}")
             return Response({'detail': "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
