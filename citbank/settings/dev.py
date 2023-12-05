@@ -9,8 +9,10 @@ SECRET_KEY = env('SECRET_KEY')
 # CORS
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8080",
-    "http://localhost:80",
-    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:5000",
+    "http://localhost:5050",
+    "https://api-bankpro.tm-dev.xyz",
 ]
 
 # CORS_ALLOW_ALL_ORIGINS = True
