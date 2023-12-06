@@ -750,7 +750,8 @@ def block_or_unblock_card(request):
     return True, f"Card {request_action}ed successfully"
 
 
-def perform_bvn_validation(bank, bvn):
+# def perform_bvn_validation(bank, bvn):
+def perform_bvn_validation(bank, bvn, phone):
     from bankone.api import bankone_get_bvn_detail
 
     success, detail = False, "Error occurred while retrieving BVN information"
@@ -758,8 +759,8 @@ def perform_bvn_validation(bank, bvn):
         token = decrypt_text(bank.auth_token)
         # response = bankone_get_bvn_detail(bvn, token)
         response = {"RequestStatus": True, "ResponseMessage": "Successful.", "isBvnValid": True, "bvnDetails": {
-            "BVN": f"{bvn}", "phoneNumber": "08105700750", "FirstName": "PRECIOUS", "LastName": "IGHODALO",
-            "OtherNames": "", "DOB": "25-Aug-91"}}
+            "BVN": f"{bvn}", "phoneNumber": f"{phone}", "FirstName": "PRECIOUS", "LastName": "IGHODALO",
+            "OtherNames": "", "DOB": "25-Aug-77"}}
         if "RequestStatus" in response:
             if response["RequestStatus"] is True and response["isBvnValid"] is True:
                 success, detail = True, response["bvnDetails"]
