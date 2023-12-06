@@ -13,6 +13,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5000",
     "http://localhost:5050",
     "https://api-bankpro.tm-dev.xyz",
+    "https://cit-corporate.netlify.app",
 ]
 
 # CORS_ALLOW_ALL_ORIGINS = True
