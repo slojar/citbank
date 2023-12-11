@@ -445,7 +445,7 @@ def bankone_create_new_customer(data, account_no, bank):
 
     # Register Customer on Payattitude
     client_id = decrypt_text(bank.payattitude_client_id)
-    Thread(target=single_register, args=[client_id, first_name, last_name, phone_number, "", bvn, account_no]).start()
+    # Thread(target=single_register, args=[client_id, first_name, last_name, phone_number, "", bvn, account_no]).start()
     single_register(client_id, first_name, last_name, phone_number, "", bvn, account_no)
 
     # send email to admin
