@@ -110,55 +110,55 @@ class SignupOtpView(APIView):
     permission_classes = []
 
     def post(self, request):
-        try:
-            account_no = request.data.get('account_no')
-            bank_id = request.data.get('bank_id')
+    # try:
+        account_no = request.data.get('account_no')
+        bank_id = request.data.get('bank_id')
 
-            if not account_no:
-                log_request("detail: Account number is required")
-                return Response({'detail': 'Account number is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not account_no:
+            log_request("detail: Account number is required")
+            return Response({'detail': 'Account number is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-            if CustomerAccount.objects.filter(account_no=account_no).exists():
-                log_request("detail: Account already registered")
-                return Response({'detail': 'Account already registered'}, status=status.HTTP_400_BAD_REQUEST)
+        if CustomerAccount.objects.filter(account_no=account_no).exists():
+            log_request("detail: Account already registered")
+            return Response({'detail': 'Account already registered'}, status=status.HTTP_400_BAD_REQUEST)
 
-            bank = Bank.objects.get(id=bank_id)
-            phone_number = content = subject = email = None
-            bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
-            short_name = bank.short_name
-            decrypted_token = decrypt_text(bank.auth_token)
+        bank = Bank.objects.get(id=bank_id)
+        phone_number = content = subject = email = None
+        bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
+        short_name = bank.short_name
+        decrypted_token = decrypt_text(bank.auth_token)
 
-            if bank.active is False:
-                return Response({'detail': "Error, bank is inactive"}, status=status.HTTP_400_BAD_REQUEST)
+        if bank.active is False:
+            return Response({'detail': "Error, bank is inactive"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # GET CUSTOMER PHONE NUMBER AND EMAIL
-            if short_name in bank_one_banks:
-                response = bankone_get_account_by_account_no(account_no, decrypted_token)
-                if response.status_code != 200:
-                    for response in response.json():
-                        detail = response['error-Message']
-                        log_request(f"error-message: {detail}")
-                        return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+        # GET CUSTOMER PHONE NUMBER AND EMAIL
+        if short_name in bank_one_banks:
+            response = bankone_get_account_by_account_no(account_no, decrypted_token)
+            if response.status_code != 200:
+                for response in response.json():
+                    detail = response['error-Message']
+                    log_request(f"error-message: {detail}")
+                    return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
 
-                customer_data = response.json()
-                phone_number = customer_data['CustomerDetails']['PhoneNumber']
-                email = customer_data['CustomerDetails']['Email']
-                name = str(customer_data['CustomerDetails']['Name']).split()[0]
+            customer_data = response.json()
+            phone_number = customer_data['CustomerDetails']['PhoneNumber']
+            email = customer_data['CustomerDetails']['Email']
+            name = str(customer_data['CustomerDetails']['Name']).split()[0]
 
-                otp = generate_new_otp(phone_number)
-                sh_name = str(bank.name).upper()
-                content = f"Dear {name}, \nKindly use this OTP: {otp} to complete " \
-                          f"your registration on {sh_name}."
-                subject = f"{sh_name} Registration"
-            # SEND OTP TO USER
-            success, detail = bankone_send_otp_message(phone_number, content, subject, account_no, email, bank)
-            if success is False:
-                log_request(f"error-message: {detail}")
-                return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
-            return Response({"detail": "OTP sent to email and phone number"})
-        except Exception as err:
-            log_request(f"error-message: {err}")
-            return Response({'detail': "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+            otp = generate_new_otp(phone_number)
+            sh_name = str(bank.name).upper()
+            content = f"Dear {name}, \nKindly use this OTP: {otp} to complete " \
+                      f"your registration on {sh_name}."
+            subject = f"{sh_name} Registration"
+        # SEND OTP TO USER
+        success, detail = bankone_send_otp_message(phone_number, content, subject, account_no, email, bank)
+        if success is False:
+            log_request(f"error-message: {detail}")
+            return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "OTP sent to email and phone number"})
+    # except Exception as err:
+    #     log_request(f"error-message: {err}")
+    #     return Response({'detail': "An error has occurred", "error": str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CustomerProfileView(APIView):
