@@ -53,28 +53,28 @@ class SignupView(APIView):
     permission_classes = []
 
     def post(self, request):
-        try:
-            account_no = request.data.get('account_no')
-            bank_id = request.data.get("bank_id")
+    # try:
+        account_no = request.data.get('account_no')
+        bank_id = request.data.get("bank_id")
 
-            if not account_no:
-                return Response({'detail': "Please enter account number"}, status=status.HTTP_400_BAD_REQUEST)
+        if not account_no:
+            return Response({'detail': "Please enter account number"}, status=status.HTTP_400_BAD_REQUEST)
 
-            data = request.data
-            bank = Bank.objects.get(id=bank_id)
+        data = request.data
+        bank = Bank.objects.get(id=bank_id)
 
-            if bank.active is False:
-                return Response({'detail': "Error, bank is inactive"}, status=status.HTTP_400_BAD_REQUEST)
+        if bank.active is False:
+            return Response({'detail': "Error, bank is inactive"}, status=status.HTTP_400_BAD_REQUEST)
 
-            if bank.short_name in bank_one_banks:
-                success, detail = bankone_create_new_customer(data, account_no, bank)
-                if not success:
-                    log_request(f"error-message: {detail}")
-                    return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
-                return Response({'detail': detail})
-        except Exception as ex:
-            log_request(f"error-message: {ex}")
-            return Response({'detail': "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+        if bank.short_name in bank_one_banks:
+            success, detail = bankone_create_new_customer(data, account_no, bank)
+            if not success:
+                log_request(f"error-message: {detail}")
+                return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': detail})
+    # except Exception as ex:
+    #     log_request(f"error-message: {ex}")
+    #     return Response({'detail': "An error has occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginView(APIView):
