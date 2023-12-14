@@ -7,10 +7,7 @@ baseUrl = settings.PAYATTITUDE_BASE_URL
 
 
 def get_header(client_id):
-    header = {
-        "clientID": str(client_id),
-        "Content-Type": "application/json"
-    }
+    header = json.dumps({"clientID": str(client_id), "Content-Type": "application/json"})
     return header
 
 

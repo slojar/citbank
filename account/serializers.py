@@ -34,7 +34,9 @@ class BankSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Bank
-        exclude = ["tm_service_id", "auth_token", "institution_code", "mfb_code", "auth_key_bank_flex"]
+        exclude = [
+            "tm_service_id", "auth_token", "institution_code", "mfb_code", "auth_key_bank_flex", "payattitude_client_id"
+        ]
 
 
 class CustomerAccountSerializer(serializers.ModelSerializer):
