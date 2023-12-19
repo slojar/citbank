@@ -957,6 +957,7 @@ def authorize_payattitude_payment(request):
     description = request.data.get("summary")
     user_auth = request.data.get("AuthInfo")
     success = False
+    log_request(f"DATA RECEIVED FOR PAY-BY-PHONE:\n{request.data}")
 
     # Reformat phone number
     phone_number = format_phone_number(phone_no)

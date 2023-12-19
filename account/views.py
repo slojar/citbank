@@ -1014,6 +1014,7 @@ class PayWithPhone(APIView):
 
     def post(self, request):
         success, data = authorize_payattitude_payment(request)
+        log_request(f"RESPONSE TO PAY-BY-ATTITUDE:\nSUCCESS: {success}\nRESPONSE: {data}")
         return Response(data)
 
 
