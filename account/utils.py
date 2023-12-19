@@ -990,8 +990,8 @@ def authorize_payattitude_payment(request):
     log_request(f"PayattitudePIN: {decrypted_auth_pin}")
 
     # Compare the PIN with customer PIN
-    decrypted_pin = decrypt_text(customer.transaction_pin)
-    log_request(f"CustomerPIN {decrypted_pin}")
+    decrypted_pin = str(decrypt_text(customer.transaction_pin))
+    log_request(f"CustomerPIN: {decrypted_pin}")
 
     if decrypted_auth_pin != decrypted_pin:
         false_data.update({"status": "Invalid Transaction PIN"})
