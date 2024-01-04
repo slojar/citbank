@@ -1043,7 +1043,7 @@ class StatusVerificationForPayattitude(APIView):
             trans = Transaction.objects.get(reference=transaction_id, transfer_type="payattitude", status="pending")
         except Transaction.DoesNotExist:
             data.update({"statusCode": "03", "status": "Invalid Transaction ID or not found"})
-            return Response(json.dumps(data))
+            return Response(data)
         if status_code == "00":
             trans.status = "success"
             trans.save()
@@ -1062,7 +1062,7 @@ class StatusVerificationForPayattitude(APIView):
         else:
             data.update({"statusCode": "03", "status": "Invalid/Unknown statusCode"})
 
-        return Response(json.dumps(data))
+        return Response(data)
 
 
 
