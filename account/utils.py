@@ -976,13 +976,13 @@ def authorize_payattitude_payment(request):
 
     if str(customer.phone_number) != str(phone_number):
         false_data.update({"status": "Account not associated to phone number"})
-        return success, json.dumps(false_data)
+        return success, false_data
 
     # Check account status
     result = check_account_status(customer)
     if result is False:
         false_data.update({"status": "Your account is locked, please contact the bank to unlock"})
-        return success, json.dumps(false_data)
+        return success, false_data
 
     # Decrypt the Authentication PIN
     key = bytes.fromhex(encryption_key)
@@ -995,7 +995,7 @@ def authorize_payattitude_payment(request):
 
     if decrypted_auth_pin != decrypted_pin:
         false_data.update({"status": "Invalid Transaction PIN"})
-        return success, json.dumps(false_data)
+        return success, false_data
 
     # Check customer balance
     if bank.short_name in bank_one_banks:
@@ -1010,11 +1010,11 @@ def authorize_payattitude_payment(request):
 
         if balance <= 0:
             false_data.update({"status": "Insufficient balance"})
-            return success, json.dumps(false_data)
+            return success, false_data
 
         if decimal.Decimal(total_amount) > balance:
             false_data.update({"status": "Amount cannot be greater than current balance"})
-            return success, json.dumps(false_data)
+            return success, false_data
 
         code = str(uuid.uuid4().int)[:5]
         bank_s_name = str(customer.bank.short_name.upper())
@@ -1049,15 +1049,17 @@ def authorize_payattitude_payment(request):
         # if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
         transaction.status = "success"
         transaction.save()
+        auth_code = str(uuid.uuid4()).replace("-", "").upper()[:12]
         success_data = {
             "session": session_id, "account": account_no, "phone": phone_no, "action": "ClientPayment",
             "current": "Authentication", "transactionId": ref_code, "amount": amount, "fee": fee,
-            "name": customer_name, "summary": narration, "statusCode": "00", "status": "Approved"
+            "name": customer_name, "summary": narration, "statusCode": "00", "status": "Approved", "operator": "mtn",
+            "imei": None, "imsi": None, "approvalcode": auth_code
         }
-        return True, json.dumps(success_data)
+        return True, success_data
     else:
         false_data.update({"status": "Error locating bank, please try again later"})
-        return success, json.dumps(false_data)
+        return success, false_data
 
 
 
