@@ -1109,11 +1109,11 @@ def authorize_payattitude_payment(request):
         # if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
         transaction.status = "success"
         transaction.save()
-        auth_code = str(uuid.uuid4()).replace("-", "").upper()[:12]
+        auth_code = str(uuid.uuid4()).replace("-", "").upper()[:6]
         success_data = {
             "session": session_id, "account": account_no, "phone": phone_no, "action": "ClientPayment",
             "current": "Authentication", "transactionId": ref_code, "amount": amount, "fee": fee,
-            "name": customer_name, "summary": narration, "statusCode": "00", "status": "Approved", "operator": "mtn",
+            "name": customer_name, "summary": narration, "statusCode": "00", "status": "Approved", "operator": None,
             "imei": None, "imsi": None, "approvalcode": auth_code
         }
         return True, success_data
