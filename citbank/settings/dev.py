@@ -14,7 +14,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5050",
     "https://api-bankpro.tm-dev.xyz",
     "https://cit-corporate.netlify.app",
-    "https://moneyfield-staging.vercel.app",
+    "https://moneyfield-staging.vercel.app"
 ]
 
 # CORS_ALLOW_ALL_ORIGINS = True

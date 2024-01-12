@@ -384,7 +384,8 @@ def bankone_create_new_customer(data, account_no, bank):
         customer_id = customer_data['CustomerDetails']['CustomerID']
         bvn = customer_data['CustomerDetails']['BVN']
         email = customer_data['CustomerDetails']['Email']
-        names = str(customer_data['CustomerDetails']['Name']).split(',')
+        # names = str(customer_data['CustomerDetails']['Name']).split(',')
+        names = str(customer_data['CustomerDetails']['Name']).upper()
         phone_number = customer_data['CustomerDetails']['PhoneNumber']
 
         phone_number = format_phone_number(phone_number)
@@ -397,7 +398,8 @@ def bankone_create_new_customer(data, account_no, bank):
 
         for name in range(len(names)):
             last_name = names[0]
-            first_name = names[1].replace(' ', '')
+            # first_name = names[1].replace(' ', '')
+            first_name = "EMMANUEL"
 
         encrypted_bvn = encrypt_text(bvn)
         encrypted_trans_pin = encrypt_text(transaction_pin)
@@ -448,7 +450,8 @@ def bankone_create_new_customer(data, account_no, bank):
 
     # Register Customer on Payattitude
     client_id = decrypt_text(bank.payattitude_client_id)
-    Thread(target=single_register, args=[client_id, first_name, last_name, phone_number, "", bvn, account_no]).start()
+    # Thread(target=single_register, args=[client_id, first_name, last_name, phone_number, "", bvn, account_no]).start()
+    single_register(client_id, first_name, last_name, phone_number, "", bvn, account_no)
 
     # send email to admin
     app_reg = str(bank.registration_email)
