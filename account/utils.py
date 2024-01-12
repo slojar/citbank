@@ -18,8 +18,10 @@ from django.db.models import Sum, Q
 
 from dateutil.relativedelta import relativedelta
 
+from bankone.api import generate_random_ref_code, bankone_get_acct_officer, bankone_create_account
 from coporate.models import Institution, TransferRequest
-from .models import Customer, CustomerAccount, CustomerOTP, Transaction, AccountRequest
+from tm_saas.api import perform_liveness_check
+from .models import Customer, CustomerAccount, CustomerOTP, Transaction, AccountRequest, LivenessImage
 
 from cryptography.fernet import Fernet
 
@@ -179,35 +181,87 @@ def open_account_with_banks(bank, request):
         utility = data.get("utility")
         valid_id = data.get("valid_id")
 
+        # return False, "Please upload your utility bill, validID, signature and image/picture"
+
         if not all([bvn, phone, f_name, l_name, gender, dob, nin, email, address]):
             return False, "All fields are required to open account with bank"
-        if not all([image, signature, utility, valid_id]):
-            return False, "Please upload your utility bill, validID, signature and image/picture"
+        if not all([image, signature]):
+            return False, "Please upload your signature and image/picture"
         if not (gender == "male" or gender == "female"):
             return False, "Gender can only be male or female"
 
         # REFORMAT PHONE NUMBER
         phone_no = format_phone_number(phone)
+        token = prod_code = tran_code = officer_code = signature_str = image_str = email = ""
+        if bank.customer_onboarding_type != "admin_verify":
+            token = decrypt_text(bank.auth_token)
+            prod_code = bank.savings_product_code
+            tran_code = generate_random_ref_code(bank.short_name)
+            officers = bankone_get_acct_officer(token)
+            acct_officer = random.choice(officers)
+            officer_code = acct_officer["Code"]
+            signature_str = base64.b64encode(signature.read())
+            image_str = base64.b64encode(image.read())
+            email = str(email).replace(" ", "")
 
-        # Create Account Opening Request
-        acct, _ = AccountRequest.objects.get_or_create(bank=bank, bvn=bvn, email=email)
-        acct.bvn = bvn
-        acct.phone_no = phone_no
-        acct.first_name = f_name
-        acct.last_name = l_name
-        acct.other_name = o_name
-        acct.gender = gender
-        acct.dob = dob
-        acct.nin = nin
-        acct.address = address
-        acct.signature = signature
-        acct.image = image
-        acct.utility = utility
-        acct.valid_id = valid_id
-        acct.status = "pending"
-        acct.save()
+        if bank.customer_onboarding_type == "admin_verify":
+            # Request Utility bill & Valid ID
+            if not all([utility, valid_id]):
+                return False, "Please upload your utility bill and validID"
 
-    return True, "Your request is submitted for review. You will get a response soon"
+            # Create Account Opening Request
+            acct, _ = AccountRequest.objects.get_or_create(bank=bank, bvn=bvn, email=email)
+            acct.bvn = bvn
+            acct.phone_no = phone_no
+            acct.first_name = f_name
+            acct.last_name = l_name
+            acct.other_name = o_name
+            acct.gender = gender
+            acct.dob = dob
+            acct.nin = nin
+            acct.address = address
+            acct.signature = signature
+            acct.image = image
+            acct.utility = utility
+            acct.valid_id = valid_id
+            acct.status = "pending"
+            acct.save()
+            return True, "Your request is submitted for review. You will get a response soon"
+
+        elif bank.customer_onboarding_type == "no_verify":
+            response = bankone_create_account(
+                bvnNumber=bvn, phoneNumber=phone_no, firstName=f_name, otherName=o_name, lastName=l_name, gender=gender,
+                dob=dob, nin=nin, email=email, address=address, transRef=tran_code, product_code=prod_code,
+                officerCode=officer_code, signatureString=signature_str, imageString=image_str, auth_token=token
+            )
+            if "IsSuccessful" in response and response["IsSuccessful"] is False:
+                return False, response["Message"]
+
+            return True, "Account created successfully, your account number will be sent shortly"
+
+        else:
+            # Perform liveness checks
+            # Create Image Object
+            live_image = LivenessImage.objects.create(bank=bank, image=image)
+            image_url = request.build_absolute_uri(live_image.image.url)
+
+            liveness_check = perform_liveness_check(bank, bvn, image_url)
+            if "error" in liveness_check and liveness_check["error"]["status"] is False:
+                return False, liveness_check["error"]["message"]
+
+            elif "data" in liveness_check and liveness_check["data"]["status"] is True:
+                response = bankone_create_account(
+                    bvnNumber=bvn, phoneNumber=phone_no, firstName=f_name, otherName=o_name, lastName=l_name,
+                    gender=gender,
+                    dob=dob, nin=nin, email=email, address=address, transRef=tran_code, product_code=prod_code,
+                    officerCode=officer_code, signatureString=signature_str, imageString=image_str, auth_token=token
+                )
+                if "IsSuccessful" in response and response["IsSuccessful"] is False:
+                    return False, response["Message"]
+
+                return True, "Account created successfully, your account number will be sent shortly"
+            else:
+                return False, "Error validating your identity, please retry later"
 
 
 def get_account_balance(customer, customer_type):
@@ -468,6 +522,12 @@ def perform_bank_transfer(bank, request):
         customer = customer_account.customer
         customer_id = customer.customerID
         sender_name = customer.get_full_name()
+        transfer_limit = customer.transfer_limit
+        daily_limit = customer.daily_limit
+
+        if customer.tier:
+            transfer_limit = customer.tier.transfer_limit
+            daily_limit = customer.tier.daily_limit
 
         # Check if customer status is active
         result = check_account_status(customer)
@@ -483,8 +543,8 @@ def perform_bank_transfer(bank, request):
             return False, "Account number is not valid"
 
         # Check Transfer Limit
-        if decimal.Decimal(amount) > customer.transfer_limit:
-            log_request(f"Amount sent: {decimal.Decimal(amount)}, transfer_limit: {customer.transfer_limit}")
+        if decimal.Decimal(amount) > transfer_limit:
+            log_request(f"Amount sent: {decimal.Decimal(amount)}, transfer_limit: {transfer_limit}")
             return False, "amount is greater than your limit. please contact the bank"
 
         current_limit = float(amount) + float(today_trans)
@@ -493,9 +553,9 @@ def perform_bank_transfer(bank, request):
                 Sum("amount"))["amount__sum"] or 0
 
         # Check Daily Transfer Limit
-        if current_limit > customer.daily_limit:
+        if current_limit > daily_limit:
             log_request(f"Amount to transfer:{amount}, Total Transferred today: {today_trans}, Exceed: {current_limit}")
-            return False, f"Your current daily transfer limit is NGN{customer.daily_limit}, please contact the bank"
+            return False, f"Your current daily transfer limit is NGN{daily_limit}, please contact the bank"
 
         month_transaction = Transaction.objects.filter(created_on__range=(start_date, end_date),
                                                        customer__bank=bank).count()

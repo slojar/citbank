@@ -9,8 +9,7 @@ from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 
-from account.models import CustomerAccount, CustomerOTP, Customer, Transaction
-from account.utils import decrypt_text
+from account.models import CustomerAccount, CustomerOTP, Customer, Transaction, AccountTier
 from payattitude.api import single_register
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
@@ -305,7 +304,7 @@ def bankone_freeze_or_unfreeze_card(serial_no, reason, account_no, action, auth_
 
 
 def bankone_send_otp_message(phone_number, content, subject, account_no, email, bank):
-    from account.utils import format_phone_number
+    from account.utils import format_phone_number, decrypt_text
     phone_number = format_phone_number(phone_number)
     if bank.short_name in bank_one_banks:
         email_from = str(bank.support_email)
@@ -320,7 +319,7 @@ def bankone_send_otp_message(phone_number, content, subject, account_no, email, 
 
 
 def bankone_create_new_customer(data, account_no, bank):
-    from account.utils import format_phone_number, encrypt_text
+    from account.utils import format_phone_number, encrypt_text, decrypt_text
     success = False
 
     username = data.get('username')
@@ -422,6 +421,11 @@ def bankone_create_new_customer(data, account_no, bank):
         detail = f'An error has occurred: {ex}'
         return success, detail
 
+    # Get Bank Tier
+    customer_tier = None
+    if bank.tier_account_system:
+        customer_tier, created = AccountTier.objects.get_or_create(bank=bank, tier="tier_1")
+
     customer, created = Customer.objects.get_or_create(user=user)
     customer.bank = bank
     customer.customerID = customer_id
@@ -430,6 +434,7 @@ def bankone_create_new_customer(data, account_no, bank):
     customer.phone_number = phone_number
     customer.bvn = encrypted_bvn
     customer.transaction_pin = encrypted_trans_pin
+    customer.tier = customer_tier
     customer.save()
 
     # Create customer account
@@ -589,6 +594,7 @@ def bankone_get_fixed_deposit(phone_no, auth_token):
 
 
 def bankone_send_statement(request, bank, response):
+    from account.utils import decrypt_text
     name = request.user.first_name
     email = request.data.get("email")
     date_from = request.data.get("date_from")

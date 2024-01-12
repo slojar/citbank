@@ -5,10 +5,11 @@ from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
-from rest_framework import status, views
+from rest_framework import status, views, generics
 
-from account.models import Customer, Transaction, AccountRequest
-from account.serializers import CustomerSerializer, TransferSerializer, AccountRequestSerializer
+from account.models import Customer, Transaction, AccountRequest, AccountTier, TierUpgradeRequest
+from account.serializers import CustomerSerializer, TransferSerializer, AccountRequestSerializer, \
+    AccountTierSerializerOut, AccountTierSerializerIn, AccountTierUpgradeSerializerOut, TierUpgradeApprovalSerializerIn
 from account.paginations import CustomPagination
 from account.utils import review_account_request, log_request, format_phone_number, dashboard_transaction_data
 from bankone.api import bankone_send_otp_message, bankone_check_phone_no
@@ -182,6 +183,8 @@ class AdminCustomerAPIView(views.APIView, CustomPagination):
         phone_number = request.data.get("phone_number")
         try:
             customer = get_object_or_404(Customer, id=pk, bank_id=bank_id)
+            if (customer.bank.tier_account_system is True) and (daily_limit or transfer_limit):
+                return Response({"detail": "Limits can only be changed on the tier level"}, status=status.HTTP_400_BAD_REQUEST)
             if account_status is True:
                 customer.active = True
             if account_status is False:
@@ -409,3 +412,46 @@ class InstitutionAPIView(views.APIView, CustomPagination):
 #     permission_classes = [IsAdminUser]
 #     queryset = Role.objects.all().order_by("-id")
 #     serializer_class = RoleSerializerOut
+
+
+class AccountTierUpdateAPIView(views.APIView):
+    permission_classes = [IsAdminUser]
+
+    def put(self, request, pk):
+        admin_bank = self.request.user.customer.bank
+        instance = get_object_or_404(AccountTier, bank=admin_bank, id=pk)
+        serializer = AccountTierSerializerIn(data=request.data, instance=instance)
+        serializer.is_valid() or raise_serializer_error_msg(errors=serializer.errors)
+        response = serializer.save()
+        return Response({"detail": "Tier limits updated", "data": response})
+
+
+class AccountUpgradeRequestAPIView(views.APIView, CustomPagination):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, bank_id, pk=None):
+        if pk:
+            tier_request = get_object_or_404(TierUpgradeRequest, id=pk, customer__bank_id=bank_id)
+            result = AccountTierUpgradeSerializerOut(tier_request, context={"request": request}).data
+        else:
+            query = Q(customer__bank_id=bank_id)
+            req_status = request.GET.get("status")
+            if req_status:
+                query &= Q(status=req_status)
+
+            queryset = TierUpgradeRequest.objects.filter(query).order_by("-created_on")
+            req = self.paginate_queryset(queryset, request)
+            serializer = AccountTierUpgradeSerializerOut(req, many=True, context={"request": request}).data
+            result = self.get_paginated_response(serializer).data
+        return Response(result)
+
+    def put(self, request, bank_id, pk):
+        instance = get_object_or_404(TierUpgradeRequest, customer__bank_id=bank_id, id=pk)
+        serializer = TierUpgradeApprovalSerializerIn(data=request.data, instance=instance, context={"request": request})
+        serializer.is_valid() or raise_serializer_error_msg(errors=serializer.errors)
+        response = serializer.save()
+        return Response({"detail": "Request updated", "data": response})
+
+
+
+

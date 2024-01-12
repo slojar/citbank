@@ -20,7 +20,7 @@ from citbank.throttle import AnonymousThrottle
 from coporate.models import Mandate
 from .paginations import CustomPagination
 from .serializers import CustomerSerializer, TransferSerializer, BeneficiarySerializer, BankSerializer, \
-    ValidatePhoneSerializerIn
+    ValidatePhoneSerializerIn, AccountTierUpgradeSerializerIn, AccountTierSerializerOut
 from .utils import authenticate_user, generate_new_otp, decrypt_text, encrypt_text, open_account_with_banks, \
     get_account_balance, get_previous_date, get_month_start_and_end_datetime, get_week_start_and_end_datetime, \
     get_year_start_and_end_datetime, get_transaction_history, generate_bank_statement, log_request, \
@@ -30,7 +30,7 @@ from .utils import authenticate_user, generate_new_otp, decrypt_text, encrypt_te
 
 from bankone.api import bankone_get_account_by_account_no, bankone_send_otp_message, bankone_create_new_customer, \
     bankone_send_email, bankone_send_statement
-from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank
+from .models import CustomerAccount, Customer, CustomerOTP, Transaction, Beneficiary, Bank, AccountTier
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
@@ -1063,4 +1063,19 @@ class StatusVerificationForPayattitude(APIView):
         return Response(json.dumps(data))
 
 
+class TierUpgradeAPIView(APIView):
 
+    def post(self, request):
+        serializer = AccountTierUpgradeSerializerIn(data=request.data)
+        serializer.is_valid() or raise_serializer_error_msg(errors=serializer.errors)
+        response = serializer.save()
+        return Response(response)
+
+
+class AccountTierListAPIView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = AccountTierSerializerOut
+
+    def get_queryset(self):
+        customer_bank = self.request.user.customer.bank
+        return AccountTier.objects.filter(bank=customer_bank)

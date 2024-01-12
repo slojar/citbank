@@ -1,7 +1,6 @@
 import requests
 import json
 from django.conf import settings
-from account.utils import log_request, decrypt_text
 
 baseUrl = settings.PAYATTITUDE_BASE_URL
 
@@ -15,6 +14,7 @@ def get_header(client_id):
 
 
 def single_register(client_id, f_name, l_name, phone, m_name, bvn, accout_no):
+    from account.utils import log_request
     url = f"{baseUrl}/register/single"
     header = get_header(client_id)
     payload = json.dumps({

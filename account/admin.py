@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Customer, CustomerAccount, CustomerOTP, Transaction, Beneficiary, Bank, AccountRequest
+from .models import Customer, CustomerAccount, CustomerOTP, Transaction, Beneficiary, Bank, AccountRequest, AccountTier, \
+    TierUpgradeRequest, LivenessImage
 
 
 class CustomerAccountTabularAdmin(admin.TabularInline):
@@ -24,5 +25,8 @@ admin.site.register(CustomerOTP)
 admin.site.register(Beneficiary)
 admin.site.register(Bank)
 admin.site.register(AccountRequest)
+admin.site.register(AccountTier)
+admin.site.register(TierUpgradeRequest)
+admin.site.register(LivenessImage)
 
 

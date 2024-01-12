@@ -33,6 +33,14 @@ SENDER_ACCOUNT_TYPE = (
     ('individual', 'Individual'), ('corporate', 'Corporate')
 )
 
+CUSTOMER_ONBOARDING_TYPE = (
+    ("no_verify", "No Verify"), ("admin_verify", "Admin Verify"), ("liveness_verify", "Liveness Verify")
+)
+
+ACCOUNT_TIER_CHOICES = (
+    ("tier_1", "Tier 1"), ("tier_2", "Tier 2"), ("tier_3", "Tier 3")
+)
+
 
 class Bank(models.Model):
     name = models.CharField(max_length=200)
@@ -60,12 +68,26 @@ class Bank(models.Model):
     mfb_code = models.TextField(blank=True, null=True)
     auth_key_bank_flex = models.TextField(blank=True, null=True)
     non_required_codes = models.TextField(blank=True, null=True)
+    customer_onboarding_type = models.CharField(max_length=90, choices=CUSTOMER_ONBOARDING_TYPE, default="admin_verify")
+    tier_account_system = models.BooleanField(default=False)
     app_version = models.IntegerField(default=1)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
+
+
+class AccountTier(models.Model):
+    bank = models.ForeignKey(Bank, on_delete=models.SET_NULL, null=True, blank=True)
+    tier = models.CharField(max_length=100, choices=ACCOUNT_TIER_CHOICES, default="tier_1")
+    daily_limit = models.DecimalField(max_digits=20, decimal_places=2, default=50000)
+    transfer_limit = models.DecimalField(max_digits=20, decimal_places=2, default=20000)
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.bank}: {self.tier}"
 
 
 class Customer(models.Model):
@@ -82,6 +104,7 @@ class Customer(models.Model):
     image = models.ImageField(upload_to='profile_picture', blank=True, null=True)
     daily_limit = models.DecimalField(max_digits=20, decimal_places=2, default=200000)
     transfer_limit = models.DecimalField(max_digits=20, decimal_places=2, default=100000)
+    tier = models.ForeignKey(AccountTier, on_delete=models.SET_NULL, blank=True, null=True)
     active = models.BooleanField(default=False)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
@@ -214,7 +237,28 @@ class AccountRequest(models.Model):
         return data
 
 
+class TierUpgradeRequest(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    tier = models.ForeignKey(AccountTier, on_delete=models.CASCADE)
+    utility = models.ImageField(upload_to='tier-upgrade')
+    valid_id = models.ImageField(upload_to='tier-upgrade')
+    status = models.CharField(max_length=50, choices=APPROVAL_STATUS_CHOICES, default="pending")
+    rejection_reason = models.TextField(blank=True, null=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="tapprovedby")
+    rejected_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="trejectedby")
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
 
+    def __str__(self):
+        return f"{self.customer.get_full_name()}: - {self.status}"
+
+
+class LivenessImage(models.Model):
+    bank = models.ForeignKey(Bank, on_delete=models.CASCADE)
+    image = models.ImageField(upload_to="liveness_images")
+
+    def __str__(self):
+        return f"{self.bank.name}: {self.image.url}"
 
 
 

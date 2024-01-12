@@ -10,6 +10,9 @@ urlpatterns = [
     path('<str:bank_id>/bill-payment/', views.AdminBillPaymentAPIView.as_view(), name="bill"),
     path('<str:bank_id>/account-request/', views.AdminAccountRequestAPIView.as_view(), name="account-request"),
     path('<str:bank_id>/account-request/<int:pk>/', views.AdminAccountRequestAPIView.as_view(), name="acct-req-detail"),
+    path('account-tier/<int:pk>/', views.AccountTierUpdateAPIView.as_view(), name="acct-tier"),
+    path('<str:bank_id>/tier-request/', views.AccountUpgradeRequestAPIView.as_view(), name="tupgrade"),
+    path('<str:bank_id>/tier-request/<int:pk>', views.AccountUpgradeRequestAPIView.as_view(), name="tupgrade-detail"),
 
     # Corporate Account
     # path('roles/', views.CorporateRoleListAPIView.as_view(), name="roles"),
