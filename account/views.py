@@ -1040,7 +1040,9 @@ class StatusVerificationForPayattitude(APIView):
 
         # Get transaction with reference number
         try:
-            trans = Transaction.objects.get(reference=transaction_id, transfer_type="payattitude", status="pending")
+            trans = Transaction.objects.get(
+                reference=transaction_id, transfer_type="payattitude", status="payattitude-charged"
+            )
         except Transaction.DoesNotExist:
             data.update({"statusCode": "03", "status": "Invalid Transaction ID or not found"})
             return Response(data)

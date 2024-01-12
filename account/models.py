@@ -4,7 +4,7 @@ from django.db import models
 from django.contrib.auth.models import User
 
 STATUS_CHOICES = (
-    ('pending', 'Pending'), ('failed', 'Failed'), ('success', 'Success')
+    ('pending', 'Pending'), ('failed', 'Failed'), ('success', 'Success'), ('payattitude-charged', 'Payattitude Charged')
 )
 
 TRANSFER_TYPE_CHOICES = (

@@ -1107,7 +1107,7 @@ def authorize_payattitude_payment(request):
         #     return success, json.dumps(false_data)
         #
         # if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
-        transaction.status = "success"
+        transaction.status = "payattitude-charged"
         transaction.save()
         auth_code = str(uuid.uuid4()).replace("-", "").upper()[:6]
         success_data = {
