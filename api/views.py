@@ -417,6 +417,11 @@ class InstitutionAPIView(views.APIView, CustomPagination):
 class AccountTierUpdateAPIView(views.APIView):
     permission_classes = [IsAdminUser]
 
+    def get(self, request):
+        admin_bank = self.request.user.customer.bank
+        serializer = AccountTierSerializerOut(AccountTier.objects.filter(bank=admin_bank), many=True).data
+        return Response(serializer)
+
     def put(self, request, pk):
         admin_bank = self.request.user.customer.bank
         instance = get_object_or_404(AccountTier, bank=admin_bank, id=pk)
