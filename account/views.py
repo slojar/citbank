@@ -1062,7 +1062,7 @@ class StatusVerificationForPayattitude(APIView):
                                                bank=bank, payment_type="payattitude")
             data.update({"statusCode": "00", "status": "Approved"})
         else:
-            data.update({"statusCode": "03", "status": "Invalid/Unknown statusCode"})
+            data.update({"statusCode": "00", "status": "Approved"})
 
         return Response(data)
 
