@@ -177,6 +177,7 @@ def perform_liveness_check(bank, bvn, image_url):
     payload["image"] = image_url
     response = requests.request("POST", url, data=payload, headers=header).json()
     log_request("POST", f"url: {url}", f"header: {header}", f"payload: {payload}", f"response: {response}")
+    return response
 
 
 
