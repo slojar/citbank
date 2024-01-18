@@ -652,7 +652,7 @@ class BankAPIListView(APIView):
         return Response(response)
 
     def get(self, request):
-        return Response(BankSerializer(Bank.objects.all(), many=True).data)
+        return Response(BankSerializer(Bank.objects.all().order_by("id"), many=True).data)
 
 
 class OpenAccountAPIView(APIView):
