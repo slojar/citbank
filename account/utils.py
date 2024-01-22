@@ -1065,8 +1065,8 @@ def authorize_payattitude_payment(request):
         account = get_corporate_acct_detail(customer.customerID, token)
         for acct in account:
             if acct["NUBAN"] == account_no:
-                # withdraw_able = str(acct["Balance"]["WithdrawableAmount"]).replace(",", "")
-                withdraw_able = "10000000"
+                withdraw_able = str(acct["Balance"]["WithdrawableAmount"]).replace(",", "")
+                # withdraw_able = "10000000"
                 balance = decimal.Decimal(withdraw_able) / 100
 
         if balance <= 0:
@@ -1089,38 +1089,38 @@ def authorize_payattitude_payment(request):
             beneficiary_acct_no=settlement_account, amount=transaction_amount, narration=description, reference=ref_code
         )
         # Charge customer account
-        # response = bankone_charge_customer(
-        #     account_no=account_no, amount=total_amount, trans_ref=ref_code, description=narration, auth_token=token,
-        #     settlement_acct=settlement_account
-        # )
-        # response = response.json()
-        #
-        # if response["IsSuccessful"] is True and response["ResponseCode"] != "00":
-        #     transaction.status = "failed"
-        #     transaction.save()
-        #     false_data.update({"status": str(response["ResponseMessage"])})
-        #     return success, json.dumps(false_data)
-        #
-        # if response["IsSuccessful"] is False:
-        #     transaction.status = "failed"
-        #     transaction.save()
-        #     false_data.update({"status": str(response["ResponseMessage"])})
-        #     return success, json.dumps(false_data)
-        #
-        # if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
-        transaction.status = "payattitude-charged"
-        transaction.save()
-        auth_code = str(uuid.uuid4()).replace("-", "").upper()[:6]
-        success_data = {
-            "session": session_id, "account": account_no, "phone": phone_no, "action": "ClientPayment",
-            "current": "Authentication", "transactionId": ref_code, "amount": amount, "fee": fee,
-            "name": customer_name, "summary": narration, "statusCode": "00", "status": "Approved", "operator": None,
-            "imei": None, "imsi": None, "approvalcode": auth_code
-        }
-        return True, success_data
-    else:
-        false_data.update({"status": "Error locating bank, please try again later"})
-        return success, false_data
+        response = bankone_charge_customer(
+            account_no=account_no, amount=total_amount, trans_ref=ref_code, description=narration, auth_token=token,
+            settlement_acct=settlement_account
+        )
+        response = response.json()
+
+        if response["IsSuccessful"] is True and response["ResponseCode"] != "00":
+            transaction.status = "failed"
+            transaction.save()
+            false_data.update({"status": str(response["ResponseMessage"])})
+            return success, json.dumps(false_data)
+
+        if response["IsSuccessful"] is False:
+            transaction.status = "failed"
+            transaction.save()
+            false_data.update({"status": str(response["ResponseMessage"])})
+            return success, json.dumps(false_data)
+
+        if response["IsSuccessful"] is True and response["ResponseCode"] == "00":
+            transaction.status = "payattitude-charged"
+            transaction.save()
+            auth_code = str(uuid.uuid4()).replace("-", "").upper()[:6]
+            success_data = {
+                "session": session_id, "account": account_no, "phone": phone_no, "action": "ClientPayment",
+                "current": "Authentication", "transactionId": ref_code, "amount": amount, "fee": fee,
+                "name": customer_name, "summary": narration, "statusCode": "00", "status": "Approved", "operator": None,
+                "imei": None, "imsi": None, "approvalcode": auth_code
+            }
+            return True, success_data
+        else:
+            false_data.update({"status": "Error locating bank, please try again later"})
+            return success, false_data
 
 
 

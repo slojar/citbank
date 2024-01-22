@@ -85,24 +85,24 @@ class LoginView(APIView):
 
         detail, success = authenticate_user(request)
         if success is True:
-            # try:
-            customer = Customer.objects.get(user=request.user)
-            # Check if bank is active
-            if customer.bank.active is False:
-                return Response({"detail": "Error contacting bank, please try again later"},
-                                status=status.HTTP_400_BAD_REQUEST)
+            try:
+                customer = Customer.objects.get(user=request.user)
+                # Check if bank is active
+                if customer.bank.active is False:
+                    return Response({"detail": "Error contacting bank, please try again later"},
+                                    status=status.HTTP_400_BAD_REQUEST)
 
-            if not version or version < customer.bank.app_version:
-                return Response({"detail": "Please download the latest version from your store"},
-                                status=status.HTTP_400_BAD_REQUEST)
-            data = get_account_balance(customer, "individual")
-            data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
-            return Response({
-                "detail": detail, "access_token": str(AccessToken.for_user(request.user)),
-                "refresh_token": str(RefreshToken.for_user(request.user)), 'data': data})
-            # except Exception as ex:
-            #     log_request(f"error-message: {ex}")
-            #     return Response({"detail": "An error occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+                if not version or version < customer.bank.app_version:
+                    return Response({"detail": "Please download the latest version from your store"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+                data = get_account_balance(customer, "individual")
+                data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
+                return Response({
+                    "detail": detail, "access_token": str(AccessToken.for_user(request.user)),
+                    "refresh_token": str(RefreshToken.for_user(request.user)), 'data': data})
+            except Exception as ex:
+                log_request(f"error-message: {ex}")
+                return Response({"detail": "An error occurred", "error": str(ex)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
 
 
