@@ -817,10 +817,7 @@ def perform_bvn_validation(bank, bvn, phone):
     success, detail = False, "Error occurred while retrieving BVN information"
     if bank.short_name in bank_one_banks:
         token = decrypt_text(bank.auth_token)
-        # response = bankone_get_bvn_detail(bvn, token)
-        response = {"RequestStatus": True, "ResponseMessage": "Successful.", "isBvnValid": True, "bvnDetails": {
-            "BVN": f"{bvn}", "phoneNumber": f"{phone}", "FirstName": "PRECIOUS", "LastName": "IGHODALO",
-            "OtherNames": "", "DOB": "25-Aug-77"}}
+        response = bankone_get_bvn_detail(bvn, token)
         if "RequestStatus" in response:
             if response["RequestStatus"] is True and response["isBvnValid"] is True:
                 success, detail = True, response["bvnDetails"]
