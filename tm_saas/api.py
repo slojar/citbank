@@ -171,7 +171,7 @@ def check_wallet_balance(bank):
 def perform_liveness_check(bank, bvn, image_url):
     from account.utils import log_request
     header = get_header(bank)
-    url = f"{baseUrl}/verification/verifybvnImage"
+    url = str(settings.TM_VERIFICATION_URL)
     payload = dict()
     payload["bvn"] = bvn
     payload["image"] = image_url
