@@ -1118,9 +1118,9 @@ def authorize_payattitude_payment(request):
                 "imei": None, "imsi": None, "approvalcode": auth_code
             }
             return True, success_data
-        else:
-            false_data.update({"status": "Error locating bank, please try again later"})
-            return success, false_data
+    else:
+        false_data.update({"status": "Error locating bank, please try again later"})
+        return success, false_data
 
 
 
