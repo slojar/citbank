@@ -165,6 +165,7 @@ def confirm_trans_pin(request):
 
 def open_account_with_banks(bank, request):
     data = request.data
+    created_message = "Account has been successfully created. Your account no will be sent via sms"
     if bank.short_name in bank_one_banks:
         bvn = data.get("bvn")
         phone = data.get("phone_number")
@@ -237,7 +238,7 @@ def open_account_with_banks(bank, request):
             if "IsSuccessful" in response and response["IsSuccessful"] is False:
                 return False, response["Message"]
 
-            return True, "Account created successfully, your account number will be sent shortly"
+            return True, created_message
 
         else:
             # Perform liveness checks
@@ -259,7 +260,7 @@ def open_account_with_banks(bank, request):
                 if "IsSuccessful" in response and response["IsSuccessful"] is False:
                     return False, response["Message"]
 
-                return True, "Account created successfully, your account number will be sent shortly"
+                return True, created_message
             else:
                 return False, "Error validating your identity, please retry later"
 
