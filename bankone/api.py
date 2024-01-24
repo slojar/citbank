@@ -384,8 +384,7 @@ def bankone_create_new_customer(data, account_no, bank):
         customer_id = customer_data['CustomerDetails']['CustomerID']
         bvn = customer_data['CustomerDetails']['BVN']
         email = customer_data['CustomerDetails']['Email']
-        # names = str(customer_data['CustomerDetails']['Name']).split(',')
-        names = str(customer_data['CustomerDetails']['Name']).upper()
+        names = str(customer_data['CustomerDetails']['Name']).split(',')
         phone_number = customer_data['CustomerDetails']['PhoneNumber']
 
         phone_number = format_phone_number(phone_number)
