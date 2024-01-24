@@ -398,8 +398,8 @@ def bankone_create_new_customer(data, account_no, bank):
 
         for name in range(len(names)):
             last_name = names[0]
-            # first_name = names[1].replace(' ', '')
-            first_name = "EMMANUEL"
+            first_name = names[1].replace(' ', '')
+            # first_name = "EMMANUEL"
 
         encrypted_bvn = encrypt_text(bvn)
         encrypted_trans_pin = encrypt_text(transaction_pin)
