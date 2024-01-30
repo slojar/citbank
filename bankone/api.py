@@ -423,11 +423,13 @@ def bankone_create_new_customer(data, account_no, bank):
         return success, detail
 
     # Get Bank Tier
+    customer, created = Customer.objects.get_or_create(user=user)
+
     customer_tier = None
     if bank.tier_account_system:
         customer_tier, created = AccountTier.objects.get_or_create(bank=bank, tier="tier_1")
+        customer.active = True
 
-    customer, created = Customer.objects.get_or_create(user=user)
     customer.bank = bank
     customer.customerID = customer_id
     customer.dob = customer_data['CustomerDetails']['DateOfBirth']
