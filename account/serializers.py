@@ -183,6 +183,31 @@ class AccountTierSerializerIn(serializers.Serializer):
 
 
 class AccountTierUpgradeSerializerOut(serializers.ModelSerializer):
+    bvn = serializers.SerializerMethodField()
+    customer = serializers.SerializerMethodField()
+    utility = serializers.SerializerMethodField()
+    valid_id = serializers.SerializerMethodField()
+
+    def get_utility(self, obj):
+        request = self.context.get("request")
+        if obj.utility:
+            return request.build_absolute_uri(obj.utility.url)
+        return None
+
+    def get_valid_id(self, obj):
+        request = self.context.get("request")
+        if obj.valid_id:
+            return request.build_absolute_uri(obj.valid_id.url)
+        return None
+
+    def get_bvn(self, obj):
+        if obj.customer.bvn:
+            return decrypt_text(obj.customer.bvn)
+        return None
+
+    def get_customer(self, obj):
+        return obj.customer.get_customer_detail()
+
     class Meta:
         model = TierUpgradeRequest
         exclude = []
