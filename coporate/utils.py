@@ -175,13 +175,34 @@ def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=No
 
     if Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).exists():
         next_level = Mandate.objects.filter(institution=mandate.institution, level__gt=current_level).order_by("-level").first().level
+
+    upper_level = check_upper_level_exist(mandate)
+
     if current_level == 1:
         if action == "approve":
             tran_req.checked = True
             tran_req.approved_by.add(mandate)
             # Send email to verifiers
-            for mandate_ in Mandate.objects.filter(institution=mandate.institution, level=next_level):
-                Thread(target=send_approval_notification_request, args=[mandate_]).start()
+            if upper_level:
+                for mandate_ in Mandate.objects.filter(institution=mandate.institution, level=next_level):
+                    Thread(target=send_approval_notification_request, args=[mandate_]).start()
+            else:
+                tran_req.approved = True
+                tran_req.verified = True
+                tran_req.approved_by.add(mandate)
+                tran_req.status = "approved"
+                tran_req.save()
+                # Send email to all mandate
+                for _mandates in Mandate.objects.filter(institution=mandate.institution):
+                    Thread(target=send_successful_transfer_email, args=[_mandates, tran_req]).start()
+                if tran_req.scheduled:
+                    # update transfer scheduler
+                    scheduler = tran_req.scheduler
+                    scheduler.status = "active"
+                    scheduler.save()
+                else:
+                    # Perform Transfer
+                    Thread(target=perform_corporate_transfer, args=[request, tran_req, transfer_type]).start()
 
         if action == "decline":
             tran_req.decline_reason = reject_reason
@@ -190,7 +211,7 @@ def verify_approve_transfer(request, tran_req, mandate, transfer_type, action=No
         tran_req.save()
         return tran_req
 
-    upper_level = check_upper_level_exist(mandate)
+    # upper_level = check_upper_level_exist(mandate)
 
     if upper_level:
         if not tran_req.checked:
