@@ -1028,7 +1028,7 @@ def authorize_payattitude_payment(request):
     auth_pin = user_auth.get("pin")
     total_amount = decimal.Decimal(amount) + decimal.Decimal(fee)
     narration = f"{description}"[:100]
-    settlement_account = settings.PAYATTITUDE_SETTLEMENT_ACCOUNT
+    settlement_account = bank.payattitude_settlement_account
     balance = 0
 
     false_data = {"session": session_id, "status": "Failed", "statusCode": "03"}

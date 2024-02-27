@@ -64,6 +64,7 @@ class Bank(models.Model):
     transfer_fee = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True)
     auth_token = models.TextField(blank=True, null=True)
     payattitude_client_id = models.TextField(blank=True, null=True)
+    payattitude_settlement_account = models.CharField(max_length=20, blank=True, null=True)
     institution_code = models.TextField(blank=True, null=True)
     mfb_code = models.TextField(blank=True, null=True)
     auth_key_bank_flex = models.TextField(blank=True, null=True)

@@ -181,6 +181,7 @@ class AdminCustomerAPIView(views.APIView, CustomPagination):
         daily_limit = request.data.get("daily_limit")
         transfer_limit = request.data.get("transfer_limit")
         phone_number = request.data.get("phone_number")
+        tier_id = request.data.get("tier_id")
         try:
             customer = get_object_or_404(Customer, id=pk, bank_id=bank_id)
             if (customer.bank.tier_account_system is True) and (daily_limit or transfer_limit):
@@ -201,6 +202,8 @@ class AdminCustomerAPIView(views.APIView, CustomPagination):
                 # Confirm phone number exist
                 phone_no = format_phone_number(phone_number)
                 customer.phone_number = phone_no if bankone_check_phone_no else None
+            if customer.bank.tier_account_system and tier_id:
+                customer.tier_id = tier_id
             customer.user.save()
             customer.save()
         except Exception as ex:
