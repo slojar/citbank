@@ -1,11 +1,12 @@
+import datetime
 import json
 from threading import Thread
 
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q, Sum
 
-from account.models import Bank
-from account.utils import decrypt_text
+from account.models import Bank, Transaction
+from account.utils import decrypt_text, payattitude_outbound_transfer
 from bankone.api import bankone_send_sms, bankone_log_reversal, bankone_send_email
 from billpayment.models import Electricity, BillPaymentReversal
 from tm_saas.api import retry_electricity, check_wallet_balance
@@ -78,4 +79,44 @@ def check_tm_saas_wallet_balance_cron():
                             Thread(target=bankone_send_email, args=[sender, email, subject, content, inst_code, mfb_code]).start()
 
     return "Bill Payment Balance Check Cron ran successfully"
+
+
+def perform_payattitude_settlement_cron():
+    # Get all previous day transactions
+    pos_charge = float(settings.PAYATTITUDE_SETTLEMENT_POS_CHARGE)
+    web_charge = float(settings.PAYATTITUDE_SETTLEMENT_WEB_CHARGE)
+    atm_one_charge = float(settings.PAYATTITUDE_SETTLEMENT_ATM_CHARGE_ONE)
+    atm_two_charge = float(settings.PAYATTITUDE_SETTLEMENT_ATM_CHARGE_TWO)
+    current_date = datetime.datetime.now()
+    yesterday = current_date - datetime.timedelta(days=1)
+    transactions = Transaction.objects.filter(
+        created_on__gte=yesterday.date(), created_on__lte=yesterday.date(), status="success",
+        transfer_type="payattitude"
+    )
+    # Get and sum-up all pos fee
+    total_pos_fee = transactions.filter(channel="pos").aggregate(Sum("fee"))["fee__sum"] or 0
+    pos_percent = float(total_pos_fee * pos_charge)
+    pos_commission_to_send = total_pos_fee - pos_percent
+    # Get and sum-up all web fee
+    total_web_fee = transactions.filter(channel="web").aggregate(Sum("fee"))["fee__sum"] or 0
+    web_percent = float(total_web_fee * web_charge)
+    web_commission_to_send = total_web_fee - web_percent
+    # Get and sum-up all atm fee
+    total_atm = transactions.filter(channel="atm")
+    atm_commission_to_send = 0
+    for item in total_atm:
+        fee_charged = item.fee
+        commission = atm_one_charge
+        if item.amount > 5000:
+            commission = atm_two_charge
+        # Subtract commission from fee
+        commission_to_send = fee_charged - commission
+        atm_commission_to_send += commission_to_send
+
+    total_commission_to_send = pos_commission_to_send + web_commission_to_send + atm_commission_to_send
+
+    # Send commission to payattitude
+    payattitude_outbound_transfer(total_commission_to_send, yesterday.date())
+    return "Payattitude Settlement Ran Successfully"
+
 

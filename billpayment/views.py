@@ -10,7 +10,8 @@ from rest_framework.views import APIView
 
 from account.models import Customer
 from account.utils import confirm_trans_pin, log_request
-from billpayment.cron import retry_eko_elect_cron, bill_payment_reversal_cron, check_tm_saas_wallet_balance_cron
+from billpayment.cron import retry_eko_elect_cron, bill_payment_reversal_cron, check_tm_saas_wallet_balance_cron, \
+    perform_payattitude_settlement_cron
 from billpayment.models import Airtime, Data, CableTV, BillPaymentReversal, Electricity
 from billpayment.utils import check_balance_and_charge, vend_electricity
 from coporate.models import Mandate
@@ -594,4 +595,13 @@ class CheckTMSaaSBalanceCronView(APIView):
     def get(self, request):
         response = check_tm_saas_wallet_balance_cron()
         return Response({"detail": response})
+
+
+class PayattitudeSettlementCronView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        response = perform_payattitude_settlement_cron()
+        return Response({"detail": response})
+
 

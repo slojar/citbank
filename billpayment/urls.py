@@ -18,4 +18,5 @@ urlpatterns = [
     path('retry-elect/', views.RetryElectricityCronView.as_view(), name="retry-elect"),
     path('bill-reversal/', views.BillPaymentReversalCronView.as_view(), name="bill-reversal"),
     path('check-balance/', views.CheckTMSaaSBalanceCronView.as_view(), name="check-balance"),
+    path('payattitude-settlement/', views.PayattitudeSettlementCronView.as_view(), name="payattitude-settlement"),
 ]

@@ -10,6 +10,7 @@ import uuid
 import re
 from threading import Thread
 
+import requests
 from Crypto.Cipher import AES
 from django.conf import settings
 from django.contrib.auth import login, authenticate
@@ -17,11 +18,13 @@ from django.core.files.base import ContentFile
 from django.db.models import Sum, Q
 
 from dateutil.relativedelta import relativedelta
+from django.utils.crypto import get_random_string
 
 from bankone.api import generate_random_ref_code, bankone_get_acct_officer, bankone_create_account
 from coporate.models import Institution, TransferRequest
 from tm_saas.api import perform_liveness_check
-from .models import Customer, CustomerAccount, CustomerOTP, Transaction, AccountRequest, LivenessImage
+from .models import Customer, CustomerAccount, CustomerOTP, Transaction, AccountRequest, LivenessImage, \
+    PayattitudeSettlementLog
 
 from cryptography.fernet import Fernet
 
@@ -1033,6 +1036,10 @@ def authorize_payattitude_payment(request):
 
     false_data = {"session": session_id, "status": "Failed", "statusCode": "03"}
 
+    if not bank.payattitude_is_active:
+        false_data.update({"status": "Operation not allowed by your bank"})
+        return success, false_data
+
     if str(customer.phone_number) != str(phone_number):
         false_data.update({"status": "Account not associated to phone number"})
         return success, false_data
@@ -1121,5 +1128,37 @@ def authorize_payattitude_payment(request):
         return success, false_data
 
 
+def payattitude_outbound_transfer(amount, date):
+    reference = get_random_string(length=16, allowed_chars="1234567890")
+    trx_id = get_random_string(length=16, allowed_chars="1234567890")
+    payattitude_gl_account_no = settings.PAYATTITUDE_SETTLEMENT_ACCOUNT
+    payattitude_gl_account_name = settings.PAYATTITUDE_SETTLEMENT_ACCOUNT_NAME
+    payattitude_gl_bank_code = settings.PAYATTITUDE_SETTLEMENT_ACCOUNT_BANK_CODE
+    sender_name = settings.PAYATTITUDE_SETTLEMENT_SENDER_NAME
+    sender_bank_code = settings.PAYATTITUDE_SETTLEMENT_SENDER_BANK_CODE
+    url = settings.PAYATTITUDE_SETTLEMENT_URL
+    description = f"Payattitude settlement for {date}"
+    xml_content_type = "application/xml"
+    header = dict()
+    header['Content-Type'] = xml_content_type
+    header['Accept'] = xml_content_type
+    payload = "<Credit>" \
+              f"<TrxId>{reference}</TrxId>" \
+              f"<RefId>{trx_id}</RefId>" \
+              f"<BeneficiaryAccountNo>{payattitude_gl_account_no}</BeneficiaryAccountNo>" \
+              f"<BeneficiaryName>{payattitude_gl_account_name}</BeneficiaryName>" \
+              f"<BeneficiaryBank>{payattitude_gl_bank_code}</BeneficiaryBank>" \
+              f"<SenderName>{sender_name}</SenderName>" \
+              f"<SenderBank>{sender_bank_code}</SenderBank>" \
+              f"<Amount>{amount}</Amount>" \
+              "<Fee></Fee>" \
+              f"<Narration>{description}</Narration>" \
+              "</Credit>"
+    log_request(url, header, payload)
+    response = requests.request('POST', url, headers=header, data=payload)
+    log_request(response.text)
+    # Log transaction
+    PayattitudeSettlementLog.objects.create(response=response, payload=payload)
+    return True
 
 

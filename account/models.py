@@ -63,6 +63,7 @@ class Bank(models.Model):
     bill_payment_charges = models.DecimalField(max_digits=20, decimal_places=2, default=100)
     transfer_fee = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True)
     auth_token = models.TextField(blank=True, null=True)
+    payattitude_is_active = models.BooleanField(default=False)
     payattitude_client_id = models.TextField(blank=True, null=True)
     payattitude_settlement_account = models.CharField(max_length=20, blank=True, null=True)
     institution_code = models.TextField(blank=True, null=True)
@@ -262,6 +263,13 @@ class LivenessImage(models.Model):
         return f"{self.bank.name}: {self.image.url}"
 
 
+class PayattitudeSettlementLog(models.Model):
+    payload = models.TextField()
+    response = models.TextField()
+    created_on = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.response} - {self.created_on}"
 
 
 
