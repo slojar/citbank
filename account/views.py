@@ -95,7 +95,21 @@ class LoginView(APIView):
                 if not version or version < customer.bank.app_version:
                     return Response({"detail": "Please download the latest version from your store"},
                                     status=status.HTTP_400_BAD_REQUEST)
-                data = get_account_balance(customer, "individual")
+                # data = get_account_balance(customer, "individual")
+                data = dict()
+                customer_account = [
+                    {
+                        "account_no": "1029838888",
+                        "ledger_balance": 120000,
+                        "withdrawable_balance": 119500,
+                        "available_balance": 119500,
+                        "kyc_level": "1",
+                        "account_type": "savings",
+                        "product_code": "104",
+                        "bank_acct_no": "87654342343546789"
+                    }
+                ]
+                data["account_balances"] = customer_account
                 data.update({"customer": CustomerSerializer(customer, context={"request": request}).data})
                 return Response({
                     "detail": detail, "access_token": str(AccessToken.for_user(request.user)),
