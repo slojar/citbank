@@ -22,17 +22,17 @@ class BankSerializer(serializers.ModelSerializer):
                 return image
             return obj.logo.url
 
-    # def get_nip_banks(self, obj):
-    #     result = list()
-    #     if obj.short_name in bank_one_banks:
-    #         token = decrypt_text(obj.auth_token)
-    #         response = bankone_get_banks(token)
-    #         for res in response:
-    #             data = dict()
-    #             data["bank_name"] = res["Name"]
-    #             data["bank_code"] = res["Code"]
-    #             result.append(data)
-    #     return result
+    def get_nip_banks(self, obj):
+        result = list()
+        if obj.short_name in bank_one_banks:
+            token = decrypt_text(obj.auth_token)
+            response = bankone_get_banks(token)
+            for res in response:
+                data = dict()
+                data["bank_name"] = res["Name"]
+                data["bank_code"] = res["Code"]
+                result.append(data)
+        return result
 
     class Meta:
         model = Bank

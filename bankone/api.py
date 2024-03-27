@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 
 from account.models import CustomerAccount, CustomerOTP, Customer, Transaction, AccountTier
 from payattitude.api import single_register
+from tm_saas.api import send_tmsaas_sms
 
 bank_one_banks = json.loads(settings.BANK_ONE_BANKS)
 
@@ -306,6 +307,14 @@ def bankone_freeze_or_unfreeze_card(serial_no, reason, account_no, action, auth_
 def bankone_send_otp_message(phone_number, content, subject, account_no, email, bank):
     from account.utils import format_phone_number, decrypt_text
     phone_number = format_phone_number(phone_number)
+    detail = 'OTP successfully sent'
+    if bank.tm_sms:
+        # Truncate character length to 120
+        new_content = str(content)[:119]
+        # Send sms using TMSaaS
+        Thread(target=send_tmsaas_sms, args=[bank, new_content, phone_number]).start()
+        return True, detail
+
     if bank.short_name in bank_one_banks:
         email_from = str(bank.support_email)
         token = decrypt_text(bank.auth_token)
@@ -313,7 +322,6 @@ def bankone_send_otp_message(phone_number, content, subject, account_no, email, 
         mfb_code = decrypt_text(bank.mfb_code)
         Thread(target=bankone_send_email, args=[email_from, email, subject, content, code, mfb_code]).start()
         Thread(target=bankone_send_sms, args=[account_no, content, phone_number, token, code, bank.short_name]).start()
-    detail = 'OTP successfully sent'
 
     return True, detail
 

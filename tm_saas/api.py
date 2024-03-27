@@ -180,5 +180,19 @@ def perform_liveness_check(bank, bvn, image_url):
     return response
 
 
+def send_tmsaas_sms(bank, content, receiver):
+    from account.utils import log_request
+    header = get_header(bank)
+    url = f"{baseUrl}/sms/send"
+    payload = json.dumps({"message": content, "senderId": bank.tm_sms_sender_id, "recipients": [receiver]})
+    log_request("POST", f"url: {url}", f"header: {header}", f"payload: {payload}")
+    response = requests.request("POST", url=url, headers=header, data=payload)
+    log_request(f"response: {response.text}")
+    return response.json()
+
+
+
+
+
 
 
